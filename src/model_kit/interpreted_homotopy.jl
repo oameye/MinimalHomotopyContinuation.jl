@@ -246,6 +246,8 @@ function (H::InterpretedHomotopy)(x::AbstractArray{<:Union{Acb, AcbRef}}, t, p =
 end
 (H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) =
     InterpretedHomotopy(H)(x, t, p)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) =
+    InterpretedHomotopy(H)(x, t, p)
 (H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) =
     InterpretedHomotopy(H)(x, t, p)
 (H::Homotopy)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, t, p = nothing) =

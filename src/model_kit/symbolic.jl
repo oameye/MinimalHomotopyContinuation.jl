@@ -265,8 +265,18 @@ julia> (x * y)([x,y] => [x+2,y+2])
  (x + 2) * (y + 2)
 ```
 """
+const _MP_SUBS_PAIR = Union{
+    Pair{<:MP.AbstractVariable, <:Any},
+    Pair{<:NTuple{N, MP.AbstractVariable}, <:NTuple{N, Any}} where {N},
+    Pair{<:Tuple{Vararg{MP.AbstractVariable}}, <:AbstractVector},
+    Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:AbstractVector},
+    Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:Tuple},
+}
 subs(ex::Basic, args...) = subs(ex, ExpressionMap(args...))
 subs(exs::AbstractArray{<:Basic}, args...) = subs.(exs, Ref(ExpressionMap(args...)))
+subs(ex::Basic, args::_MP_SUBS_PAIR...) = subs(ex, ExpressionMap(args...))
+subs(exs::AbstractArray{<:Basic}, args::_MP_SUBS_PAIR...) =
+    subs.(exs, Ref(ExpressionMap(args...)))
 
 """
     evaluate(expr::Expression, subs...)

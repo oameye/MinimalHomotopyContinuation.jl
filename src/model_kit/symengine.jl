@@ -44,6 +44,8 @@ end
 
 Expression(ex::Expression) = ex
 Expression(T) = convert(Expression, T)
+Expression(x::Base.TwicePrecision) = convert(Expression, BigFloat(x))
+Expression(x::AbstractChar) = convert(Expression, Int(x))
 
 free!(b::Expression) =
     ccall((:basic_free_stack, libsymengine), Nothing, (Ref{Expression},), b)
@@ -829,6 +831,8 @@ function (::Type{T})(x::Basic) where {T <: Union{AbstractFloat, Rational, Comple
         T(y)
     end
 end
+Arblib.Arb(x::Basic) = Arblib.Arb(BigFloat(x))
+Arblib.Arf(x::Basic) = Arblib.Arf(BigFloat(x))
 
 ##########
 ## SUBS ##

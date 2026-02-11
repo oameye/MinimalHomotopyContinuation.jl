@@ -234,6 +234,8 @@ function (F::InterpretedSystem)(x::AbstractArray{<:Union{Acb, AcbRef}}, p = noth
 end
 (F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::Nothing = nothing) =
     InterpretedSystem(F)(x, p)
+(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractVector) =
+    InterpretedSystem(F)(x, p)
 (F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractArray) =
     InterpretedSystem(F)(x, p)
 (F::System)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, p = nothing) =

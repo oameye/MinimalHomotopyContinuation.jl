@@ -75,7 +75,6 @@ import Base: @propagate_inbounds
     setindex!(MW.A, x, i)
 @propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer, j::Integer) =
     setindex!(MW.A, x, i, j)
-@propagate_inbounds Base.copyto!(MW::MatrixWorkspace, A::AbstractArray) = copyto!(MW.A, A)
 
 matrix(M::MatrixWorkspace) = M.A
 matrix(M::AbstractMatrix) = M
@@ -129,8 +128,8 @@ end
 #    coming from the LU wrapper
 function lu!(
         A::AbstractMatrix{T},
-        ipiv::Union{Vector{I}, Nothing} = nothing,
-    ) where {T, I <: Integer}
+        ipiv::Union{Nothing, AbstractVector{<:Integer}} = nothing,
+    ) where {T}
     m, n = size(A)
     minmn = min(m, n)
     # LU Factorization
