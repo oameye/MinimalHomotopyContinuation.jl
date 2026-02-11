@@ -45,7 +45,7 @@ struct MultiplicityInfo
 end
 
 function MultiplicityInfo(pathresults::Vector{<:PathResult})
-    multiple_indicator = Set{Int32}()
+    multiple_indicator = Set{Int}()
     multiplicities = compute_multiplicities(pathresults)
     for clusters in values(multiplicities), cluster in clusters
         for i in 2:length(cluster)
@@ -63,7 +63,7 @@ function MultiplicityInfo(pathresults::Vector{<:PathResult})
     return MultiplicityInfo(multiplicities, multiple_indicator)
 end
 
-function compute_multiplicities(result::Vector{<:PathResult}; kwargs...)
+function compute_multiplicities(result::Vector{<:PathResult})
     D = Dict{Int, Vector{Vector{Int}}}()
     for m in _multiplicity_clusters(solution, result)
         if haskey(D, length(m))
@@ -134,15 +134,15 @@ replicate the result.
 struct Result{PathResultT <: PathResult} <: AbstractResult
     path_results::Vector{PathResultT}
     tracked_paths::Int
-    seed::Union{Nothing, UInt32}
-    start_system::Union{Nothing, Symbol}
+    seed::UInt32
+    start_system::Symbol
     multiplicity_info::MultiplicityInfo
 end
 function Result(
         path_results::Vector{PathResultT};
-        seed::Union{Nothing, UInt32} = nothing,
+        seed::UInt32 = rand(UInt32),
         tracked_paths = length(path_results),
-        start_system = nothing,
+        start_system::Symbol = :none,
     ) where {PathResultT <: PathResult}
     multiplicity_info = MultiplicityInfo(filter(is_singular, path_results))
     assign_multiplicities!(path_results, multiplicity_info)
@@ -270,10 +270,13 @@ const AbstractResults = Union{AbstractResult, AbstractVector{<:PathResult}}
 Return all [`PathResult`](@ref)s for which satisfy the given conditions and apply,
 if provided, the function `f`.
 """
-results(R::AbstractResults; kwargs...) = results(identity, R; kwargs...)
-function results(
+results(R::Result; kwargs...) = results(identity, R; kwargs...)
+results(R::AbstractVector{<:PathResult}; kwargs...) = results(identity, R; kwargs...)
+results(R::AbstractResult; kwargs...) = results(identity, R; kwargs...)
+
+function _filtered_results(
         f::Function,
-        R::AbstractResults;
+        R;
         only_real::Bool = false,
         real_atol::Float64 = 1.0e-6,
         real_rtol::Float64 = 0.0,
@@ -282,11 +285,6 @@ function results(
         only_finite::Bool = true,
         multiple_results::Bool = false,
     )
-    if multiple_results == false && !(typeof(R) <: Results)
-        println("Warning: Since result is a ResultIterator, counting multiple results")
-        multiple_results = true
-    end
-
     filter_function =
         r ->
     (!only_real || is_real(r, real_atol, real_rtol)) &&
@@ -294,13 +292,84 @@ function results(
         (!only_singular || is_singular(r)) &&
         (!only_finite || is_finite(r)) &&
         (multiple_results || !is_multiple_result(r, R))
-    return_iter = Iterators.map(f, Iterators.filter(filter_function, R))
+    return Iterators.map(f, Iterators.filter(filter_function, R))
+end
 
-    if typeof(R) <: Results
-        return (collect(return_iter))
-    else
-        return (return_iter)
-    end
+function results(
+        f::Function,
+        R::Result;
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    return collect(
+        _filtered_results(
+            f,
+            R;
+            only_real = only_real,
+            real_atol = real_atol,
+            real_rtol = real_rtol,
+            only_nonsingular = only_nonsingular,
+            only_singular = only_singular,
+            only_finite = only_finite,
+            multiple_results = multiple_results,
+        ),
+    )
+end
+
+function results(
+        f::Function,
+        R::AbstractVector{<:PathResult};
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    return collect(
+        _filtered_results(
+            f,
+            R;
+            only_real = only_real,
+            real_atol = real_atol,
+            real_rtol = real_rtol,
+            only_nonsingular = only_nonsingular,
+            only_singular = only_singular,
+            only_finite = only_finite,
+            multiple_results = multiple_results,
+        ),
+    )
+end
+
+function results(
+        f::Function,
+        R::AbstractResult;
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    multiple_results = true
+    return _filtered_results(
+        f,
+        R;
+        only_real = only_real,
+        real_atol = real_atol,
+        real_rtol = real_rtol,
+        only_nonsingular = only_nonsingular,
+        only_singular = only_singular,
+        only_finite = only_finite,
+        multiple_results = multiple_results,
+    )
 end
 
 
@@ -326,9 +395,9 @@ julia> F = System(
     )
 julia> P = randn(ComplexF64,6)
 julia> res = solve(
-        F;
-        iterator_only = true,
-        target_parameters = P,
+        SystemProblem(F; target_parameters = P),
+        PolyhedralAlgorithm(),
+        ResultIterator,
     )
 ResultIterator
 ==============
@@ -342,18 +411,20 @@ collect(res)
 Now, `res` may be passed along to [`solve`](@ref) as
 a set of start solutions.
 ```julia 
-solve(F, res; 
-    iterator_only = true, 
-    target_parameters = randn(ComplexF64,6)
+solve(
+    ParameterHomotopyProblem(
+        F,
+        res;
+        start_parameters = P,
+        target_parameters = randn(ComplexF64, 6),
+    ),
+    ResultIterator,
 )
 ``` 
-It is possible to pass a bit-vector `B` directly to solve as bitmask: 
+It is possible to pass a bit-vector `B` directly to `solve` as bitmask: 
 ```julia 
-solve(F; 
-    iterator_only = true, 
-    bitmask = B
-)
-``` 
+solve(SystemProblem(F), PolyhedralAlgorithm(), ResultIterator; bitmask = B)
+```
 """
 struct ResultIterator{Iter, SolverT <: AbstractSolver} <: AbstractResult
     starts::Iter                       # The start solution iterator
@@ -364,23 +435,11 @@ function ResultIterator(
         starts::Iter,
         S::SolverT;
         bitmask = nothing,
-        predicate = nothing,
     ) where {Iter, SolverT <: AbstractSolver}
-
-    if first(starts) isa Number # to allow passing a single start solution
-        return ResultIterator([starts], S; bitmask = bitmask, predicate = predicate)
-    end
-
-    if isnothing(bitmask)
-        bitmask =
-            isnothing(predicate) ? nothing : BitVector([predicate(S(x)) for x in starts])
-    else
-        if !isnothing(predicate)
-            @warn "The keyword predicate will be ignored, since both bitmask and predicate are given."
-        end
-    end
     return ResultIterator{Iter, SolverT}(starts, S, bitmask)
 end
+ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask = nothing) where {SolverT <: AbstractSolver} =
+    ResultIterator([starts], S; bitmask = bitmask)
 
 seed(ri::ResultIterator) = ri.S.seed
 """
@@ -415,7 +474,7 @@ function Base.show(io::IO, ri::ResultIterator{Iter}) where {Iter}
     header = "ResultIterator"
     println(io, header)
     println(io, "="^(length(header)))
-    println(io, "•  start solutions: $(Iter.name.name)")
+    println(io, "•  start solutions: $(nameof(Iter))")
     tracker = ri.S.trackers[1]
     if tracker isa EndgameTracker
         n = typeof(tracker.tracker.homotopy)
@@ -423,7 +482,7 @@ function Base.show(io::IO, ri::ResultIterator{Iter}) where {Iter}
     elseif tracker isa PolyhedralTracker
         println(io, "•  homotopy: Polyhedral")
     end
-    return !isnothing(ri.bitmask) && println("•  filtering bitmask")
+    return !isnothing(ri.bitmask) && println(io, "•  filtering bitmask")
 end
 
 function Base.IteratorSize(ri::ResultIterator)
@@ -499,7 +558,7 @@ cache the results of `f` for each solution in `ri`.
 ```julia
 julia> @var x y;
 julia> F = System([x^3 + y^3 - 1, x + y - 1])
-julia> res = solve(F; iterator_only = true)
+julia> res = solve(SystemProblem(F), PolyhedralAlgorithm(), ResultIterator)
 julia> bm = bitmask_filter(is_real, res)
 ResultIterator
 ==============
@@ -510,7 +569,7 @@ ResultIterator
 """
 function bitmask_filter(f::Function, ri::ResultIterator)
     bm = bitmask(f, ri)
-    return (ResultIterator(ri.starts, ri.S, bm))
+    return ResultIterator(ri.starts, ri.S; bitmask = bm)
 end
 
 """
@@ -521,7 +580,7 @@ This function computes the coordinate-wise sum, or trace, of the solutions in a 
 ```julia
 julia> @var x y;
 julia> F = System([x^3 + y^3 - 1, x + y - 1])
-julia> res = solve(F; iterator_only = true)
+julia> res = solve(SystemProblem(F), PolyhedralAlgorithm(), ResultIterator)
 julia> tr = trace(res)
 2-element Vector{ComplexF64}:
  1.0 + 0.0im
@@ -565,8 +624,8 @@ end
 Count the number of results which satisfy the corresponding conditions. See also
 [`results`](@ref).
 """
-function nresults(
-        R::AbstractResults;
+function _count_results(
+        R;
         only_real::Bool = false,
         real_atol::Float64 = 1.0e-6,
         real_rtol::Float64 = 0.0,
@@ -575,11 +634,6 @@ function nresults(
         only_finite::Bool = true,
         multiple_results::Bool = false,
     )
-    if multiple_results == false && !(typeof(R) <: Results)
-        println("Warning: Since result is a ResultIterator, counting multiple results")
-        multiple_results = true
-    end
-
     return count(R) do r
         (!only_real || is_real(r, real_atol, real_rtol)) &&
             (!only_nonsingular || is_nonsingular(r)) &&
@@ -587,6 +641,73 @@ function nresults(
             (!only_finite || isfinite(r)) &&
             (multiple_results || !is_multiple_result(r, R))
     end
+end
+
+function nresults(
+        R::Result;
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    return _count_results(
+        R;
+        only_real = only_real,
+        real_atol = real_atol,
+        real_rtol = real_rtol,
+        only_nonsingular = only_nonsingular,
+        only_singular = only_singular,
+        only_finite = only_finite,
+        multiple_results = multiple_results,
+    )
+end
+
+function nresults(
+        R::AbstractVector{<:PathResult};
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    return _count_results(
+        R;
+        only_real = only_real,
+        real_atol = real_atol,
+        real_rtol = real_rtol,
+        only_nonsingular = only_nonsingular,
+        only_singular = only_singular,
+        only_finite = only_finite,
+        multiple_results = multiple_results,
+    )
+end
+
+function nresults(
+        R::AbstractResult;
+        only_real::Bool = false,
+        real_atol::Float64 = 1.0e-6,
+        real_rtol::Float64 = 0.0,
+        only_nonsingular::Bool = false,
+        only_singular::Bool = false,
+        only_finite::Bool = true,
+        multiple_results::Bool = false,
+    )
+    multiple_results = true
+    return _count_results(
+        R;
+        only_real = only_real,
+        real_atol = real_atol,
+        real_rtol = real_rtol,
+        only_nonsingular = only_nonsingular,
+        only_singular = only_singular,
+        only_finite = only_finite,
+        multiple_results = multiple_results,
+    )
 end
 
 
@@ -795,7 +916,7 @@ function Base.show(io::IO, x::Result)
         "• $(s.excess_solution) excess $(plural("solution", s.excess_solution))",
     )
     println(io, "• random_seed: ", sprint(show, seed(x)))
-    return if !isnothing(x.start_system)
+    return if x.start_system != :none
         println(io, "• start_system: :", x.start_system)
     end
 end

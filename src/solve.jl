@@ -1,5 +1,7 @@
 export solve, Solver, paths_to_track, parameter_homotopy
 
+const DEFAULT_START_SYSTEM = :none
+
 struct SolveStats
     regular::Threads.Atomic{Int}
     regular_real::Threads.Atomic{Int}
@@ -28,130 +30,17 @@ end
 
 struct Solver{T <: AbstractPathTracker} <: AbstractSolver
     trackers::Vector{T}
-    seed::Union{Nothing, UInt32}
+    seed::UInt32
     stats::SolveStats
-    start_system::Union{Nothing, Symbol}
+    start_system::Symbol
 end
 Solver(
     tracker::AbstractPathTracker;
-    seed::Union{Nothing, UInt32} = nothing,
-    start_system = nothing,
+    seed::UInt32 = rand(UInt32),
+    start_system::Symbol = DEFAULT_START_SYSTEM,
 ) = Solver([tracker], seed, SolveStats(), start_system)
 
 Base.show(io::IO, solver::Solver) = print(io, typeof(solver), "()")
-
-# Internal helper kept for transition support.
-function solver_startsolutions(
-        F::AbstractVector{Expression},
-        starts = nothing;
-        parameters = Variable[],
-        variables = setdiff(variables(F), parameters),
-        variable_ordering = variables,
-        kwargs...,
-    )
-    sys = System(
-        F,
-        variables = variable_ordering,
-        parameters = parameters,
-    )
-    return solver_startsolutions(sys, starts; kwargs...)
-end
-function solver_startsolutions(
-        F::AbstractVector{<:MP.AbstractPolynomial},
-        starts = nothing;
-        parameters = similar(MP.variables(F), 0),
-        variables = setdiff(MP.variables(F), parameters),
-        variable_ordering = variables,
-        target_parameters = nothing,
-        kwargs...,
-    )
-    if isnothing(target_parameters) && isempty(parameters)
-        sys, target_parameters = ModelKit.system_with_coefficents_as_params(
-            F,
-            variables = variable_ordering,
-        )
-    else
-        sys = System(
-            F,
-            variables = variable_ordering,
-            parameters = parameters,
-        )
-    end
-    return solver_startsolutions(sys, starts; target_parameters = target_parameters, kwargs...)
-end
-function solver_startsolutions(
-        F::Union{System, AbstractSystem},
-        starts = nothing;
-        seed = rand(UInt32),
-        start_system = :polyhedral,
-        generic_parameters = nothing,
-        p₁ = generic_parameters,
-        start_parameters = p₁,
-        p₀ = generic_parameters,
-        target_parameters = p₀,
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        kwargs...,
-    )
-    !isnothing(seed) && Random.seed!(seed)
-
-    used_start_system = nothing
-    if start_parameters !== nothing
-        tracker = parameter_homotopy_tracker(
-            F;
-            start_parameters = start_parameters,
-            target_parameters = target_parameters,
-            compile = compile,
-            kwargs...,
-        )
-    elseif start_system == :polyhedral
-        used_start_system = :polyhedral
-        tracker, starts = polyhedral(
-            F;
-            compile = compile,
-            target_parameters = target_parameters,
-            kwargs...,
-        )
-    elseif start_system == :total_degree
-        used_start_system = :total_degree
-        tracker, starts = total_degree(
-            F;
-            compile = compile,
-            target_parameters = target_parameters,
-            kwargs...,
-        )
-        try
-            first(starts)
-        catch
-            throw("The number of start solutions is zero (total degree is zero).")
-        end
-    else
-        throw(
-            KeywordArgumentException(
-                :start_system,
-                start_system,
-                "Possible values are: `:polyhedral` and `:total_degree`.",
-            ),
-        )
-    end
-
-    return Solver(tracker; seed = seed, start_system = used_start_system), starts
-end
-
-function solver_startsolutions(
-        H::Union{Homotopy, AbstractHomotopy},
-        starts = nothing;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed = nothing,
-        kwargs...,
-    )
-    unsupported_kwargs(kwargs)
-    !isnothing(seed) && Random.seed!(seed)
-    return Solver(EndgameTracker(fixed(H; compile = compile)); seed = seed), starts
-end
-
-function solver_startsolutions(args...; kwargs...)
-    throw(MethodError(solver_startsolutions, args))
-end
 
 function parameter_homotopy_tracker(
         F::Union{System, AbstractSystem};
@@ -197,14 +86,18 @@ function parameter_homotopy(
     return H
 end
 
-struct PathSolveCache{SolverT, StartsT, StopEarlyT, BitmaskT}
+struct PathSolveCache{SolverT, StartsT, StopEarlyT}
     solver::SolverT
     starts::StartsT
     stop_early_cb::StopEarlyT
     show_progress::Bool
     threading::Bool
     catch_interrupt::Bool
-    iterator_only::Bool
+end
+
+struct PathIteratorSolveCache{SolverT, StartsT, BitmaskT}
+    solver::SolverT
+    starts::StartsT
     bitmask::BitmaskT
 end
 
@@ -214,7 +107,6 @@ struct SweepSolveCache{
         TargetsT,
         TransformResultT,
         TransformParamsT,
-        BitmaskT,
     }
     solver::SolverT
     starts::StartsT
@@ -225,12 +117,18 @@ struct SweepSolveCache{
     show_progress::Bool
     threading::Bool
     catch_interrupt::Bool
-    iterator_only::Bool
+end
+
+struct SweepIteratorSolveCache{SolverT, StartsT, TargetsT, TransformParamsT, BitmaskT}
+    solver::SolverT
+    starts::StartsT
+    targets::TargetsT
+    transform_parameters::TransformParamsT
     bitmask::BitmaskT
 end
 
 function _seed!(seed)
-    !isnothing(seed) && Random.seed!(seed)
+    Random.seed!(seed)
     return nothing
 end
 
@@ -240,7 +138,6 @@ function _system_solver_startsolutions(
         show_progress::Bool = true,
     )
     _seed!(alg.seed)
-    only_non_zero = something(alg.only_non_zero, alg.only_torus)
     tracker, starts = polyhedral(
         prob.system;
         compile = alg.compile,
@@ -248,7 +145,7 @@ function _system_solver_startsolutions(
         tracker_options = alg.tracker_options,
         endgame_options = alg.endgame_options,
         only_torus = alg.only_torus,
-        only_non_zero = only_non_zero,
+        only_non_zero = alg.only_non_zero,
         show_progress = show_progress,
     )
     return Solver(tracker; seed = alg.seed, start_system = :polyhedral), starts
@@ -275,7 +172,7 @@ end
 function _parameter_solver_startsolutions(
         prob::ParameterHomotopyProblem;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
     )
@@ -288,13 +185,13 @@ function _parameter_solver_startsolutions(
         tracker_options = tracker_options,
         endgame_options = endgame_options,
     )
-    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+    return Solver(tracker; seed = seed), prob.start_solutions
 end
 
 function _sweep_solver_startsolutions(
         prob::ParameterSweepProblem;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
     )
@@ -310,13 +207,13 @@ function _sweep_solver_startsolutions(
         tracker_options = tracker_options,
         endgame_options = endgame_options,
     )
-    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+    return Solver(tracker; seed = seed), prob.start_solutions
 end
 
 function _homotopy_solver_startsolutions(
         prob::HomotopyProblem;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
     )
@@ -326,7 +223,7 @@ function _homotopy_solver_startsolutions(
         tracker_options = tracker_options,
         options = endgame_options,
     )
-    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+    return Solver(tracker; seed = seed), prob.start_solutions
 end
 
 function init(
@@ -336,8 +233,6 @@ function init(
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     solver, starts = _system_solver_startsolutions(prob, alg; show_progress = show_progress)
     return PathSolveCache(
@@ -347,9 +242,18 @@ function init(
         show_progress,
         threading,
         catch_interrupt,
-        iterator_only,
-        bitmask,
     )
+end
+
+function init(
+        prob::SystemProblem,
+        alg::PolyhedralAlgorithm,
+        ::Type{ResultIterator};
+        show_progress::Bool = true,
+        bitmask = nothing,
+    )
+    solver, starts = _system_solver_startsolutions(prob, alg; show_progress = show_progress)
+    return PathIteratorSolveCache(solver, starts, bitmask)
 end
 
 function init(
@@ -359,8 +263,6 @@ function init(
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     solver, starts = _system_solver_startsolutions(prob, alg)
     return PathSolveCache(
@@ -370,24 +272,30 @@ function init(
         show_progress,
         threading,
         catch_interrupt,
-        iterator_only,
-        bitmask,
     )
+end
+
+function init(
+        prob::SystemProblem,
+        alg::TotalDegreeAlgorithm,
+        ::Type{ResultIterator};
+        bitmask = nothing,
+    )
+    solver, starts = _system_solver_startsolutions(prob, alg)
+    return PathIteratorSolveCache(solver, starts, bitmask)
 end
 
 function init(
         prob::ParameterHomotopyProblem,
         ;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
         stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     solver, starts = _parameter_solver_startsolutions(
         prob;
@@ -403,23 +311,38 @@ function init(
         show_progress,
         threading,
         catch_interrupt,
-        iterator_only,
-        bitmask,
     )
+end
+
+function init(
+        prob::ParameterHomotopyProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    solver, starts = _parameter_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return PathIteratorSolveCache(solver, starts, bitmask)
 end
 
 function init(
         prob::ParameterSweepProblem,
         ;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     )
     solver, starts = _sweep_solver_startsolutions(
         prob;
@@ -438,7 +361,30 @@ function init(
         show_progress,
         threading,
         catch_interrupt,
-        iterator_only,
+    )
+end
+
+function init(
+        prob::ParameterSweepProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    solver, starts = _sweep_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return SweepIteratorSolveCache(
+        solver,
+        starts,
+        prob.targets,
+        prob.transform_parameters,
         bitmask,
     )
 end
@@ -447,15 +393,13 @@ function init(
         prob::HomotopyProblem,
         ;
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed::Union{Nothing, UInt32} = rand(UInt32),
+        seed::UInt32 = rand(UInt32),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
         stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     solver, starts = _homotopy_solver_startsolutions(
         prob;
@@ -471,9 +415,26 @@ function init(
         show_progress,
         threading,
         catch_interrupt,
-        iterator_only,
-        bitmask,
     )
+end
+
+function init(
+        prob::HomotopyProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    solver, starts = _homotopy_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return PathIteratorSolveCache(solver, starts, bitmask)
 end
 
 solve(prob::SystemProblem; kwargs...) = throw(
@@ -488,8 +449,6 @@ function solve(
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     return solve!(
         init(
@@ -499,8 +458,6 @@ function solve(
             show_progress = show_progress,
             threading = threading,
             catch_interrupt = catch_interrupt,
-            iterator_only = iterator_only,
-            bitmask = bitmask,
         ),
     )
 end
@@ -512,8 +469,6 @@ function solve(
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        iterator_only::Bool = false,
-        bitmask = nothing,
     ) where {F}
     return solve!(
         init(
@@ -523,8 +478,6 @@ function solve(
             show_progress = show_progress,
             threading = threading,
             catch_interrupt = catch_interrupt,
-            iterator_only = iterator_only,
-            bitmask = bitmask,
         ),
     )
 end
@@ -533,9 +486,6 @@ solve(prob::ParameterSweepProblem; kwargs...) = solve!(init(prob; kwargs...))
 solve(prob::HomotopyProblem; kwargs...) = solve!(init(prob; kwargs...))
 
 function solve!(cache::PathSolveCache)
-    if cache.iterator_only
-        return ResultIterator(cache.starts, cache.solver; bitmask = cache.bitmask)
-    end
     return solve(
         cache.solver,
         cache.starts;
@@ -547,13 +497,6 @@ function solve!(cache::PathSolveCache)
 end
 
 function solve!(cache::SweepSolveCache)
-    if cache.iterator_only
-        return map(cache.targets) do p
-            solverᵢ = deepcopy(cache.solver)
-            target_parameters!(solverᵢ, cache.transform_parameters(p))
-            ResultIterator(cache.starts, solverᵢ; bitmask = cache.bitmask)
-        end
-    end
     return solve(
         cache.solver,
         cache.starts,
@@ -567,6 +510,17 @@ function solve!(cache::SweepSolveCache)
     )
 end
 
+solve!(cache::PathIteratorSolveCache) =
+    solve(cache.solver, cache.starts, ResultIterator; bitmask = cache.bitmask)
+
+function solve!(cache::SweepIteratorSolveCache)
+    return map(cache.targets) do p
+        solverᵢ = deepcopy(cache.solver)
+        target_parameters!(solverᵢ, cache.transform_parameters(p))
+        solve(solverᵢ, cache.starts, ResultIterator; bitmask = cache.bitmask)
+    end
+end
+
 solve(S::Solver, R::Result; kwargs...) =
     solve(S, solutions(R; only_nonsingular = true); kwargs...)
 solve(S::Solver, s::AbstractVector{<:Number}; kwargs...) = solve(S, [s]; kwargs...)
@@ -574,16 +528,98 @@ solve(S::Solver, s::AbstractVector{<:Number}; kwargs...) = solve(S, [s]; kwargs.
 function solve(
         S::Solver,
         starts;
-        iterator_only::Bool = false,
-        bitmask = nothing,
         threading::Bool = Threads.nthreads() > 1,
         kwargs...,
     )
-    if iterator_only
-        return ResultIterator(starts, S; bitmask = bitmask)
-    else
-        return solve(S, collect(starts); threading = threading, kwargs...)
-    end
+    return solve(S, collect(starts); threading = threading, kwargs...)
+end
+
+solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) =
+    ResultIterator(starts, S; bitmask = bitmask)
+
+function solve(
+        prob::SystemProblem,
+        alg::PolyhedralAlgorithm,
+        ::Type{ResultIterator};
+        show_progress::Bool = true,
+        bitmask = nothing,
+    )
+    return solve!(init(prob, alg, ResultIterator; show_progress = show_progress, bitmask = bitmask))
+end
+
+function solve(
+        prob::SystemProblem,
+        alg::TotalDegreeAlgorithm,
+        ::Type{ResultIterator};
+        bitmask = nothing,
+    )
+    return solve!(init(prob, alg, ResultIterator; bitmask = bitmask))
+end
+
+function solve(
+        prob::ParameterHomotopyProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    return solve!(
+        init(
+            prob,
+            ResultIterator;
+            compile = compile,
+            seed = seed,
+            tracker_options = tracker_options,
+            endgame_options = endgame_options,
+            bitmask = bitmask,
+        ),
+    )
+end
+
+function solve(
+        prob::HomotopyProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    return solve!(
+        init(
+            prob,
+            ResultIterator;
+            compile = compile,
+            seed = seed,
+            tracker_options = tracker_options,
+            endgame_options = endgame_options,
+            bitmask = bitmask,
+        ),
+    )
+end
+
+function solve(
+        prob::ParameterSweepProblem,
+        ::Type{ResultIterator};
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::UInt32 = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        bitmask = nothing,
+    )
+    return solve!(
+        init(
+            prob,
+            ResultIterator;
+            compile = compile,
+            seed = seed,
+            tracker_options = tracker_options,
+            endgame_options = endgame_options,
+            bitmask = bitmask,
+        ),
+    )
 end
 
 function solve(
@@ -771,22 +807,11 @@ end
 function paths_to_track(
         f::Union{System, AbstractSystem};
         start_system::Symbol = :polyhedral,
-        kwargs...,
+        only_torus::Bool = false,
+        only_non_zero::Bool = only_torus,
     )
     if start_system == :polyhedral
         f_sys = f isa System ? f : System(f)
-        only_torus = get(kwargs, :only_torus, false)
-        only_torus isa Bool || throw(KeywordArgumentException(:only_torus, only_torus))
-        only_non_zero = get(kwargs, :only_non_zero, only_torus)
-        only_non_zero isa Bool ||
-            throw(KeywordArgumentException(:only_non_zero, only_non_zero))
-        extra = Dict{Symbol, Any}()
-        for (k, v) in pairs(kwargs)
-            if k ∉ (:only_torus, :only_non_zero)
-                extra[k] = v
-            end
-        end
-        unsupported_kwargs(extra)
         return paths_to_track(
             f_sys,
             Val(:polyhedral);
@@ -794,7 +819,22 @@ function paths_to_track(
             only_non_zero = only_non_zero,
         )
     elseif start_system == :total_degree
-        unsupported_kwargs(kwargs)
+        only_torus == false ||
+            throw(
+                KeywordArgumentException(
+                    :only_torus,
+                    only_torus,
+                    "This keyword is only supported when `start_system = :polyhedral`.",
+                ),
+            )
+        only_non_zero == false ||
+            throw(
+                KeywordArgumentException(
+                    :only_non_zero,
+                    only_non_zero,
+                    "This keyword is only supported when `start_system = :polyhedral`.",
+                ),
+            )
         return paths_to_track(f, Val(:total_degree))
     else
         throw(
@@ -814,14 +854,10 @@ function solve(
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        transform_result = nothing,
-        transform_parameters = nothing,
-        flatten = nothing,
-    )
-    transform_result = something(transform_result, tuple)
-    transform_parameters = something(transform_parameters, identity)
-    flatten = something(flatten, false)
-
+        transform_result::F = tuple,
+        transform_parameters::G = identity,
+        flatten::Bool = false,
+    ) where {F, G}
     n = length(target_parameters)
 
     progress = show_progress ? make_many_progress(n; delay = 0.3) : nothing
@@ -889,12 +925,13 @@ function many_solve(
     elseif isa(starts, PolyhedralStartSolutionsIterator)
         @error "Solving for many parameters with polyhedral start system is not implemented and also not recommended. Instead, one should use a two-step approach: solve a system with generic parameters, and track its solutions to the desired parameters. See https://www.juliahomotopycontinuation.org/guides/many-systems/."
     end
+    starts_buffer = starts isa AbstractArray ? starts : collect(starts)
     q = first(many_target_parameters)
     target_parameters!(solver, transform_parameters(q))
     if threading
-        res = threaded_solve(solver, collect(starts); catch_interrupt = false)
+        res = threaded_solve(solver, starts_buffer; catch_interrupt = false)
     else
-        res = serial_solve(solver, starts; catch_interrupt = false)
+        res = serial_solve(solver, starts_buffer; catch_interrupt = false)
     end
     if flatten
         results = transform_result(res, q)
@@ -905,7 +942,7 @@ function many_solve(
         results = [transform_result(res, q)]
     end
     k = 1
-    m = length(starts)
+    m = length(starts_buffer)
     update_many_progress!(progress, results, k, m; flatten = flatten)
 
 
@@ -913,9 +950,9 @@ function many_solve(
         for q in Iterators.drop(many_target_parameters, 1)
             target_parameters!(solver, transform_parameters(q))
             if threading
-                res = threaded_solve(solver, collect(starts); catch_interrupt = false)
+                res = threaded_solve(solver, starts_buffer; catch_interrupt = false)
             else
-                res = serial_solve(solver, starts; catch_interrupt = false)
+                res = serial_solve(solver, starts_buffer; catch_interrupt = false)
             end
 
             if flatten

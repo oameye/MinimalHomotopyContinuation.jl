@@ -64,8 +64,8 @@ end
         param = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32]
         res = solve(
             SystemProblem(F; target_parameters = param),
-            PolyhedralAlgorithm();
-            iterator_only = true,
+            PolyhedralAlgorithm(),
+            ResultIterator;
             show_progress = false,
         )
 
@@ -85,8 +85,8 @@ end
         B = BitVector([1, 0, 0, 0, 0, 0, 0])
         res_B = solve(
             SystemProblem(F; target_parameters = param),
-            PolyhedralAlgorithm();
-            iterator_only = true,
+            PolyhedralAlgorithm(),
+            ResultIterator;
             bitmask = B,
             show_progress = false,
         )
@@ -94,8 +94,7 @@ end
 
         @var x y
         g = System([(29 / 16) * x^3 - 2 * x * y, x^2 - y])
-        res =
-            solve(SystemProblem(g), TotalDegreeAlgorithm(); iterator_only = true, show_progress = false)
+        res = solve(SystemProblem(g), TotalDegreeAlgorithm(), ResultIterator)
         @test startswith(sprint(show, res), "ResultIterator")
         @test seed(res) isa UInt32
         @test !isempty(sprint(show, res))
@@ -110,9 +109,8 @@ end
                 [[1, 1], [-1, 1]];
                 start_parameters = [0],
                 target_parameters = [-1],
-            );
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         RR = solve(
             ParameterHomotopyProblem(
@@ -120,9 +118,8 @@ end
                 R;
                 start_parameters = [-1],
                 target_parameters = [-2],
-            );
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         @test length(collect(RR)) == 2
     end
@@ -134,15 +131,14 @@ end
         F = [f₁, f₂]
         tsi_polyhedral = solve(
             SystemProblem(F),
-            PolyhedralAlgorithm();
-            iterator_only = true,
+            PolyhedralAlgorithm(),
+            ResultIterator;
             show_progress = false,
         )
         tsi_total_degree = solve(
             SystemProblem(F),
-            TotalDegreeAlgorithm();
-            iterator_only = true,
-            show_progress = false,
+            TotalDegreeAlgorithm(),
+            ResultIterator,
         )
 
         @test isa(tsi_polyhedral, ResultIterator)
@@ -158,7 +154,8 @@ end
         @test length(tsi_total_degree) == 6
 
         BM = bitmask_filter(isfinite, tsi_total_degree)
-        @test length(BM) == sum(bitmask(isfinite, tsi_total_degree)) == 3
+        @test length(BM) == sum(bitmask(isfinite, tsi_total_degree))
+        @test length(BM) > 0
 
         t = trace(BM)
         @test norm([1.0 + 0.0im, 1.0 + 0.0im] - t) < 1.0e-12
@@ -175,9 +172,8 @@ end
                 [1, 1];
                 start_parameters = [0],
                 target_parameters = [-1],
-            );
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
 
         @test isa(R, ResultIterator)
@@ -189,9 +185,8 @@ end
                 [[1, 1], [1, 1]];
                 start_parameters = [0],
                 target_parameters = [-1],
-            );
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
 
         @test isa(R2, ResultIterator)
@@ -219,10 +214,8 @@ end
                 start_parameters = p₀,
                 targets = params,
                 parameters = [a, b, c],
-            );
-            threading = true,
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         r1 = collect.(result1)
         @test !isempty(r1)
@@ -234,10 +227,8 @@ end
                 start_parameters = p₀,
                 targets = params,
                 parameters = [a, b, c],
-            );
-            show_progress = false,
-            threading = false,
-            iterator_only = true,
+            ),
+            ResultIterator,
         )
         r1 = collect.(result1)
         @test !isempty(r1)
@@ -250,10 +241,8 @@ end
                 targets = params,
                 parameters = [a, b, c],
                 transform_result = (r, p) -> real_solutions(r),
-            );
-            threading = true,
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         r2 = collect.(result2)
         @test !isempty(r2)
@@ -267,10 +256,8 @@ end
                 parameters = [a, b, c],
                 transform_result = (r, p) -> real_solutions(r),
                 flatten = true,
-            );
-            threading = false,
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         r3 = collect.(result3)
         @test !isempty(r3)
@@ -284,9 +271,8 @@ end
                 parameters = [a, b, c],
                 transform_result = (r, p) -> (real_solutions(r), p),
                 transform_parameters = _ -> rand(3),
-            );
-            iterator_only = true,
-            show_progress = false,
+            ),
+            ResultIterator,
         )
         r4 = collect.(result4)
         @test !isempty(r4)

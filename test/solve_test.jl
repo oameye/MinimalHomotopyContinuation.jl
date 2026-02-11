@@ -441,5 +441,6 @@
         F = System([x^2 - 1])
         @test_throws MethodError solve(F)
         @test_throws MethodError solve(F, [[1.0]])
+        @test_throws MethodError solve(SystemProblem(F), TotalDegreeAlgorithm(); iterator_only = true)
     end
 end
