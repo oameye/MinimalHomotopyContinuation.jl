@@ -904,10 +904,11 @@ function track(
         x,
         t₁::Real = 1.0;
         path_number::Union{Nothing, Int} = nothing,
+        start_solution = x,
         kwargs...,
     )
     track!(endgame_tracker, x, t₁; kwargs...)
-    return PathResult(endgame_tracker, x, path_number)
+    return PathResult(endgame_tracker, start_solution, path_number)
 end
 function track(endgame_tracker::EndgameTracker, r::PathResult, t₁::Real; kwargs...)
     return track(endgame_tracker, solution(r), t₁; ω = r.ω, μ = r.μ, kwargs...)

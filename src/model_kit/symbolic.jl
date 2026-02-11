@@ -9,15 +9,15 @@ const SUBSCRIPT_TO_INT_MAP = Dict([SUBSCRIPTS[i + 1] => i for i in 0:9])
 map_subscripts(index) = join(SUBSCRIPT_MAP[c] for c in string(index))
 
 function sort_key(v::Variable)
-    name = string(ModelKit.name(v))
-    sub_start = findnext(c -> c in ModelKit.SUBSCRIPTS, name, 1)
+    name = string(Symbol(v))
+    sub_start = findnext(c -> c in SUBSCRIPTS, name, 1)
     if isnothing(sub_start)
         return name, Int[]
     end
     var_base = name[1:prevind(name, sub_start)]
     str_indices = split(name[sub_start:end], "₋")
     indices = map(str_indices) do str_index
-        digits = map(s -> ModelKit.SUBSCRIPT_TO_INT_MAP[s], collect(str_index))
+        digits = map(s -> SUBSCRIPT_TO_INT_MAP[s], collect(str_index))
         n = length(digits)
         sum([digits[n - k + 1] * 10^(k - 1) for k in 1:n])
     end
@@ -736,9 +736,9 @@ function degree(
         expanded::Bool = false,
     )
     if !expanded
-        f = ModelKit.expand(f)
+        f = expand(f)
     end
-    dicts = ModelKit.to_dict(f, vars)
+    dicts = to_dict(f, vars)
     return maximum(sum, keys(dicts))
 end
 
@@ -1099,7 +1099,7 @@ function System(
         map(support, coefficients) do A, c
             fi = Expression(0)
             for (k, a) in enumerate(eachcol(A))
-                ModelKit.add!(fi, fi, c[k] * prod(variables .^ convert.(Int, a)))
+                add!(fi, fi, c[k] * prod(variables .^ convert.(Int, a)))
             end
             fi
         end,

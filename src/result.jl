@@ -44,7 +44,7 @@ struct MultiplicityInfo
     multiple_indicator::Set{Int}
 end
 
-function MultiplicityInfo(pathresults::Vector{PathResult})
+function MultiplicityInfo(pathresults::Vector{<:PathResult})
     multiple_indicator = Set{Int32}()
     multiplicities = compute_multiplicities(pathresults)
     for clusters in values(multiplicities), cluster in clusters
@@ -131,22 +131,22 @@ The result of [`solve`](@ref). This is a wrapper around the results of each sing
 ([`PathResult`](@ref)) and it contains some additional information like a random seed to
 replicate the result.
 """
-struct Result <: AbstractResult
-    path_results::Vector{PathResult}
+struct Result{PathResultT <: PathResult} <: AbstractResult
+    path_results::Vector{PathResultT}
     tracked_paths::Int
     seed::Union{Nothing, UInt32}
     start_system::Union{Nothing, Symbol}
     multiplicity_info::MultiplicityInfo
 end
 function Result(
-        path_results::Vector{PathResult};
+        path_results::Vector{PathResultT};
         seed::Union{Nothing, UInt32} = nothing,
         tracked_paths = length(path_results),
         start_system = nothing,
-    )
+    ) where {PathResultT <: PathResult}
     multiplicity_info = MultiplicityInfo(filter(is_singular, path_results))
     assign_multiplicities!(path_results, multiplicity_info)
-    return Result(path_results, tracked_paths, seed, start_system, multiplicity_info)
+    return Result{PathResultT}(path_results, tracked_paths, seed, start_system, multiplicity_info)
 end
 
 Base.size(r::Result) = (length(r),)
@@ -156,7 +156,8 @@ Base.getindex(r::Result, I) = getindex(r.path_results, I)
 Base.iterate(r::Result) = iterate(r.path_results)
 Base.iterate(r::Result, state) = iterate(r.path_results, state)
 Base.lastindex(r::Result) = lastindex(r.path_results)
-Base.eltype(r::Type{Result}) = PathResult
+Base.eltype(::Type{Result{PathResultT}}) where {PathResultT <: PathResult} = PathResultT
+Base.eltype(::Type{Result}) = PathResult
 Base.keys(r::Result) = 1:length(r.path_results)
 Base.values(r::Result) = r.path_results
 
@@ -179,7 +180,7 @@ multiple_indicator(::AbstractResult) =
 multiple_indicator(R::Result) = R.multiplicity_info.multiple_indicator
 is_multiple_result(r::PathResult, R::AbstractResult) =
     path_number(r) ∈ multiple_indicator(R)
-is_multiple_result(r::PathResult, R::AbstractVector{PathResult}) = false
+is_multiple_result(r::PathResult, R::AbstractVector{<:PathResult}) = false
 
 
 Base.@kwdef struct ResultStatistics
@@ -353,17 +354,17 @@ solve(F;
 )
 ``` 
 """
-struct ResultIterator{Iter} <: AbstractResult
+struct ResultIterator{Iter, SolverT <: AbstractSolver} <: AbstractResult
     starts::Iter                       # The start solution iterator
-    S::AbstractSolver
+    S::SolverT
     bitmask::Union{BitVector, Nothing}  # `nothing` means no filtering
 end
 function ResultIterator(
         starts::Iter,
-        S::AbstractSolver;
+        S::SolverT;
         bitmask = nothing,
         predicate = nothing,
-    ) where {Iter}
+    ) where {Iter, SolverT <: AbstractSolver}
 
     if first(starts) isa Number # to allow passing a single start solution
         return ResultIterator([starts], S; bitmask = bitmask, predicate = predicate)
@@ -377,7 +378,7 @@ function ResultIterator(
             @warn "The keyword predicate will be ignored, since both bitmask and predicate are given."
         end
     end
-    return ResultIterator{Iter}(starts, S, bitmask)
+    return ResultIterator{Iter, SolverT}(starts, S, bitmask)
 end
 
 seed(ri::ResultIterator) = ri.S.seed
@@ -690,6 +691,13 @@ The number of solutions. See [`results`](@ref) for the possible options.
 """
 nsolutions(R::AbstractResults; only_nonsingular = true, options...) =
     nresults(R; only_nonsingular = only_nonsingular, options...)
+
+"""
+    nfinite(result; kwargs...)
+
+The number of finite endpoints.
+"""
+nfinite(R::AbstractResults; kwargs...) = nresults(R; only_finite = true, kwargs...)
 
 """
     nsingular(

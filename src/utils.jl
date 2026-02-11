@@ -3,13 +3,14 @@ export FiniteException
 ###
 ### Exceptions
 ###
-struct KeywordArgumentException <: Exception
+struct KeywordArgumentException{T} <: Exception
     key::Symbol
-    given::Any
+    given::T
     msg::String
 end
-function KeywordArgumentException(key, given)
-    return KeywordArgumentException(key, given, "")
+KeywordArgumentException(key, given) = KeywordArgumentException(key, given, "")
+function KeywordArgumentException(key, given, msg)
+    return KeywordArgumentException{typeof(given)}(key, given, String(msg))
 end
 function Base.showerror(io::IO, E::KeywordArgumentException)
     return print(io, "Invalid argument $(E.given) for $(E.key). ", E.msg)

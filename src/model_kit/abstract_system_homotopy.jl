@@ -53,7 +53,7 @@ Evaluate the given system.
 function evaluate(F::AbstractSystem, x, p = nothing)
     u = Vector{Any}(undef, size(F, 1))
     evaluate!(u, F, x, p)
-    return ModelKit.to_smallest_eltype(u)
+    return to_smallest_eltype(u)
 end
 
 """
@@ -65,7 +65,7 @@ function jacobian(F::AbstractSystem, x, p = nothing)
     u = Vector{Any}(undef, size(F, 1))
     U = Matrix{Any}(undef, size(F))
     evaluate_and_jacobian!(u, U, F, x, p)
-    return ModelKit.to_smallest_eltype(U)
+    return to_smallest_eltype(U)
 end
 
 """

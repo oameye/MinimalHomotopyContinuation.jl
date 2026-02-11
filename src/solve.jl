@@ -501,7 +501,7 @@ function threaded_solve(
 
     # threading block
     try
-        Threads.@sync begin
+        Base.@sync begin
             for lt in solver.trackers
                 let tracker = lt
                     Threads.@spawn begin

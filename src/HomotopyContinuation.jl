@@ -17,7 +17,6 @@ import Random
 import Printf
 using Reexport: @reexport
 import StructArrays
-import Base.Iterators: product, reverse
 import Base: push!
 
 const LA = LinearAlgebra

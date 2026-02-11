@@ -383,7 +383,7 @@ function Base.cos(b::Basic)
 end
 Base.sincos(x::Basic) = (sin(x), cos(x))
 
-function Base.log(b::ModelKit.Basic)
+function Base.log(b::Basic)
     a = Expression()
     ccall((:basic_log, libsymengine), Nothing, (Ref{Expression}, Ref{ExpressionRef}), a, b)
     return a
@@ -609,7 +609,7 @@ end
 
 mutable struct ExprVec <: AbstractVector{ExpressionRef}
     ptr::Ptr{Cvoid}
-    m::Union{Nothing, Ptr{ModelKit.ExpressionRef}}
+    m::Union{Nothing, Ptr{ExpressionRef}}
 
     function ExprVec()
         ptr = ccall((:vecbasic_new, libsymengine), Ptr{Cvoid}, ())
@@ -619,7 +619,7 @@ mutable struct ExprVec <: AbstractVector{ExpressionRef}
     end
 end
 function vec_set_ptr!(v::ExprVec)
-    v.m = unsafe_load(Ptr{Ptr{ModelKit.ExpressionRef}}(v.ptr))
+    v.m = unsafe_load(Ptr{Ptr{ExpressionRef}}(v.ptr))
     return v
 end
 

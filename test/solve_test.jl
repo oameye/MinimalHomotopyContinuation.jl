@@ -294,7 +294,7 @@
             parameters = [a, b, c],
             threading = true,
         )
-        @test typeof(result1) == Vector{Tuple{Result, Vector{Float64}}}
+        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
         result1 = solve(
             F,
             S₀,
@@ -305,7 +305,7 @@
             show_progress = false,
             threading = false,
         )
-        @test typeof(result1) == Vector{Tuple{Result, Vector{Float64}}}
+        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
 
         # Only keep real solutions
         result2 = solve(

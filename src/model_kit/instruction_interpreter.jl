@@ -111,7 +111,7 @@ function jacobian_interpreter(::Type{T}, H::Homotopy, ; kwargs...) where {T}
 end
 
 function setprecision!(i::Interpreter{<:AcbRefVector}, prec::Int)
-    i.tape = Arblib.setprecision(i.tape, prec)
+    i.tape = setprecision(i.tape, prec)
     return i
 end
 
