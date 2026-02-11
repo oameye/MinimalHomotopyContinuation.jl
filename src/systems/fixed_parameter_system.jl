@@ -35,7 +35,7 @@ ModelKit.taylor!(u, v::Val, F::FixedParameterSystem, tx, p = nothing) =
 ModelKit.jacobian!(U, F::FixedParameterSystem{<:InterpretedSystem}, x, p = nothing) =
     ModelKit.jacobian!(U, F.system, x, F.parameters)
 ModelKit.jacobian!(U, F::FixedParameterSystem{<:InterpretedSystem}, x, p, cache) =
-    ModelKit.jacobian!(U, F.system, x, F.parameters, cache)
+    ModelKit.jacobian!(U, F.system, x, F.parameters)
 
 """
     fix_parameters(F::Union{System,AbstractSystem}, p; compile::Union{Bool,Symbol} = $(COMPILE_DEFAULT[]))

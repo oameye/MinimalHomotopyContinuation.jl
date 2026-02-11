@@ -10,12 +10,13 @@ Constructs either a [`CompiledSystem`](@ref) (if `compile = :all`), an
 [`InterpretedSystem`](@ref) (if `compile = :none`) or a [`MixedSystem`](@ref) (`compile = :mixed`).
 """
 function fixed(F::System; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[], kwargs...)
+    unsupported_kwargs(kwargs)
     return if compile == true || compile == :all
-        CompiledSystem(F; kwargs...)
+        CompiledSystem(F)
     elseif compile == false || compile == :none
-        InterpretedSystem(F; kwargs...)
+        InterpretedSystem(F)
     elseif compile == :mixed
-        MixedSystem(F; kwargs...)
+        MixedSystem(F)
     else
         error("Unknown argument $compile for keyword `compile`.")
     end

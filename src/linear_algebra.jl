@@ -31,38 +31,54 @@ function MatrixWorkspace(Â::AbstractMatrix; optimize_data_structure = true)
     d = ones(m)
     factorized = Ref(false)
     qr = LA.qrfactUnblocked!(copy(A))
-    # experiments show that for m > 25 the data layout as a
-    # struct array is beneficial
-    if m > 25 && optimize_data_structure
-        A = StructArrays.StructArray(A)
-    end
     row_scaling = ones(m)
     scaled = Ref(false)
 
-    ipiv = zeros(Int, m)
-    lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
     r = zeros(ComplexF64, m)
     r̄ = zeros(ComplexDF64, m)
     x̄ = zeros(ComplexDF64, n)
     δx = zeros(ComplexF64, n)
     inf_norm_est_work = Vector{ComplexF64}(undef, n)
     inf_norm_est_rwork = Vector{Float64}(undef, n)
-
-    return MatrixWorkspace(
-        A,
-        d,
-        factorized,
-        lu,
-        qr,
-        row_scaling,
-        scaled,
-        x̄,
-        r,
-        r̄,
-        δx,
-        inf_norm_est_work,
-        inf_norm_est_rwork,
-    )
+    # Keep A/lu types aligned in each branch to avoid inference unions.
+    if m > 25 && optimize_data_structure
+        A_sa = StructArrays.StructArray(A)
+        ipiv = zeros(Int, m)
+        lu = LinearAlgebra.LU{eltype(A_sa), typeof(A_sa), typeof(ipiv)}(copy(A_sa), ipiv, 0)
+        return MatrixWorkspace(
+            A_sa,
+            d,
+            factorized,
+            lu,
+            qr,
+            row_scaling,
+            scaled,
+            x̄,
+            r,
+            r̄,
+            δx,
+            inf_norm_est_work,
+            inf_norm_est_rwork,
+        )
+    else
+        ipiv = zeros(Int, m)
+        lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
+        return MatrixWorkspace(
+            A,
+            d,
+            factorized,
+            lu,
+            qr,
+            row_scaling,
+            scaled,
+            x̄,
+            r,
+            r̄,
+            δx,
+            inf_norm_est_work,
+            inf_norm_est_rwork,
+        )
+    end
 end
 
 Base.size(MW::MatrixWorkspace) = size(MW.A)
@@ -338,7 +354,7 @@ function ldiv_adj_upper!(
         for i in 1:(j - 1)
             z -= conj(A[i, j]) * x[i]
         end
-        iszero(A[j, j]) && singular_exception && throw(SingularException(j))
+        iszero(A[j, j]) && singular_exception && throw(LA.SingularException(j))
         x[j] = @fastmath conj(A[j, j]) \ z
     end
     return x
@@ -745,20 +761,16 @@ function LA.cond(
     )
     m, n = size(WS)
     return if m == n == 1
-        if isa(d_l, Nothing) && isa(d_r, Nothing)
-            inv(abs(WS.A[1, 1]))
-        elseif isa(d_l, Nothing)
-            inv(abs(WS.A[1, 1]) * d_r[1])
-        elseif isa(d_r, Nothing)
-            inv(d_l[1] * abs(WS.A[1, 1]))
-        else
-            inv(d_l[1] * abs(WS.A[1, 1]) * d_r[1])
-        end
+        a = abs(WS.A[1, 1])
+        dₗ = d_l === nothing ? 1.0 : d_l[1]
+        dᵣ = d_r === nothing ? 1.0 : d_r[1]
+        inv(dₗ * a * dᵣ)
     elseif m > n
         WS.factorized[] || factorize!(WS)
         rmax, rmin = -Inf, Inf
         for i in 1:n
-            rᵢ = fast_abs(WS.qr.factors[i, i]) * d_r[i]
+            dᵣ = d_r === nothing ? 1.0 : d_r[i]
+            rᵢ = fast_abs(WS.qr.factors[i, i]) * dᵣ
             rmax = max(rmax, rᵢ)
             rmin = min(rmin, rᵢ)
         end

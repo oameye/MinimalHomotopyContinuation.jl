@@ -280,7 +280,7 @@ function taylor_op_cb(V::Val{K}, x::TruncatedTaylorSeries{M}) where {K, M}
     return taylor_op_mul(V, taylor_op_sqr(V, x), x)
 end
 # OP_COS and OP_SIN
-function taylor_sin_helper!(list, D, k)
+function taylor_sin_helper!(list::IntermediateRepresentation, D::DiffMap, k)
     k == 0 && return :s₀
     s_k = nothing
     for j in 1:k
@@ -289,7 +289,7 @@ function taylor_sin_helper!(list, D, k)
     end
     return div!(list, s_k, k)
 end
-function taylor_cos_helper!(list, D, k)
+function taylor_cos_helper!(list::IntermediateRepresentation, D::DiffMap, k)
     k == 0 && return :c₀
     c_k = nothing
     for j in 1:k

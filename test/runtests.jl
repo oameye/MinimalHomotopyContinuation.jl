@@ -73,10 +73,10 @@ end
     Aqua.test_all(HomotopyContinuation)
 end
 
-# @testset "Code linting" begin
-#     using JET
-#     JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation,))
-# end
+@testset "Code linting" begin
+    using JET
+    JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation,HomotopyContinuation.ModelKit, HomotopyContinuation.DoubleDouble))
+end
 
 
 include("test_systems.jl")

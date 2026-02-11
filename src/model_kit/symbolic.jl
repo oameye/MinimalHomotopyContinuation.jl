@@ -800,7 +800,7 @@ function is_homogeneous(f::Expression, vars::Vector{Variable}; expanded::Bool = 
         if err isa PolynomialError
             return false
         else
-            rethrow(e)
+            rethrow(err)
         end
     end
 end
@@ -837,6 +837,7 @@ function horner(f::Expression, vars = variables(f))
         end
     end
 end
+horner(f::Expression, var::Variable) = horner(f, [var])
 
 function horner(coeffs::AbstractVector, var::Variable)
     d = length(coeffs) - 1
@@ -948,12 +949,15 @@ end
 function check_vars_params(f, vars, params)
     vars_params = params === nothing ? vars : [vars; params]
     Δ = setdiff(variables(f), vars_params)
-    isempty(Δ) || throw(
-        ArgumentError(
-            "Not all variables or parameters of the system are given. Missing: " *
-                join(Δ, ", "),
-        ),
-    )
+    if !isempty(Δ)
+        missing_vars = string(join([string(v) for v in Δ], ", "))
+        throw(
+            ArgumentError(
+                "Not all variables or parameters of the system are given. Missing: " *
+                missing_vars,
+            ),
+        )
+    end
     if params !== nothing
         both = Set(vars) ∩ Set(params)
         if !isempty(both)
@@ -1216,13 +1220,10 @@ jacobian(F, [2, 3])
  441  294
 ```
 """
-function jacobian(F::System, x, p = nothing)
-    return if p isa Nothing
-        evaluate(jacobian(F), F.variables => x)
-    else
-        evaluate(jacobian(F), F.variables => x, F.parameters => p)
-    end
-end
+jacobian(F::System, x::AbstractVector, p::Nothing = nothing) =
+    evaluate(jacobian(F), F.variables => x)
+jacobian(F::System, x::AbstractVector, p::AbstractVector) =
+    evaluate(jacobian(F), F.variables => x, F.parameters => p)
 
 function Base.:(==)(F::System, G::System)
     return F.expressions == G.expressions &&

@@ -315,7 +315,7 @@ function get_error(error_code::Cuint, str = nothing)
     elseif error_code == 4
         return DomainError(str)
     elseif error_code == 5
-        return Meta.ParseError(str)
+        return Meta.ParseError(something(str, "SymEngine parse error."))
     else
         return ErrorException("Unexpected SymEngine error code")
     end
@@ -521,6 +521,7 @@ function Base.getindex(s::ExpressionSet, n::Int)
 end
 
 _variables(ex::Variable) = [ex]
+_variables(ex::ExpressionRef) = _variables(copy(ex))
 function _variables(ex::Expression)
     syms = ExpressionSet()
     ccall(
@@ -636,14 +637,14 @@ Base.eltype(v::ExprVec) = ExpressionRef
 Base.length(s::ExprVec) = ccall((:vecbasic_size, libsymengine), UInt, (Ptr{Cvoid},), s.ptr)
 Base.size(s::ExprVec) = (length(s),)
 
-function Base.getindex(v::ExprVec, n)
+function Base.getindex(v::ExprVec, n::Integer)
     @boundscheck checkbounds(v, n)
-    return if v.m === nothing
+    ptr = v.m
+    if ptr === nothing
         vec_set_ptr!(v)
-        unsafe_load(v.m, n)
-    else
-        unsafe_load(v.m, n)
+        ptr = v.m
     end
+    return unsafe_load(ptr::Ptr{ExpressionRef}, n)
 end
 
 function Base.push!(v::ExprVec, x::Basic)
@@ -875,6 +876,18 @@ function ExpressionMap(
         D[x] = y
     end
     return ExpressionMap(D, args...)
+end
+function ExpressionMap(
+        D::ExpressionMap,
+        (xs, y)::Pair{<:AbstractArray{<:Basic}, Any},
+        args...,
+    )
+    throw(
+        ArgumentError(
+            "Substitution arguments don't have the same shape. " *
+            "When substituting arrays, both sides must be arrays of equal size.",
+        ),
+    )
 end
 function ExpressionMap(D::ExpressionMap, (x, y), args...)
     D[Expression(x)] = Expression(y)

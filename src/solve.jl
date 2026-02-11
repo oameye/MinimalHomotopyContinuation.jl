@@ -225,6 +225,10 @@ function solver_startsolutions(
     return Solver(EndgameTracker(fixed(H; compile = compile)); seed = seed), starts
 end
 
+function solver_startsolutions(args...; kwargs...)
+    throw(MethodError(solver_startsolutions, args))
+end
+
 """
     solve(f; options...)
     solve(f, start_solutions; start_parameters, target_parameters, options...)
@@ -585,7 +589,38 @@ function paths_to_track(
         start_system::Symbol = :polyhedral,
         kwargs...,
     )
-    return paths_to_track(f, Val(start_system); kwargs...)
+    if start_system == :polyhedral
+        f_sys = f isa System ? f : System(f)
+        only_torus = get(kwargs, :only_torus, false)
+        only_torus isa Bool || throw(KeywordArgumentException(:only_torus, only_torus))
+        only_non_zero = get(kwargs, :only_non_zero, only_torus)
+        only_non_zero isa Bool ||
+            throw(KeywordArgumentException(:only_non_zero, only_non_zero))
+        extra = Dict{Symbol, Any}()
+        for (k, v) in pairs(kwargs)
+            if k ∉ (:only_torus, :only_non_zero)
+                extra[k] = v
+            end
+        end
+        unsupported_kwargs(extra)
+        return paths_to_track(
+            f_sys,
+            Val(:polyhedral);
+            only_torus = only_torus,
+            only_non_zero = only_non_zero,
+        )
+    elseif start_system == :total_degree
+        unsupported_kwargs(kwargs)
+        return paths_to_track(f, Val(:total_degree))
+    else
+        throw(
+            KeywordArgumentException(
+                :start_system,
+                start_system,
+                "Possible values are: `:polyhedral` and `:total_degree`.",
+            ),
+        )
+    end
 end
 
 #############################

@@ -277,7 +277,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::Float64, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::Float64, x::BigFloat) = ($fJ)(x, x, c)
 
         function ($fJ)(z::BigFloat, x::BigFloat, c::Int64)
             ccall(
@@ -291,7 +291,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::Int64, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::Int64, x::BigFloat) = ($fJ)(x, x, c)
 
         # BigInt
         function ($fJ)(z::BigFloat, x::BigFloat, c::BigInt)
@@ -306,7 +306,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::BigInt, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::BigInt, x::BigFloat) = ($fJ)(x, x, c)
     end
 end
 
