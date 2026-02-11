@@ -90,7 +90,7 @@
         @test paths_to_track(f; start_system = :polyhedral) == 8
         @test paths_to_track(f; start_system = :polyhedral, only_non_zero = true) == 3
         @test paths_to_track(f) == 8
-        @test mixed_volume(f; show_progress = false) == 3
+        @test mixed_volume(f) == 3
 
         @var x y a
         g = System([2y + a * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y], parameters = [a])
