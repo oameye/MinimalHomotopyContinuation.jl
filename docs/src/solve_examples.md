@@ -9,8 +9,10 @@ We can solve the system ``F(x,y) = (x^2+y^2+1, 2x+3y-1)`` in the following way
 using HomotopyContinuation #hide
 @var x y
 F = System([x^2+y^2+1, 2x+3y-1], variables = [x, y])
-solve(F; show_progress = false) #hide
-solve(F)
+prob = SystemProblem(F)
+alg = PolyhedralAlgorithm()
+solve(prob, alg; show_progress = false) #hide
+solve(prob, alg)
 ```
 
 Here, the call
@@ -21,14 +23,14 @@ also determines the ordering of the variables in the solution vectors.
 By default, variables are ordered *lexciographically*. If this is okay, you can also
 call `solve` without first constructing a system, i.e.,
 ```julia
-solve([x^2+y^2+1, 2x+3y-1])
+solve(SystemProblem([x^2+y^2+1, 2x+3y-1]), PolyhedralAlgorithm())
 ```
 
 ## Parameter Homotopy
 
-Using the syntax
+Using the problem and algorithm API
 ```julia
-solve(F, startsolutions; start_parameters, target_parameters)
+solve(problem, PathTrackingAlgorithm(); kwargs...)
 ```
 We can track the given start solutions alogn the parameter homotopy
 ```math
@@ -50,16 +52,20 @@ F = System([x[1]^2-a[1], x[1]*x[2]-a[1]+a[2]], parameters = a)
 start_solutions = [[1, 1]]
 p₁ = [1, 0]
 p₀ = [2, 4]
-solve(F, start_solutions; start_parameters=p₁, target_parameters=p₀, show_progress=false) #hide
-solve(F, start_solutions; start_parameters=p₁, target_parameters=p₀)
+prob = ParameterHomotopyProblem(
+    F,
+    start_solutions;
+    start_parameters = p₁,
+    target_parameters = p₀,
+)
+solve(prob, PathTrackingAlgorithm(); show_progress=false) #hide
+solve(prob, PathTrackingAlgorithm())
 ```
 
 
 ## Start Target Homotopy
 
-```julia
-solve(G, F, start_solutions; options...)
-```
+Create a straight-line homotopy explicitly and solve it with a path-tracking algorithm.
 
 This constructs the homotopy ``H(x,t) = tG(x)+(1-t)F(x)`` to compute solutions of the
 system `F`.
@@ -69,6 +75,8 @@ using HomotopyContinuation #hide
 @var x y
 G = System([x^2+1,y+1])
 F = System([x^2+y^2+1, 2x+3y-1])
-solve(G, F, [[im, -1], [-im, -1]]; show_progress = false) #hide
-solve(G, F, [[im, -1], [-im, -1]])
+H = StraightLineHomotopy(G, F)
+prob = HomotopyProblem(H, [[im, -1], [-im, -1]])
+solve(prob, PathTrackingAlgorithm(); show_progress = false) #hide
+solve(prob, PathTrackingAlgorithm())
 ```

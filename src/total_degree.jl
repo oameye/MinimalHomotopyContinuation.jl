@@ -14,24 +14,31 @@ This returns a path tracker ([`EndgameTracker`](@ref)) and an iterator to comput
 """
 function total_degree(
         F::Union{System, AbstractSystem};
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        kwargs...,
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        target_parameters = nothing,
+        gamma = cis(2π * rand()),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
     )
-    return total_degree_variables(F; compile = compile, kwargs...)
+    return total_degree_variables(
+        F;
+        target_parameters,
+        gamma,
+        tracker_options,
+        endgame_options,
+        compile_mode,
+    )
 end
 
 
 function total_degree_variables(
         F::Union{System, AbstractSystem};
         target_parameters = nothing,
-        γ = cis(2π * rand()),
-        gamma = γ,
+        gamma = cis(2π * rand()),
         tracker_options = TrackerOptions(),
         endgame_options = EndgameOptions(),
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        kwargs...,
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    unsupported_kwargs(kwargs)
     m, n = size(F)
 
     @unique_var x[1:n] s[1:n]
@@ -39,7 +46,7 @@ function total_degree_variables(
     if is_homogeneous(F₀)
         throw(
             ArgumentError(
-                "Homogeneous/projective systems are not supported in affine-only mode.",
+                "Homogeneous/projective systems are not supported in this minimal build.",
             ),
         )
     end
@@ -70,12 +77,12 @@ function total_degree_variables(
     end
 
     if F isa System
-        F = fixed(F; compile = compile)
+        F = fixed(F; compile_mode = compile_mode)
     end
     if target_parameters !== nothing
-        F = fix_parameters(F, target_parameters; compile = compile)
+        F = fix_parameters(F, target_parameters; compile_mode = compile_mode)
     end
-    G = fixed(System(s .* (x .^ D .- 1), x, s); compile = compile)
+    G = fixed(System(s .* (x .^ D .- 1), x, s); compile_mode = compile_mode)
     G = fix_parameters(G, scaling)
 
     H = StraightLineHomotopy(G, F; γ = gamma)
@@ -147,16 +154,8 @@ total_degree_start_solutions(
 ) = TotalDegreeStartSolutionsIterator(degrees)
 
 
-function paths_to_track(f, ::Val{:total_degree})
-    target_parameters = nparameters(f) > 0 ? zeros(nparameters(f)) : nothing
+function paths_to_track(f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm)::Int
+    target_parameters = zeros(ComplexF64, nparameters(f))
     _, starts = total_degree(f; target_parameters = target_parameters)
-    return if Base.IteratorSize(typeof(starts)) == Base.SizeUnknown()
-        k = 0
-        for s in starts
-            k += 1
-        end
-        k
-    else
-        length(starts)
-    end
+    return length(starts)
 end

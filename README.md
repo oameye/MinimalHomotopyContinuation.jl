@@ -13,25 +13,16 @@
 
 ## Basic usage
 
-HomotopyContinuation.jl aims at having easy-to-understand top-level commands. Here is a simple example:
-
 ```julia
 using HomotopyContinuation
-@var x y; # declare the variables x and y
-F = System([x^2+2y, y^2-2])
-result = solve(F)
-```
 
-```
-Result with 4 solutions
-==================================
-• 4 non-singular solutions (2 real)
-• 0 singular solutions (0 real)
-• 4 paths tracked
-• random seed: 902575
-```
+@var x y
+F = System([x^2 + 2y, y^2 - 2])
 
-For more see [our user guides](https://www.juliahomotopycontinuation.org/guides/).
+prob = SystemProblem(F)
+alg = PolyhedralAlgorithm(compile_mode = CompileMixed())
+result = solve(prob, alg)
+```
 
 ## Citing HomotopyContinuation.jl
 

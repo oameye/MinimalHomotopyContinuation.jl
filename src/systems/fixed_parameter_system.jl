@@ -13,10 +13,10 @@ end
 FixedParameterSystem(
     F::AbstractSystem,
     p;
-    compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+    compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
 ) = FixedParameterSystem(F, p)
-FixedParameterSystem(F::System, p; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[]) =
-    FixedParameterSystem(fixed(F; compile = compile), p)
+FixedParameterSystem(F::System, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) =
+    FixedParameterSystem(fixed(F; compile_mode = compile_mode), p)
 Base.size(F::FixedParameterSystem) = size(F.system)
 
 ModelKit.variables(F::FixedParameterSystem) = variables(F.system)
@@ -38,12 +38,12 @@ ModelKit.jacobian!(U, F::FixedParameterSystem{<:InterpretedSystem}, x, p, cache)
     ModelKit.jacobian!(U, F.system, x, F.parameters)
 
 """
-    fix_parameters(F::Union{System,AbstractSystem}, p; compile::Union{Bool,Symbol} = $(COMPILE_DEFAULT[]))
+    fix_parameters(F::Union{System,AbstractSystem}, p; compile_mode::AbstractCompileMode = CompileMixed())
 
 Fix the parameters of the given system `F`. Returns a [`FixedParameterSystem`](@ref).
 """
 fix_parameters(
     F::Union{System, AbstractSystem},
     p;
-    compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-) = FixedParameterSystem(F, p; compile = compile)
+    compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+) = FixedParameterSystem(F, p; compile_mode = compile_mode)

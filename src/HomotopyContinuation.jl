@@ -33,21 +33,7 @@ Arblib.Arf(a::DoubleF64) = Arblib.Arf(BigFloat(a))
 include("ModelKit.jl")
 export @polyvar
 
-const COMPILE_DEFAULT = Ref(:mixed)
-
-export set_default_compile
-
-"""
-    set_default_compile(mode::Symbol)
-
-Set the default value for the `compile` flag in [`solve`](@ref) and other functions.
-Possible values are `:mixed` (default), `:all` and `:none`.
-"""
-function set_default_compile(mode::Symbol)
-    mode ∈ [:mixed, :all, :none] ||
-        error("Invalid value `:$mode`, valid values are `:mixed`, `:all`, `:none`.")
-    return COMPILE_DEFAULT[] = mode
-end
+include("compile_modes.jl")
 
 include("utils.jl")
 include("norm.jl")
@@ -61,8 +47,8 @@ include("tracker.jl")
 include("valuation.jl")
 include("path_result.jl")
 include("endgame_tracker.jl")
-include("problems.jl")
 include("algorithms.jl")
+include("problems.jl")
 include("total_degree.jl")
 include("binomial_system.jl")
 include("polyhedral.jl")

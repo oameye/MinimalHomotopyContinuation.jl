@@ -4,23 +4,22 @@ include("systems/mixed_system.jl")
 include("systems/fixed_parameter_system.jl")
 
 """
-    fixed(F::System; compile::Union{Bool,Symbol} = $(COMPILE_DEFAULT[]))
+    fixed(F::System; compile_mode::AbstractCompileMode = CompileMixed())
 
-Constructs either a [`CompiledSystem`](@ref) (if `compile = :all`), an
-[`InterpretedSystem`](@ref) (if `compile = :none`) or a [`MixedSystem`](@ref) (`compile = :mixed`).
+Construct either a [`CompiledSystem`](@ref), an [`InterpretedSystem`](@ref) or a
+[`MixedSystem`](@ref) based on `compile_mode`.
 """
-function fixed(F::System; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[], kwargs...)
-    unsupported_kwargs(kwargs)
-    return if compile == true || compile == :all
-        CompiledSystem(F)
-    elseif compile == false || compile == :none
-        InterpretedSystem(F)
-    elseif compile == :mixed
-        MixedSystem(F)
-    else
-        error("Unknown argument $compile for keyword `compile`.")
-    end
+function fixed(
+        F::System;
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+    )
+    return fixed(F, compile_mode)
 end
-fixed(F::AbstractSystem; kwargs...) = F
+
+fixed(F::System, ::CompileAll) = CompiledSystem(F)
+fixed(F::System, ::CompileNone) = InterpretedSystem(F)
+fixed(F::System, ::CompileMixed) = MixedSystem(F)
+
+fixed(F::AbstractSystem; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = F
 
 set_solution!(x, ::AbstractSystem, y) = (x .= y; x)

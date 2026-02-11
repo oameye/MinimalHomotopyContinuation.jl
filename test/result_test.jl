@@ -110,6 +110,7 @@ end
                 start_parameters = [0],
                 target_parameters = [-1],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         RR = solve(
@@ -119,6 +120,7 @@ end
                 start_parameters = [-1],
                 target_parameters = [-2],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         @test length(collect(RR)) == 2
@@ -173,6 +175,7 @@ end
                 start_parameters = [0],
                 target_parameters = [-1],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
 
@@ -186,6 +189,7 @@ end
                 start_parameters = [0],
                 target_parameters = [-1],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
 
@@ -215,6 +219,7 @@ end
                 targets = params,
                 parameters = [a, b, c],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         r1 = collect.(result1)
@@ -228,6 +233,7 @@ end
                 targets = params,
                 parameters = [a, b, c],
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         r1 = collect.(result1)
@@ -240,8 +246,9 @@ end
                 start_parameters = p₀,
                 targets = params,
                 parameters = [a, b, c],
-                transform_result = (r, p) -> real_solutions(r),
+                reducer = MapReducer((r, p) -> real_solutions(r)),
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         r2 = collect.(result2)
@@ -254,9 +261,9 @@ end
                 start_parameters = p₀,
                 targets = params,
                 parameters = [a, b, c],
-                transform_result = (r, p) -> real_solutions(r),
-                flatten = true,
+                reducer = FlatMapReducer((r, p) -> real_solutions(r)),
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         r3 = collect.(result3)
@@ -267,11 +274,11 @@ end
                 F,
                 S₀;
                 start_parameters = p₀,
-                targets = 1:100,
+                targets = [rand(3) for _ in 1:100],
                 parameters = [a, b, c],
-                transform_result = (r, p) -> (real_solutions(r), p),
-                transform_parameters = _ -> rand(3),
+                reducer = MapReducer((r, p) -> (real_solutions(r), p)),
             ),
+            PathTrackingAlgorithm(),
             ResultIterator,
         )
         r4 = collect.(result4)

@@ -1,4 +1,5 @@
 export PathResult,
+    PathResultCode,
     solution,
     accuracy,
     residual,
@@ -19,6 +20,29 @@ export PathResult,
     is_singular,
     is_nonsingular,
     is_real
+
+module PathResultCode
+@enum codes begin
+    tracking
+    success
+    at_infinity
+    at_zero
+    terminated_accuracy_limit
+    terminated_invalid_startvalue
+    terminated_invalid_startvalue_singular_jacobian
+    terminated_ill_conditioned
+    terminated_max_steps
+    terminated_max_extended_steps
+    terminated_max_winding_number
+    terminated_step_size_too_small
+    terminated_unknown
+    post_check_failed
+    excess_solution
+    polyhedral_failed
+end
+end
+
+Base.Symbol(code::PathResultCode.codes) = Symbol(string(code))
 
 
 """
@@ -74,7 +98,7 @@ Possible return codes are:
 * various return codes indicating termination of the tracking
 """
 Base.@kwdef mutable struct PathResult{StartSolutionT}
-    return_code::Symbol
+    return_code::PathResultCode.codes
     solution::Vector{ComplexF64}
     t::Float64
     accuracy::Float64
@@ -100,7 +124,7 @@ end
 Base.show(io::IO, ::MIME"application/prs.juno.inline", r::PathResult) = r
 function Base.show(io::IO, r::PathResult)
     println(io, "PathResult:")
-    println(io, " • return_code → :", r.return_code)
+    println(io, " • return_code → :", Symbol(r.return_code))
     for f in [:solution, :accuracy, :residual, :condition_jacobian]
         print_fieldname(io, r, f)
     end
@@ -218,14 +242,15 @@ valuation(r::PathResult) = r.valuation
 
 Checks whether the path is successfull.
 """
-is_success(r::PathResult) = r.return_code == :success
+is_success(r::PathResult) = r.return_code == PathResultCode.success
 
 """
     is_at_infinity(r::PathResult)
 
 Checks whether the path goes to infinity.
 """
-is_at_infinity(r::PathResult) = r.return_code == :at_infinity || r.return_code == :at_zero
+is_at_infinity(r::PathResult) =
+    r.return_code == PathResultCode.at_infinity || r.return_code == PathResultCode.at_zero
 
 """
     is_excess_solution(r::PathResult)
@@ -233,7 +258,7 @@ is_at_infinity(r::PathResult) = r.return_code == :at_infinity || r.return_code =
 Checks whether gives an excess solution that was artificially introduced
 by the homotopy continuation from the modified system.
 """
-is_excess_solution(r::PathResult) = r.return_code == :excess_solution
+is_excess_solution(r::PathResult) = r.return_code == PathResultCode.excess_solution
 
 """
     is_failed(r::PathResult)

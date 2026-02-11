@@ -35,13 +35,15 @@
             PolyhedralAlgorithm(only_torus = false);
             show_progress = false,
         ).starts
-        @test length(collect(starts)) == paths_to_track(F; only_torus = false) == 92
+        @test length(collect(starts)) ==
+            paths_to_track(SystemProblem(F), PolyhedralAlgorithm(only_torus = false)) == 92
         starts = HC.init(
             SystemProblem(F),
             PolyhedralAlgorithm(only_torus = true);
             show_progress = false,
         ).starts
-        @test length(collect(starts)) == paths_to_track(F; only_torus = true) == 54
+        @test length(collect(starts)) ==
+            paths_to_track(SystemProblem(F), PolyhedralAlgorithm(only_torus = true)) == 54
     end
 
     @testset "cyclic" begin

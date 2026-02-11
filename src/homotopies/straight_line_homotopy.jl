@@ -24,12 +24,12 @@ end
 function StraightLineHomotopy(
         start::System,
         target::System;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
         kwargs...,
     )
     return StraightLineHomotopy(
-        fixed(start; compile = compile),
-        fixed(target; compile = compile);
+        fixed(start; compile_mode = compile_mode),
+        fixed(target; compile_mode = compile_mode);
         kwargs...,
     )
 end

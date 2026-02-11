@@ -184,10 +184,10 @@
 
         G = System(vcat(gs, L); variables = xvarz_moving_frame, parameters = bvarz)
         startsolutions0 = [p0[i, k] for i in freevertices for k in 1:2]
-        tracker = Tracker(ParameterHomotopy(G, [b0], [b1]; compile = false))
+        tracker = Tracker(ParameterHomotopy(G, [b0], [b1]; compile_mode = CompileNone()))
         result = track(tracker, startsolutions0, 1, 0)
         @test is_invalid_startvalue(result)
-        @test result.return_code == :terminated_invalid_startvalue_singular_jacobian
+        @test result.return_code == TrackerCode.terminated_invalid_startvalue_singular_jacobian
     end
 
     include("test_cases/steiner_higher_prec.jl")

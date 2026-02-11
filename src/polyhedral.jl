@@ -177,16 +177,41 @@ tracker, starts = polyhedral(f; only_non_zero = true)
 count(is_success, track.(tracker, starts)) # 3
 ```
 """
-function polyhedral(F::AbstractSystem; kwargs...)
+function polyhedral(
+        F::AbstractSystem;
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        target_parameters = nothing,
+        endgame_options = EndgameOptions(),
+        tracker_options = TrackerOptions(),
+        only_torus::Bool = false,
+        only_non_zero::Bool = only_torus,
+        show_progress::Bool = true,
+        rng::Random.AbstractRNG = Random.default_rng(),
+    )
     _, n = size(F)
     @var x[1:n]
-    return polyhedral(System(F(x), x); kwargs...)
+    return polyhedral(
+        System(F(x), x);
+        compile_mode = compile_mode,
+        target_parameters = target_parameters,
+        endgame_options = endgame_options,
+        tracker_options = tracker_options,
+        only_torus = only_torus,
+        only_non_zero = only_non_zero,
+        show_progress = show_progress,
+        rng = rng,
+    )
 end
 function polyhedral(
         f::System;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
         target_parameters = nothing,
-        kwargs...,
+        endgame_options = EndgameOptions(),
+        tracker_options = TrackerOptions(),
+        only_torus::Bool = false,
+        only_non_zero::Bool = only_torus,
+        show_progress::Bool = true,
+        rng::Random.AbstractRNG = Random.default_rng(),
     )
     if is_homogeneous(f)
         throw(
@@ -197,8 +222,13 @@ function polyhedral(
     end
     if target_parameters !== nothing
         return polyhedral(
-            FixedParameterSystem(fixed(f; compile = compile), target_parameters);
-            kwargs...,
+            FixedParameterSystem(fixed(f; compile_mode = compile_mode), target_parameters);
+            endgame_options = endgame_options,
+            tracker_options = tracker_options,
+            only_torus = only_torus,
+            only_non_zero = only_non_zero,
+            show_progress = show_progress,
+            rng = rng,
         )
     end
     m, n = size(f)
@@ -212,7 +242,17 @@ function polyhedral(
         )
     end
     support, target_coeffs = support_coefficients(f)
-    tracker, starts = polyhedral(support, target_coeffs; compile = compile, kwargs...)
+    tracker, starts = polyhedral(
+        support,
+        target_coeffs;
+        endgame_options = endgame_options,
+        tracker_options = tracker_options,
+        only_torus = only_torus,
+        only_non_zero = only_non_zero,
+        compile_mode = compile_mode,
+        show_progress = show_progress,
+        rng = rng,
+    )
     return tracker, starts
 end
 
@@ -230,13 +270,12 @@ function has_zero_col(A)
     return false
 end
 
-paths_to_track(f::AbstractSystem, val::Val{:polyhedral}) = paths_to_track(System(f), val)
+paths_to_track(f::AbstractSystem, alg::PolyhedralAlgorithm) = paths_to_track(System(f), alg)
 function paths_to_track(
         f::System,
-        ::Val{:polyhedral};
-        only_torus::Bool = false,
-        only_non_zero::Bool = only_torus,
+        alg::PolyhedralAlgorithm,
     )
+    only_non_zero = alg.only_non_zero
     if is_homogeneous(f)
         throw(
             ArgumentError(
@@ -264,15 +303,32 @@ function paths_to_track(
     end
 end
 MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) =
-    paths_to_track(f; start_system = :polyhedral, only_torus = true)
+    paths_to_track(f, PolyhedralAlgorithm(only_torus = true))
 
 function polyhedral(
         support::AbstractVector{<:AbstractMatrix},
         target_coeffs::AbstractVector;
-        kwargs...,
+        endgame_options = EndgameOptions(),
+        tracker_options = TrackerOptions(),
+        only_torus::Bool = false,
+        only_non_zero::Bool = only_torus,
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        show_progress::Bool = true,
+        rng::Random.AbstractRNG = Random.default_rng(),
     )
-    start_coeffs = map(c -> rand_approx_unit(length(c)) .* LA.norm(c, Inf), target_coeffs)
-    return polyhedral(support, start_coeffs, target_coeffs; kwargs...)
+    start_coeffs = map(c -> rand_approx_unit(length(c); rng = rng) .* LA.norm(c, Inf), target_coeffs)
+    return polyhedral(
+        support,
+        start_coeffs,
+        target_coeffs;
+        endgame_options = endgame_options,
+        tracker_options = tracker_options,
+        only_torus = only_torus,
+        only_non_zero = only_non_zero,
+        compile_mode = compile_mode,
+        show_progress = show_progress,
+        rng = rng,
+    )
 end
 
 """
@@ -281,7 +337,8 @@ end
 This samples uniformly from the rectangle ``[0.9,1.1] × [0,2π]`` and transforms the sampled
 values with the map ``(r, φ) ↦ r * e^{i φ}``.
 """
-rand_approx_unit(n) = map(_ -> (0.9 + 0.2 * rand()) * cis2pi(rand()), 1:n)
+rand_approx_unit(n; rng::Random.AbstractRNG = Random.default_rng()) =
+    map(_ -> (0.9 + 0.2 * rand(rng)) * cis2pi(rand(rng)), 1:n)
 
 cis2pi(x) = complex(cospi(2x), sinpi(2x))
 
@@ -293,11 +350,10 @@ function polyhedral(
         tracker_options = TrackerOptions(),
         only_torus::Bool = false,
         only_non_zero::Bool = only_torus,
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
         show_progress::Bool = true,
-        kwargs...,
+        rng::Random.AbstractRNG = Random.default_rng(),
     )
-    unsupported_kwargs(kwargs)
     size.(support, 2) == length.(start_coeffs) == length.(target_coeffs) ||
         throw(ArgumentError("Number of terms do not coincide."))
     if only_non_zero
@@ -314,7 +370,7 @@ function polyhedral(
                 push!(targets, target_coeffs[i])
                 push!(supp, A)
             else
-                push!(starts, vcat(start_coeffs[i], randn(ComplexF64)))
+                push!(starts, vcat(start_coeffs[i], randn(rng, ComplexF64)))
                 push!(targets, vcat(target_coeffs[i], 0.0))
                 push!(supp, [A zeros(Int32, size(A, 1), 1)])
             end
@@ -324,7 +380,7 @@ function polyhedral(
         target_coeffs = targets
     end
 
-    F = fixed(polyhedral_system(support); compile = compile)
+    F = fixed(polyhedral_system(support); compile_mode = compile_mode)
     H₁ = ToricHomotopy(F, start_coeffs)
     toric_tracker = Tracker(H₁; options = tracker_options)
 
@@ -422,7 +478,7 @@ function track(
     if !is_success(retcode)
         state = PT.toric_tracker.state
         return PathResult(
-            return_code = :polyhedral_failed,
+            return_code = PathResultCode.polyhedral_failed,
             solution = copy(state.x),
             start_solution = start_solution,
             t = real(state.t),

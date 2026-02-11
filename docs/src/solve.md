@@ -1,17 +1,28 @@
-# The solve function
+# Solving Systems
 
-The [`solve`](@ref) function is the most convenient way to solve general polynomial systems.
-For the mathematical background take a look at our [introduction](https://www.juliahomotopycontinuation.org/guides/introduction/) guide.
+The canonical API is:
+
+```julia
+solve(problem, algorithm; kwargs...)
+```
+
+For polynomial systems with finitely many solutions, use `SystemProblem` together with
+`PolyhedralAlgorithm` or `TotalDegreeAlgorithm`.
+
+For parameter homotopies and sweeps, use `PathTrackingAlgorithm`.
 
 ```@docs
 solve
-solver_startsolutions
+init
 Solver
-```
-
-The function [`paths_to_track`](@ref) allows you to know beforehand how manys the you
-need to track:
-
-```@docs
+PolyhedralAlgorithm
+TotalDegreeAlgorithm
+PathTrackingAlgorithm
+CompileAll
+CompileMixed
+CompileNone
 paths_to_track
+IdentityReducer
+MapReducer
+FlatMapReducer
 ```

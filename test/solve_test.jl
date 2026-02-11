@@ -8,7 +8,7 @@
                 2.3 * x^2 + 1.2 * y^2 + 5x + 2y - 5,
             ]
         )
-        @test count(is_success, track.(total_degree(affine_sqr; compile = false)...)) == 2
+        @test count(is_success, track.(total_degree(affine_sqr; compile_mode = CompileNone())...)) == 2
 
         @var x y
         affine_ov = System(
@@ -18,7 +18,7 @@
                 2x + 5y - 3,
             ]
         )
-        @test_throws ArgumentError total_degree(affine_ov; compile = false)
+        @test_throws ArgumentError total_degree(affine_ov; compile_mode = CompileNone())
 
         @var x y
         affine_ov_reordering = System(
@@ -28,7 +28,7 @@
                 (x^2 + y^2 + x * y - 3) * (y^2 - x + 2),
             ]
         )
-        @test_throws ArgumentError total_degree(affine_ov_reordering; compile = false)
+        @test_throws ArgumentError total_degree(affine_ov_reordering; compile_mode = CompileNone())
 
         @var x y z
         homogeneous = System(
@@ -37,7 +37,7 @@
                 x * z + y * z,
             ]
         )
-        @test_throws ArgumentError total_degree(homogeneous; compile = false)
+        @test_throws ArgumentError total_degree(homogeneous; compile_mode = CompileNone())
 
         @var x y
         affine_underdetermined = System([2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3])
@@ -54,7 +54,7 @@
         )
         @test count(
             is_success,
-            track.(polyhedral(affine_sqr; compile = false, show_progress = false)...),
+            track.(polyhedral(affine_sqr; compile_mode = CompileNone(), show_progress = false)...),
         ) == 2
 
         @var x y z
@@ -64,7 +64,7 @@
                 x * z + y * z,
             ]
         )
-        @test_throws ArgumentError polyhedral(homogeneous; compile = false)
+        @test_throws ArgumentError polyhedral(homogeneous; compile_mode = CompileNone())
 
         @var x y
         affine_ov = System(
@@ -74,7 +74,7 @@
                 2x + 5y - 3,
             ]
         )
-        @test_throws ArgumentError polyhedral(affine_ov; compile = false)
+        @test_throws ArgumentError polyhedral(affine_ov; compile_mode = CompileNone())
 
         @var x y
         affine_underdetermined = System([2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3])
@@ -85,17 +85,17 @@
         @var x y
         f = System([2y + 3 * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y])
 
-        @test paths_to_track(f; start_system = :total_degree) == 16
-        @test paths_to_track(f; start_system = :total_degree) == 16
-        @test paths_to_track(f; start_system = :polyhedral) == 8
-        @test paths_to_track(f; start_system = :polyhedral, only_non_zero = true) == 3
-        @test paths_to_track(f) == 8
+        @test paths_to_track(SystemProblem(f), TotalDegreeAlgorithm()) == 16
+        @test paths_to_track(SystemProblem(f), TotalDegreeAlgorithm()) == 16
+        @test paths_to_track(SystemProblem(f), PolyhedralAlgorithm()) == 8
+        @test paths_to_track(SystemProblem(f), PolyhedralAlgorithm(only_non_zero = true)) == 3
+        @test_throws MethodError paths_to_track(f)
         @test mixed_volume(f) == 3
 
         @var x y a
         g = System([2y + a * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y], parameters = [a])
-        @test paths_to_track(g; start_system = :total_degree) == 16
-        @test paths_to_track(g; start_system = :polyhedral) == 8
+        @test paths_to_track(SystemProblem(g), TotalDegreeAlgorithm()) == 16
+        @test paths_to_track(SystemProblem(g), PolyhedralAlgorithm()) == 8
     end
 
     @testset "solve (parameter homotopy)" begin
@@ -108,7 +108,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res = solve(prob; show_progress = false)
+        res = solve(prob, PathTrackingAlgorithm(); show_progress = false)
         @test nsolutions(res) == 1
 
         prob = ParameterHomotopyProblem(
@@ -117,7 +117,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res = solve(prob; threading = false, show_progress = false)
+        res = solve(prob, PathTrackingAlgorithm(); threading = false, show_progress = false)
         @test nsolutions(res) == 1
 
         prob = ParameterHomotopyProblem(
@@ -126,7 +126,12 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res = solve(prob; threading = false, compile = false, show_progress = false)
+        res = solve(
+            prob,
+            PathTrackingAlgorithm(compile_mode = CompileNone());
+            threading = false,
+            show_progress = false,
+        )
         @test nsolutions(res) == 1
 
         @var x a y b
@@ -138,7 +143,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        @test_throws FiniteException(1) solve(prob; show_progress = false)
+        @test_throws FiniteException(1) solve(prob, PathTrackingAlgorithm(); show_progress = false)
 
         @var x a y b z
         F_homogeneous = System([x^2 - a * z^2, x * y + (b - a) * z^2], [x, y, z], [a, b])
@@ -149,7 +154,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        @test_throws ArgumentError solve(prob; show_progress = false)
+        @test_throws ArgumentError solve(prob, PathTrackingAlgorithm(); show_progress = false)
 
         @var x y v w a b
         @test_throws MethodError System(
@@ -164,7 +169,7 @@
         F = System([x^2 - a, x * y - a + b], [x, y], [a, b])
         s = [1, 1]
         H = ParameterHomotopy(F, [1, 0], [2, 4])
-        res = solve(HomotopyProblem(H, [s]); show_progress = false)
+        res = solve(HomotopyProblem(H, [s]), PathTrackingAlgorithm(); show_progress = false)
         @test nsolutions(res) == 1
     end
 
@@ -179,7 +184,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res = solve(prob; show_progress = false)
+        res = solve(prob, PathTrackingAlgorithm(); show_progress = false)
         @test nsolutions(res) == 1
     end
 
@@ -201,7 +206,7 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res = solve(prob; compile = false, show_progress = false)
+        res = solve(prob, PathTrackingAlgorithm(compile_mode = CompileNone()); show_progress = false)
         @test nsolutions(res) == 1
 
         prob2 = ParameterHomotopyProblem(
@@ -212,7 +217,11 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        res2 = solve(prob2; compile = false, show_progress = false)
+        res2 = solve(
+            prob2,
+            PathTrackingAlgorithm(compile_mode = CompileNone());
+            show_progress = false,
+        )
         s = solutions(res)[1]
         s2 = solutions(res2)[1]
         @test s ≈ [s2[2], s2[1]]
@@ -228,7 +237,11 @@
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
-        cache = HC.init(prob; seed = 0x12345678, show_progress = false)
+        cache = HC.init(
+            prob,
+            PathTrackingAlgorithm(seed = 0x12345678);
+            show_progress = false,
+        )
         S = cache.solver
         start_parameters!(S, [1, 0])
         target_parameters!(S, [2, 4])
@@ -318,11 +331,11 @@
             targets = params,
             parameters = [a, b, c],
         )
-        result1 = solve(prob; threading = true, show_progress = false)
-        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
+        result1 = solve(prob, PathTrackingAlgorithm(); threading = true, show_progress = false)
+        @test eltype(result1) <: Result
 
-        result1 = solve(prob; show_progress = false, threading = false)
-        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
+        result1 = solve(prob, PathTrackingAlgorithm(); show_progress = false, threading = false)
+        @test eltype(result1) <: Result
 
         prob2 = ParameterSweepProblem(
             F,
@@ -330,9 +343,9 @@
             start_parameters = p₀,
             targets = params,
             parameters = [a, b, c],
-            transform_result = (r, p) -> real_solutions(r),
+            reducer = MapReducer((r, p) -> real_solutions(r)),
         )
-        result2 = solve(prob2; threading = true, show_progress = false)
+        result2 = solve(prob2, PathTrackingAlgorithm(); threading = true, show_progress = false)
         @test typeof(result2) == Vector{Vector{Vector{Float64}}}
         @test !isempty(result2)
 
@@ -342,10 +355,9 @@
             start_parameters = p₀,
             targets = params,
             parameters = [a, b, c],
-            transform_result = (r, p) -> real_solutions(r),
-            flatten = true,
+            reducer = FlatMapReducer((r, p) -> real_solutions(r)),
         )
-        result3 = solve(prob3; threading = false, show_progress = false)
+        result3 = solve(prob3, PathTrackingAlgorithm(); threading = false, show_progress = false)
         @test typeof(result3) == Vector{Vector{Float64}}
         @test !isempty(result3)
 
@@ -353,13 +365,12 @@
             F,
             S₀;
             start_parameters = p₀,
-            targets = 1:100,
+            targets = [rand(3) for _ in 1:100],
             parameters = [a, b, c],
-            transform_result = (r, p) -> (real_solutions(r), p),
-            transform_parameters = _ -> rand(3),
+            reducer = MapReducer((r, p) -> (real_solutions(r), p)),
         )
-        result4 = solve(prob4; show_progress = false)
-        @test typeof(result4) == Vector{Tuple{Vector{Vector{Float64}}, Int64}}
+        result4 = solve(prob4, PathTrackingAlgorithm(); show_progress = false)
+        @test typeof(result4) == Vector{Tuple{Vector{Vector{Float64}}, Vector{Float64}}}
 
         @testset "Many parameters threaded" begin
             @var u1, v1, ω, α, γ, λ, ω0
@@ -401,7 +412,8 @@
                     solutions(R0);
                     start_parameters = generic_parameters,
                     targets = input_array,
-                );
+                ),
+                PathTrackingAlgorithm();
                 threading = true,
                 show_progress = false,
             )
@@ -431,16 +443,14 @@
             start_parameters = [1.0],
             target_parameters = [2.0],
         )
-        c = HC.init(param_prob; show_progress = false, threading = false)
+        c = HC.init(
+            param_prob,
+            PathTrackingAlgorithm();
+            show_progress = false,
+            threading = false,
+        )
         r = HC.solve!(c)
         @test r isa Result
     end
 
-    @testset "Breaking API" begin
-        @var x
-        F = System([x^2 - 1])
-        @test_throws MethodError solve(F)
-        @test_throws MethodError solve(F, [[1.0]])
-        @test_throws MethodError solve(SystemProblem(F), TotalDegreeAlgorithm(); iterator_only = true)
-    end
 end

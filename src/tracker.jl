@@ -3,6 +3,10 @@ export AbstractPathTracker,
     TrackerResult,
     TrackerOptions,
     TrackerParameters,
+    AbstractTrackerParameterPreset,
+    DefaultTrackerParams,
+    FastTrackerParams,
+    ConservativeTrackerParams,
     TrackerCode,
     DEFAULT_TRACKER_PARAMETERS,
     FAST_TRACKER_PARAMETERS,
@@ -61,6 +65,15 @@ const FAST_TRACKER_PARAMETERS = TrackerParameters(β_τ = 0.75, β_ω_p = 2.0)
 "[`TrackerParameters`](@ref) which trade robustness against some speed."
 const CONSERVATIVE_TRACKER_PARAMETERS = TrackerParameters(β_ω_p = 4.0, β_τ = 0.25)
 
+abstract type AbstractTrackerParameterPreset end
+struct DefaultTrackerParams <: AbstractTrackerParameterPreset end
+struct FastTrackerParams <: AbstractTrackerParameterPreset end
+struct ConservativeTrackerParams <: AbstractTrackerParameterPreset end
+
+tracker_parameters(::DefaultTrackerParams) = DEFAULT_TRACKER_PARAMETERS
+tracker_parameters(::FastTrackerParams) = FAST_TRACKER_PARAMETERS
+tracker_parameters(::ConservativeTrackerParams) = CONSERVATIVE_TRACKER_PARAMETERS
+
 
 """
     TrackerOptions(; options...)
@@ -85,11 +98,8 @@ The set of options for a [`Tracker`](@ref).
 * `terminate_cond = 1e13`: If the relative component-wise condition number
   `cond(H_x, ẋ)` is larger than `terminate_cond` then the path is terminated as too
   ill-conditioned.
-* `parameters::Union{Symbol,TrackerParameters} = :default` Set the
-  [`TrackerParameters`](@ref) to control the performance of the path tracking algorithm.
-  The values `:default`, `:conservative` and `:fast` are shorthands for using
-  [`DEFAULT_TRACKER_PARAMETERS`](@ref), [`CONSERVATIVE_TRACKER_PARAMETERS`](@ref) resp.
-  [`FAST_TRACKER_PARAMETERS`](@ref).
+* `parameter_preset::AbstractTrackerParameterPreset = DefaultTrackerParams()`: A typed
+  preset used to initialize [`TrackerParameters`](@ref) when `parameters = nothing`.
 """
 mutable struct TrackerOptions
     automatic_differentiation::Int
@@ -111,20 +121,10 @@ function TrackerOptions(;
         min_step_size::Float64 = 1.0e-48,
         min_rel_step_size::Float64 = 0.0,
         terminate_cond::Float64 = 1.0e13,
-        parameters::Union{Symbol, TrackerParameters} = :default,
+        parameters::Union{Nothing, TrackerParameters} = nothing,
+        parameter_preset::AbstractTrackerParameterPreset = DefaultTrackerParams(),
     )
-
-    if parameters isa Symbol
-        if parameters == :default
-            parameters = DEFAULT_TRACKER_PARAMETERS
-        elseif parameters == :fast
-            parameters = FAST_TRACKER_PARAMETERS
-        elseif parameters == :conservative
-            parameters = CONSERVATIVE_TRACKER_PARAMETERS
-        else
-            throw(ArgumentError("Unsupported `parameters` value $parameters"))
-        end
-    end
+    selected_parameters = isnothing(parameters) ? tracker_parameters(parameter_preset) : parameters
 
     return TrackerOptions(
         automatic_differentiation,
@@ -135,7 +135,7 @@ function TrackerOptions(;
         min_step_size,
         min_rel_step_size,
         terminate_cond,
-        parameters,
+        selected_parameters,
     )
 end
 
@@ -220,7 +220,7 @@ Containing the result of tracking a path with a [`Tracker`](@ref).
 
 ## Fields
 
-* `return_code::Symbol`: A code indicating whether the tracking was successfull (`:success`).
+* `return_code::TrackerCode.codes`: A code indicating whether the tracking was successfull (`TrackerCode.success`).
   See [`TrackerCode`](@ref) for all possible values.
 * `solution::V`: The solution when the tracking stopped.
 * `t::ComplexF64`: The value of `t` when the tracking stopped.
@@ -233,7 +233,7 @@ Containing the result of tracking a path with a [`Tracker`](@ref).
   extended precision was used.
 """
 struct TrackerResult
-    return_code::Symbol
+    return_code::TrackerCode.codes
     solution::Vector{ComplexF64}
     t::ComplexF64
     accuracy::Float64
@@ -254,7 +254,7 @@ Base.show(io::IO, ::MIME"application/prs.juno.inline", result::TrackerResult) = 
 
 Returns `true` if the path tracking was successfull.
 """
-is_success(R::TrackerResult) = R.return_code == :success
+is_success(R::TrackerResult) = R.return_code == TrackerCode.success
 
 """
     is_invalid_startvalue(result::TrackerResult)
@@ -268,8 +268,8 @@ if `is_invalid_startvalue(result) == true` are
   close to a solution of the homotopy.
 """
 function is_invalid_startvalue(R::TrackerResult)
-    return R.return_code == :terminated_invalid_startvalue ||
-        R.return_code == :terminated_invalid_startvalue_singular_jacobian
+    return R.return_code == TrackerCode.terminated_invalid_startvalue ||
+        R.return_code == TrackerCode.terminated_invalid_startvalue_singular_jacobian
 end
 
 """
@@ -458,8 +458,8 @@ struct Tracker{H <: AbstractHomotopy, M <: AbstractMatrix{ComplexF64}}
     options::TrackerOptions
 end
 
-Tracker(H::ModelKit.Homotopy; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[], kwargs...) =
-    Tracker(fixed(H; compile = compile); kwargs...)
+Tracker(H::ModelKit.Homotopy; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE, kwargs...) =
+    Tracker(fixed(H; compile_mode = compile_mode); kwargs...)
 function Tracker(
         H::AbstractHomotopy,
         x::AbstractVector = zeros(size(H, 2));
@@ -985,7 +985,7 @@ end
 
 function TrackerResult(H::AbstractHomotopy, state::TrackerState)
     return TrackerResult(
-        Symbol(state.code),
+        state.code,
         get_solution(H, state.x, state.t),
         state.t,
         state.accuracy,

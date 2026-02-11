@@ -4,7 +4,6 @@ using Arblib
 using HomotopyContinuation.DoubleDouble: ComplexDF64
 const HC = HomotopyContinuation
 
-set_default_compile(:none)
 
 @testset "Concretely typed" begin
     using CheckConcreteStructs

@@ -95,6 +95,7 @@ The possible states an `EndgameTracker` can be in:
 * `EndgameTrackerCode.terminated_step_size_too_small`
 """
 module EndgameTrackerCode
+    using ..PathResultCode: PathResultCode
     using ..TrackerCode: TrackerCode
 
     @enum codes begin
@@ -137,6 +138,8 @@ module EndgameTrackerCode
             return tracking
         end
     end
+
+    Base.convert(::Type{PathResultCode.codes}, code::codes) = PathResultCode.codes(Int(code))
 
 end
 
@@ -240,8 +243,8 @@ struct EndgameTracker{H <: AbstractHomotopy, M <: AbstractMatrix{ComplexF64}} <:
     options::EndgameOptions
 end
 
-EndgameTracker(H::Homotopy; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[], kwargs...) =
-    EndgameTracker(fixed(H; compile = compile); kwargs...)
+EndgameTracker(H::Homotopy; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE, kwargs...) =
+    EndgameTracker(fixed(H; compile_mode = compile_mode); kwargs...)
 function EndgameTracker(H::AbstractHomotopy; tracker_options = TrackerOptions(), kwargs...)
     return EndgameTracker(Tracker(H; options = tracker_options); kwargs...)
 end
@@ -867,7 +870,7 @@ function PathResult(
     end
 
     return PathResult(
-        return_code = Symbol(state.code),
+        return_code = convert(PathResultCode.codes, state.code),
         solution = solution,
         t = t,
         singular = state.singular,
