@@ -12,6 +12,7 @@ struct PolyhedralStartSolutionsIterator{Iter}
     lifting::Vector{Vector{Int32}}
     mixed_cells::Iter
     BSS::BinomialSystemSolver
+    show_progress::Bool
 end
 
 function PolyhedralStartSolutionsIterator(
@@ -19,6 +20,8 @@ function PolyhedralStartSolutionsIterator(
         coeffs::AbstractVector{<:AbstractVector{<:Number}},
         lifting = map(c -> zeros(Int32, length(c)), coeffs),
         mixed_cells = MixedCell[],
+        ;
+        show_progress::Bool = true,
     )
     BSS = BinomialSystemSolver(length(support))
     return PolyhedralStartSolutionsIterator(
@@ -27,6 +30,7 @@ function PolyhedralStartSolutionsIterator(
         lifting,
         mixed_cells,
         BSS,
+        show_progress,
     )
 end
 
@@ -44,7 +48,7 @@ Base.eltype(iter::PolyhedralStartSolutionsIterator) = Tuple{MixedCell, Vector{Co
 function compute_mixed_cells!(iter::PolyhedralStartSolutionsIterator)
     first_cell = iterate(iter.mixed_cells)
     if isnothing(first_cell)
-        res = MixedSubdivisions.fine_mixed_cells(iter.support)
+        res = MixedSubdivisions.fine_mixed_cells(iter.support; show_progress = iter.show_progress)
         if isnothing(res) || isempty(res[1])
             throw(OverflowError("Cannot compute a start system."))
         end
@@ -290,6 +294,7 @@ function polyhedral(
         only_torus::Bool = false,
         only_non_zero::Bool = only_torus,
         compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        show_progress::Bool = true,
         kwargs...,
     )
     unsupported_kwargs(kwargs)
@@ -331,7 +336,7 @@ function polyhedral(
     generic_tracker =
         EndgameTracker(Tracker(H₂; options = tracker_options), options = endgame_options)
 
-    S = PolyhedralStartSolutionsIterator(support, start_coeffs)
+    S = PolyhedralStartSolutionsIterator(support, start_coeffs; show_progress = show_progress)
     tracker = PolyhedralTracker(toric_tracker, generic_tracker, S.support, S.lifting)
 
     return tracker, S
@@ -426,7 +431,7 @@ function track(
             condition_jacobian = NaN,
             residual = NaN,
             winding_number = nothing,
-            last_path_point = (copy(state.x), state.t),
+            last_path_point = (copy(state.x), real(state.t)),
             valuation = nothing,
             ω = state.ω,
             μ = state.μ,

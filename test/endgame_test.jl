@@ -1,20 +1,21 @@
 @testset "Endgame" begin
     @testset "Cyclic 7" begin
-        res = solve(cyclic(7); start_system = :total_degree, show_progress = false)
+        res = solve(
+            SystemProblem(cyclic(7)),
+            TotalDegreeAlgorithm();
+            show_progress = false,
+        )
         @test nsolutions(res) == 924
     end
 
     @testset "Hyperbolic - 6,6" begin
-        # 2 solutions with multiplicity 6
         @var x z
         y = 1
-        # This has two roots of multiplicity 6 at the hyperplane z=0
-        # each root has winding number 3
         F = [
             0.75 * x^4 + 1.5 * x^2 * y^2 - 2.5 * x^2 * z^2 + 0.75 * y^4 - 2.5 * y^2 * z^2 + 0.75 * z^4
             10 * x^2 * z + 10 * y^2 * z - 6 * z^3
         ]
-        res = solve(System(F); start_system = :total_degree)
+        res = solve(SystemProblem(System(F)), TotalDegreeAlgorithm(); show_progress = false)
         @test count(r -> r.winding_number == 3, path_results(res)) == 12
         @test nresults(res) == 2
         @test nsingular(res) == 2
@@ -22,7 +23,6 @@
     end
 
     @testset "Singular 1" begin
-        # 1 singular solution with multiplicity 3
         @var x y
         z = 1
         F = [
@@ -30,7 +30,7 @@
             (18 + 3 * im) * x * y + 7 * im * y^2 - (3 - 18 * im) * x * z - 14 * y * z -
                 7 * im * z^2,
         ]
-        result = solve(System(F); start_system = :total_degree)
+        result = solve(SystemProblem(System(F)), TotalDegreeAlgorithm(); show_progress = false)
         @test nsingular(result) == 1
         @test nresults(result; only_nonsingular = true) == 1
     end
@@ -68,13 +68,7 @@
         @test count(is_success, res) == d + 1
     end
 
-    # @testset "Bacillus Subtilis" begin
-    #     res = solve(bacillus())
-    #     @test nsolutions(res) == 44
-    # end
-
     @testset "Mohab" begin
-        # Communicated by Mohab Safey El Din
         @var x y z
         F = [
             -9091098778555951517 * x^3 * y^4 * z^2 +
@@ -93,15 +87,17 @@
                 5384944853425480296 * x * y * z^4 +
                 88,
         ]
-        @time res =
-            solve(System(F, [x, z, y]); start_system = :total_degree, show_progress = false)
+        @time res = solve(
+            SystemProblem(System(F, [x, z, y])),
+            TotalDegreeAlgorithm();
+            show_progress = false,
+        )
         @test nnonsingular(res) == 693
 
-        # test for γ value where path jumping happened with to loose default config
         @time res = solve(
-            System(F, [x, z, y]),
-            γ = -0.9132549847010242 + 0.4073884300256109im,
-            start_system = :total_degree,
+            SystemProblem(System(F, [x, z, y])),
+            TotalDegreeAlgorithm(gamma = -0.9132549847010242 + 0.4073884300256109im),
+            show_progress = false,
         )
         @test nnonsingular(res) == 693
     end

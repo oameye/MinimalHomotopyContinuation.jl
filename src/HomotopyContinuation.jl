@@ -17,6 +17,7 @@ import Random
 import Printf
 using Reexport: @reexport
 import StructArrays
+import CommonSolve: init, solve, solve!
 import Base: push!
 
 const LA = LinearAlgebra
@@ -60,6 +61,8 @@ include("tracker.jl")
 include("valuation.jl")
 include("path_result.jl")
 include("endgame_tracker.jl")
+include("problems.jl")
+include("algorithms.jl")
 include("total_degree.jl")
 include("binomial_system.jl")
 include("polyhedral.jl")

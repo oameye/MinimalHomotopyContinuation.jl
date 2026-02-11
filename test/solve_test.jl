@@ -52,7 +52,10 @@
                 2.3 * x^2 + 1.2 * y^2 + 5x + 2y - 5,
             ]
         )
-        @test count(is_success, track.(polyhedral(affine_sqr; compile = false)...)) == 2
+        @test count(
+            is_success,
+            track.(polyhedral(affine_sqr; compile = false, show_progress = false)...),
+        ) == 2
 
         @var x y z
         homogeneous = System(
@@ -87,7 +90,7 @@
         @test paths_to_track(f; start_system = :polyhedral) == 8
         @test paths_to_track(f; start_system = :polyhedral, only_non_zero = true) == 3
         @test paths_to_track(f) == 8
-        @test mixed_volume(f) == 3
+        @test mixed_volume(f; show_progress = false) == 3
 
         @var x y a
         g = System([2y + a * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y], parameters = [a])
@@ -96,49 +99,57 @@
     end
 
     @testset "solve (parameter homotopy)" begin
-        # affine
         @var x a y b
         F = System([x^2 - a, x * y - a + b], [x, y], [a, b])
         s = [1, 1]
-        res = solve(F, [s]; start_parameters = [1, 0], target_parameters = [2, 4])
+        prob = ParameterHomotopyProblem(
+            F,
+            [s];
+            start_parameters = [1, 0],
+            target_parameters = [2, 4],
+        )
+        res = solve(prob; show_progress = false)
         @test nsolutions(res) == 1
-        res = solve(
+
+        prob = ParameterHomotopyProblem(
             InterpretedSystem(F),
             [s];
             start_parameters = [1, 0],
             target_parameters = [2, 4],
-            threading = false,
         )
+        res = solve(prob; threading = false, show_progress = false)
         @test nsolutions(res) == 1
-        res = solve(
+
+        prob = ParameterHomotopyProblem(
             F,
             s;
             start_parameters = [1, 0],
             target_parameters = [2, 4],
-            threading = false,
-            compile = false,
         )
+        res = solve(prob; threading = false, compile = false, show_progress = false)
         @test nsolutions(res) == 1
 
         @var x a y b
         F = System([x^2 - a], [x, y], [a, b])
         s = [1, 1]
-        @test_throws FiniteException(1) solve(
+        prob = ParameterHomotopyProblem(
             F,
             [s];
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
+        @test_throws FiniteException(1) solve(prob; show_progress = false)
 
         @var x a y b z
         F_homogeneous = System([x^2 - a * z^2, x * y + (b - a) * z^2], [x, y, z], [a, b])
         s_homogeneous = [1, 1, 1]
-        @test_throws ArgumentError solve(
+        prob = ParameterHomotopyProblem(
             F_homogeneous,
             [s_homogeneous];
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
+        @test_throws ArgumentError solve(prob; show_progress = false)
 
         @var x y v w a b
         @test_throws MethodError System(
@@ -153,7 +164,7 @@
         F = System([x^2 - a, x * y - a + b], [x, y], [a, b])
         s = [1, 1]
         H = ParameterHomotopy(F, [1, 0], [2, 4])
-        res = solve(H, [s])
+        res = solve(HomotopyProblem(H, [s]); show_progress = false)
         @test nsolutions(res) == 1
     end
 
@@ -161,46 +172,47 @@
         @var x a y b
         F = [x^2 - a, x * y - a + b]
         s = [1, 1]
-        res = solve(
+        prob = ParameterHomotopyProblem(
             F,
             [s];
             parameters = [a, b],
             start_parameters = [1, 0],
             target_parameters = [2, 4],
         )
+        res = solve(prob; show_progress = false)
         @test nsolutions(res) == 1
     end
 
     @testset "solve (DynamicPolynomials)" begin
         @polyvar x y
-        # define the polynomials
         f₁ = (x^4 + y^4 - 1) * (x^2 + y^2 - 2) + x^5 * y
         f₂ = x^2 + 2x * y^2 - 2 * y^2 - 1 / 2
-        result = solve([f₁, f₂])
+        result = solve(SystemProblem([f₁, f₂]), PolyhedralAlgorithm(); show_progress = false)
         @test nsolutions(result) == 18
 
         @polyvar x a y b
         F = [x^2 - a, x * y - a + b]
         s = [1, 1]
-        res = solve(
+        prob = ParameterHomotopyProblem(
             F,
             [s];
             variables = [x, y],
             parameters = [a, b],
             start_parameters = [1, 0],
             target_parameters = [2, 4],
-            compile = false,
         )
+        res = solve(prob; compile = false, show_progress = false)
         @test nsolutions(res) == 1
-        res2 = solve(
+
+        prob2 = ParameterHomotopyProblem(
             F,
             [s];
             variable_ordering = [y, x],
             parameters = [a, b],
             start_parameters = [1, 0],
             target_parameters = [2, 4],
-            compile = false,
         )
+        res2 = solve(prob2; compile = false, show_progress = false)
         s = solutions(res)[1]
         s2 = solutions(res2)[1]
         @test s ≈ [s2[2], s2[1]]
@@ -210,68 +222,78 @@
         @var x a y b
         F = System([x^2 - a, x * y - a + b]; parameters = [a, b])
         s = [1.0, 1.0 + 0im]
-        S, _ = solver_startsolutions(F, generic_parameters = [2.2, 3.2])
+        prob = ParameterHomotopyProblem(
+            F,
+            [s];
+            start_parameters = [1, 0],
+            target_parameters = [2, 4],
+        )
+        cache = HC.init(prob; seed = 0x12345678, show_progress = false)
+        S = cache.solver
         start_parameters!(S, [1, 0])
         target_parameters!(S, [2, 4])
         @test is_success(track(S, s))
     end
 
     @testset "solve (threading)" begin
-        res = solve(cyclic(7), threading = true, show_progress = false)
+        prob = SystemProblem(cyclic(7))
+        alg = PolyhedralAlgorithm()
+        res = solve(prob, alg; threading = true, show_progress = false)
         @test nsolutions(res) == 924
     end
 
     @testset "stop early callback" begin
         @var x
         first_result = nothing
+        prob = SystemProblem([(x - 3) * (x + 6) * (x + 2)])
+        alg = TotalDegreeAlgorithm()
         results = solve(
-            [(x - 3) * (x + 6) * (x + 2)];
+            prob,
+            alg;
             stop_early_cb = r -> begin
                 first_result = r
                 true
             end,
             threading = false,
             show_progress = false,
-            start_system = :total_degree,
         )
         @test length(results) == 1
         @test first(results) === first_result
 
         result = let k = 0
             solve(
-                [(x - 3) * (x + 6) * (x + 2)],
+                prob,
+                alg;
                 stop_early_cb = r -> (k += 1) == 2,
-                start_system = :total_degree,
                 show_progress = false,
                 threading = false,
             )
         end
         @test length(result) == 2
 
-        # threading
         @var x y z
         first_result = nothing
-        # this has 5^3 = 125 solutions, so we should definitely stop early if we
-        # have less than 64 threads
-        results = solve(
+        prob = SystemProblem(
             [
                 (x - 3) * (x + 6) * (x + 2) * (x - 2) * (x + 2.5),
                 (y + 2) * (y - 2) * (y + 3) * (y + 5) * (y - 1),
                 (z + 2) * (z - 2) * (z + 3) * (z + 5) * (z - 2.1),
-            ];
+            ],
+        )
+        results = solve(
+            prob,
+            TotalDegreeAlgorithm();
             stop_early_cb = r -> begin
                 first_result = r
                 true
             end,
             threading = true,
             show_progress = false,
-            start_system = :total_degree,
         )
         @test length(results) < 125
     end
 
     @testset "Many parameters solver" begin
-        # Setup
         @var x y
         f = x^2 + y^2 - 1
 
@@ -279,79 +301,65 @@
         l = a * x + b * y + c
         F = [f, l]
 
-        # Compute start solutions S₀ for given start parameters p₀
         p₀ = randn(ComplexF64, 3)
-        S₀ = solutions(solve(subs(F, [a, b, c] => p₀)))
-        # The parameters we are intersted in
+        S₀ = solutions(
+            solve(
+                SystemProblem(subs(F, [a, b, c] => p₀)),
+                PolyhedralAlgorithm();
+                show_progress = false,
+            ),
+        )
         params = [rand(3) for i in 1:100]
 
-        result1 = solve(
+        prob = ParameterSweepProblem(
             F,
-            S₀,
-            ;
+            S₀;
             start_parameters = p₀,
-            target_parameters = params,
+            targets = params,
             parameters = [a, b, c],
-            threading = true,
         )
-        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
-        result1 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = params,
-            parameters = [a, b, c],
-            show_progress = false,
-            threading = false,
-        )
+        result1 = solve(prob; threading = true, show_progress = false)
         @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
 
-        # Only keep real solutions
-        result2 = solve(
+        result1 = solve(prob; show_progress = false, threading = false)
+        @test eltype(result1) <: Tuple{<:Result, Vector{Float64}}
+
+        prob2 = ParameterSweepProblem(
             F,
-            S₀,
-            ;
+            S₀;
             start_parameters = p₀,
-            target_parameters = params,
+            targets = params,
             parameters = [a, b, c],
             transform_result = (r, p) -> real_solutions(r),
-            threading = true,
         )
+        result2 = solve(prob2; threading = true, show_progress = false)
         @test typeof(result2) == Vector{Vector{Vector{Float64}}}
         @test !isempty(result2)
 
-        # Now instead of an Array{Array{Array{Float64,1},1},1} we want to have an
-        # Array{Array{Float64,1},1}
-        result3 = solve(
+        prob3 = ParameterSweepProblem(
             F,
-            S₀,
-            ;
+            S₀;
             start_parameters = p₀,
-            target_parameters = params,
+            targets = params,
             parameters = [a, b, c],
             transform_result = (r, p) -> real_solutions(r),
             flatten = true,
-            threading = false,
         )
+        result3 = solve(prob3; threading = false, show_progress = false)
         @test typeof(result3) == Vector{Vector{Float64}}
         @test !isempty(result3)
 
-        # The passed `params` do not directly need to be the target parameters.
-        # Instead they can be some more concrete informations (e.g. an index)
-        # and we can them by using the `transform_parameters` method
-        result4 = solve(
+        prob4 = ParameterSweepProblem(
             F,
-            S₀,
-            ;
+            S₀;
             start_parameters = p₀,
-            target_parameters = 1:100,
+            targets = 1:100,
             parameters = [a, b, c],
             transform_result = (r, p) -> (real_solutions(r), p),
             transform_parameters = _ -> rand(3),
         )
+        result4 = solve(prob4; show_progress = false)
         @test typeof(result4) == Vector{Tuple{Vector{Vector{Float64}}, Int64}}
-
 
         @testset "Many parameters threaded" begin
             @var u1, v1, ω, α, γ, λ, ω0
@@ -381,18 +389,57 @@
 
             generic_parameters = randn(ComplexF64, 5)
 
-            R0 = solve(F; target_parameters = generic_parameters, threading = true)
-            R1 = solve(
-                F,
-                solutions(R0);
-                start_parameters = generic_parameters,
-                target_parameters = input_array,
+            R0 = solve(
+                SystemProblem(F; target_parameters = generic_parameters),
+                PolyhedralAlgorithm();
                 threading = true,
+                show_progress = false,
+            )
+            R1 = solve(
+                ParameterSweepProblem(
+                    F,
+                    solutions(R0);
+                    start_parameters = generic_parameters,
+                    targets = input_array,
+                );
+                threading = true,
+                show_progress = false,
             )
 
             @test length(R1) == 6
         end
+    end
 
+    @testset "CommonSolve interface contract" begin
+        @var x y
+        sysprob = SystemProblem(System([x^2 + y^2 - 1, x - y]))
+        alg = TotalDegreeAlgorithm(seed = 0x11112222)
+        cache = HC.init(sysprob, alg; show_progress = false, threading = false)
+        res1 = HC.solve!(cache)
+        res2 = solve(sysprob, alg; show_progress = false, threading = false)
+        @test nsolutions(res1) == nsolutions(res2)
 
+        cache2 = HC.init(sysprob, alg; show_progress = false, threading = false)
+        rA = HC.solve!(cache2)
+        rB = HC.solve!(cache2)
+        @test nsolutions(rA) == nsolutions(rB)
+
+        @var u v a
+        param_prob = ParameterHomotopyProblem(
+            System([u^2 - a, u + v], [u, v], [a]),
+            [[1.0, -1.0]];
+            start_parameters = [1.0],
+            target_parameters = [2.0],
+        )
+        c = HC.init(param_prob; show_progress = false, threading = false)
+        r = HC.solve!(c)
+        @test r isa Result
+    end
+
+    @testset "Breaking API" begin
+        @var x
+        F = System([x^2 - 1])
+        @test_throws MethodError solve(F)
+        @test_throws MethodError solve(F, [[1.0]])
     end
 end

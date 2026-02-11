@@ -954,7 +954,7 @@ function check_vars_params(f, vars, params)
         throw(
             ArgumentError(
                 "Not all variables or parameters of the system are given. Missing: " *
-                missing_vars,
+                    missing_vars,
             ),
         )
     end

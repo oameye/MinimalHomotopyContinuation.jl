@@ -1,8 +1,4 @@
-export solve,
-    Solver,
-    solver_startsolutions,
-    paths_to_track,
-    parameter_homotopy
+export solve, Solver, paths_to_track, parameter_homotopy
 
 struct SolveStats
     regular::Threads.Atomic{Int}
@@ -30,13 +26,6 @@ function update!(stats::SolveStats, R::PathResult)
     return stats
 end
 
-"""
-    Solver(path_tracker; seed = nothing)
-
-A struct containing multiple copies of `path_tracker`. This contains all pre-allocated
-data structures to call [`solve`]. The most convenient way to construct a `Solver` is
-via [`solver_startsolutions`](@ref).
-"""
 struct Solver{T <: AbstractPathTracker} <: AbstractSolver
     trackers::Vector{T}
     seed::Union{Nothing, UInt32}
@@ -51,21 +40,7 @@ Solver(
 
 Base.show(io::IO, solver::Solver) = print(io, typeof(solver), "()")
 
-
-"""
-    solver_startsolutions(args...; kwargs...)
-
-Takes the same input as [`solve`](@ref) but instead of directly solving the problem
-returns a [`Solver`](@ref) struct and the start solutions.
-
-## Example
-
-Calling `solve(args..; kwargs...)` is equivalent to
-```julia
-solver, starts = solver_startsolutions(args...; kwargs...)
-solve(solver, starts)
-```
-"""
+# Internal helper kept for transition support.
 function solver_startsolutions(
         F::AbstractVector{Expression},
         starts = nothing;
@@ -90,9 +65,6 @@ function solver_startsolutions(
         target_parameters = nothing,
         kwargs...,
     )
-    # handle special case that we have no parameters
-    # to shift the coefficients of the polynomials to the parameters
-    # this was the behaviour of HC.jl v1
     if isnothing(target_parameters) && isempty(parameters)
         sys, target_parameters = ModelKit.system_with_coefficents_as_params(
             F,
@@ -165,6 +137,22 @@ function solver_startsolutions(
     return Solver(tracker; seed = seed, start_system = used_start_system), starts
 end
 
+function solver_startsolutions(
+        H::Union{Homotopy, AbstractHomotopy},
+        starts = nothing;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed = nothing,
+        kwargs...,
+    )
+    unsupported_kwargs(kwargs)
+    !isnothing(seed) && Random.seed!(seed)
+    return Solver(EndgameTracker(fixed(H; compile = compile)); seed = seed), starts
+end
+
+function solver_startsolutions(args...; kwargs...)
+    throw(MethodError(solver_startsolutions, args))
+end
+
 function parameter_homotopy_tracker(
         F::Union{System, AbstractSystem};
         tracker_options = TrackerOptions(),
@@ -175,11 +163,6 @@ function parameter_homotopy_tracker(
     return EndgameTracker(H; tracker_options = tracker_options, options = endgame_options)
 end
 
-"""
-    parameter_homotopy(F; start_parameters, target_parameters)
-
-Construct a [`ParameterHomotopy`](@ref).
-"""
 function parameter_homotopy(
         F::Union{System, AbstractSystem};
         generic_parameters = randn(ComplexF64, nparameters(F)),
@@ -214,168 +197,374 @@ function parameter_homotopy(
     return H
 end
 
-function solver_startsolutions(
-        H::Union{Homotopy, AbstractHomotopy},
-        starts = nothing;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
-        seed = nothing,
-        kwargs...,
-    )
+struct PathSolveCache{SolverT, StartsT, StopEarlyT, BitmaskT}
+    solver::SolverT
+    starts::StartsT
+    stop_early_cb::StopEarlyT
+    show_progress::Bool
+    threading::Bool
+    catch_interrupt::Bool
+    iterator_only::Bool
+    bitmask::BitmaskT
+end
+
+struct SweepSolveCache{
+        SolverT,
+        StartsT,
+        TargetsT,
+        TransformResultT,
+        TransformParamsT,
+        BitmaskT,
+    }
+    solver::SolverT
+    starts::StartsT
+    targets::TargetsT
+    transform_result::TransformResultT
+    transform_parameters::TransformParamsT
+    flatten::Bool
+    show_progress::Bool
+    threading::Bool
+    catch_interrupt::Bool
+    iterator_only::Bool
+    bitmask::BitmaskT
+end
+
+function _seed!(seed)
     !isnothing(seed) && Random.seed!(seed)
-    return Solver(EndgameTracker(fixed(H; compile = compile)); seed = seed), starts
+    return nothing
 end
 
-function solver_startsolutions(args...; kwargs...)
-    throw(MethodError(solver_startsolutions, args))
+function _system_solver_startsolutions(
+        prob::SystemProblem,
+        alg::PolyhedralAlgorithm;
+        show_progress::Bool = true,
+    )
+    _seed!(alg.seed)
+    only_non_zero = something(alg.only_non_zero, alg.only_torus)
+    tracker, starts = polyhedral(
+        prob.system;
+        compile = alg.compile,
+        target_parameters = prob.target_parameters,
+        tracker_options = alg.tracker_options,
+        endgame_options = alg.endgame_options,
+        only_torus = alg.only_torus,
+        only_non_zero = only_non_zero,
+        show_progress = show_progress,
+    )
+    return Solver(tracker; seed = alg.seed, start_system = :polyhedral), starts
 end
 
-"""
-    solve(f; options...)
-    solve(f, start_solutions; start_parameters, target_parameters, options...)
-    solve(homotopy, start_solutions; options...)
+function _system_solver_startsolutions(prob::SystemProblem, alg::TotalDegreeAlgorithm)
+    _seed!(alg.seed)
+    tracker, starts = total_degree(
+        prob.system;
+        compile = alg.compile,
+        target_parameters = prob.target_parameters,
+        gamma = alg.gamma,
+        tracker_options = alg.tracker_options,
+        endgame_options = alg.endgame_options,
+    )
+    try
+        first(starts)
+    catch
+        throw("The number of start solutions is zero (total degree is zero).")
+    end
+    return Solver(tracker; seed = alg.seed, start_system = :total_degree), starts
+end
 
-Solve the given problem. If only a single polynomial system `f` is given, then all
-(complex) isolated solutions are computed.
-If a system `f` depending on parameters together with start and target parameters is given
-then a parameter homotopy is performed.
-For a given homotopy `homotopy` ``H(x,t)`` with solutions at ``t=1`` the solutions
-at ``t=0`` are computed.
-See the documentation for examples.
+function _parameter_solver_startsolutions(
+        prob::ParameterHomotopyProblem;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+    )
+    _seed!(seed)
+    tracker = parameter_homotopy_tracker(
+        prob.system;
+        start_parameters = prob.start_parameters,
+        target_parameters = prob.target_parameters,
+        compile = compile,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+end
 
-## General Options
-The `solve` routines takes the following options:
-* `catch_interrupt = true`: If this is `true`, the computation is gracefully stopped and a
-  partial result is returned when the computation is interruped.
-* `compile = $(COMPILE_DEFAULT[])`: If `true` then a `System` (resp. `Homotopy`) is compiled
-  to a straight line program ([`CompiledSystem`](@ref) resp. [`CompiledHomotopy`](@ref))
-  for evaluation. This induces a compilation overhead. If `false` then the generated program
-  is only interpreted ([`InterpretedSystem`](@ref) resp. [`InterpretedHomotopy`](@ref)).
-  This is slower than the compiled version, but does not introduce compilation overhead.
-* `endgame_options`: The options and parameters for the endgame.
-  See [`EndgameOptions`](@ref).
-* `seed`: The random seed used during the computations. The seed is also reported in the
-  result. For a given random seed the result is always identical.
-* `show_progress= true`: Indicate whether a progress bar should be displayed.
-* `stop_early_cb`: Here it is possible to provide a function (or any callable struct) which
-  accepts a `PathResult` `r` as input and returns a `Bool`. If `stop_early_cb(r)` is `true`
-  then no further paths are tracked and the computation is finished. This is only called
-  for successfull paths. This is for example useful if you only want to compute one solution
-  of a polynomial system. For this `stop_early_cb = _ -> true` would be sufficient.
-* `threading = true`: Enable multi-threading for the computation. The number of available threads is controlled by the environment variable `JULIA_NUM_THREADS`. You can run `Julia` with `n` threads using the command `julia -t n`; e.g., `julia -t 8` for `n=8`. (Some CPUs hang when using multiple threads. To avoid this run Julia with 1 interactive thread for the REPL; e.g., `julia -t 8,1` for `n=8`. Note that some CPUs seem to let `Julia` crash when using that option.)
-* `tracker_options`: The options and parameters for the path tracker.
-  See [`TrackerOptions`](@ref).
+function _sweep_solver_startsolutions(
+        prob::ParameterSweepProblem;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+    )
+    _seed!(seed)
+    isempty(prob.targets) && throw(ArgumentError("`targets` must be non-empty."))
+    first_target = first(prob.targets)
+    first_params = prob.transform_parameters(first_target)
+    tracker = parameter_homotopy_tracker(
+        prob.system;
+        start_parameters = prob.start_parameters,
+        target_parameters = first_params,
+        compile = compile,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+end
 
-## Options depending on input
+function _homotopy_solver_startsolutions(
+        prob::HomotopyProblem;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+    )
+    _seed!(seed)
+    tracker = EndgameTracker(
+        fixed(prob.homotopy; compile = compile);
+        tracker_options = tracker_options,
+        options = endgame_options,
+    )
+    return Solver(tracker; seed = seed, start_system = nothing), prob.start_solutions
+end
 
-If only a polynomial system is given:
-* `start_system`: Possible values are `:total_degree` and `:polyhedral`. Depending on the
-  choice furhter options are possible. See also [`total_degree`](@ref) and
-  [`polyhedral`](@ref).
-
-If a system `f` depending on parameters together with start parameters,
-start solutions and *multiple* target parameters then the following
-options are also available:
-
-* `flatten`: Flatten the output of `transform_result`. This is useful for example if
-   `transform_result` returns a vector of solutions, and you only want a single vector of
-   solutions as the result (instead of a vector of vector of solutions).
-* `transform_parameters = identity`: Transform a parameters values `p` before passing it to
-  `target_parameters = ...`.
-* `transform_result`: A function taking two arguments, the `result` and the
-  parameters `p`. By default this returns the tuple `(result, p)`.
-
-## Basic example
-
-```julia-repl
-julia> @var x y;
-
-julia> F = System([x^2+y^2+1, 2x+3y-1])
-System of length 2
- 2 variables: x, y
-
- 1 + x^2 + y^2
- -1 + 2*x + 3*y
-
-julia> solve(F)
-Result with 2 solutions
-=======================
-• 2 non-singular solutions (0 real)
-• 0 singular solutions (0 real)
-• 2 paths tracked
-• random seed: 0x75a6a462
-• start_system: :polyhedral
-```
-"""
-function solve(
-        args...;
+function init(
+        prob::SystemProblem,
+        alg::PolyhedralAlgorithm;
+        stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-        target_parameters = nothing,
-        stop_early_cb = always_false,
-        # many parameter options,
-        transform_result = nothing,
-        transform_parameters = identity,
-        flatten = nothing,
         iterator_only::Bool = false,
         bitmask = nothing,
-        kwargs...,
+    ) where {F}
+    solver, starts = _system_solver_startsolutions(prob, alg; show_progress = show_progress)
+    return PathSolveCache(
+        solver,
+        starts,
+        stop_early_cb,
+        show_progress,
+        threading,
+        catch_interrupt,
+        iterator_only,
+        bitmask,
     )
+end
 
-    many_parameters = false
-    if target_parameters !== nothing
-        # check if we have many parameters solve
-        if !isa(transform_parameters(first(target_parameters)), Number)
-            many_parameters = true
-            solver, starts = solver_startsolutions(
-                args...;
-                target_parameters = transform_parameters(first(target_parameters)),
-                kwargs...,
-            )
-        else
-            solver, starts = solver_startsolutions(
-                args...;
-                target_parameters = target_parameters,
-                kwargs...,
-            )
-        end
-    else
-        solver, starts = solver_startsolutions(args...; kwargs...)
+function init(
+        prob::SystemProblem,
+        alg::TotalDegreeAlgorithm;
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    ) where {F}
+    solver, starts = _system_solver_startsolutions(prob, alg)
+    return PathSolveCache(
+        solver,
+        starts,
+        stop_early_cb,
+        show_progress,
+        threading,
+        catch_interrupt,
+        iterator_only,
+        bitmask,
+    )
+end
+
+function init(
+        prob::ParameterHomotopyProblem,
+        ;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    ) where {F}
+    solver, starts = _parameter_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return PathSolveCache(
+        solver,
+        starts,
+        stop_early_cb,
+        show_progress,
+        threading,
+        catch_interrupt,
+        iterator_only,
+        bitmask,
+    )
+end
+
+function init(
+        prob::ParameterSweepProblem,
+        ;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    )
+    solver, starts = _sweep_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return SweepSolveCache(
+        solver,
+        starts,
+        prob.targets,
+        prob.transform_result,
+        prob.transform_parameters,
+        prob.flatten,
+        show_progress,
+        threading,
+        catch_interrupt,
+        iterator_only,
+        bitmask,
+    )
+end
+
+function init(
+        prob::HomotopyProblem,
+        ;
+        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        seed::Union{Nothing, UInt32} = rand(UInt32),
+        tracker_options = TrackerOptions(),
+        endgame_options = EndgameOptions(),
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    ) where {F}
+    solver, starts = _homotopy_solver_startsolutions(
+        prob;
+        compile = compile,
+        seed = seed,
+        tracker_options = tracker_options,
+        endgame_options = endgame_options,
+    )
+    return PathSolveCache(
+        solver,
+        starts,
+        stop_early_cb,
+        show_progress,
+        threading,
+        catch_interrupt,
+        iterator_only,
+        bitmask,
+    )
+end
+
+solve(prob::SystemProblem; kwargs...) = throw(
+    ArgumentError(
+        "A `SystemProblem` requires an explicit algorithm. Use `solve(prob, PolyhedralAlgorithm())` or `solve(prob, TotalDegreeAlgorithm())`.",
+    ),
+)
+function solve(
+        prob::SystemProblem,
+        alg::PolyhedralAlgorithm;
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    ) where {F}
+    return solve!(
+        init(
+            prob,
+            alg;
+            stop_early_cb = stop_early_cb,
+            show_progress = show_progress,
+            threading = threading,
+            catch_interrupt = catch_interrupt,
+            iterator_only = iterator_only,
+            bitmask = bitmask,
+        ),
+    )
+end
+
+function solve(
+        prob::SystemProblem,
+        alg::TotalDegreeAlgorithm;
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+        iterator_only::Bool = false,
+        bitmask = nothing,
+    ) where {F}
+    return solve!(
+        init(
+            prob,
+            alg;
+            stop_early_cb = stop_early_cb,
+            show_progress = show_progress,
+            threading = threading,
+            catch_interrupt = catch_interrupt,
+            iterator_only = iterator_only,
+            bitmask = bitmask,
+        ),
+    )
+end
+solve(prob::ParameterHomotopyProblem; kwargs...) = solve!(init(prob; kwargs...))
+solve(prob::ParameterSweepProblem; kwargs...) = solve!(init(prob; kwargs...))
+solve(prob::HomotopyProblem; kwargs...) = solve!(init(prob; kwargs...))
+
+function solve!(cache::PathSolveCache)
+    if cache.iterator_only
+        return ResultIterator(cache.starts, cache.solver; bitmask = cache.bitmask)
     end
-    return if many_parameters
-        if iterator_only
-            map(target_parameters) do p
-                solverᵢ = deepcopy(solver)
-                target_parameters!(solverᵢ, transform_parameters(p))
-                ResultIterator(starts, solverᵢ; bitmask = bitmask)
-            end
-        else
-            solve(
-                solver,
-                starts,
-                target_parameters;
-                show_progress = show_progress,
-                threading = threading,
-                catch_interrupt = catch_interrupt,
-                transform_result = transform_result,
-                transform_parameters = transform_parameters,
-                flatten = flatten,
-            )
-        end
-    else
-        if iterator_only
-            ResultIterator(starts, solver; bitmask = bitmask)
-        else
-            solve(
-                solver,
-                starts;
-                stop_early_cb = stop_early_cb,
-                show_progress = show_progress,
-                threading = threading,
-                catch_interrupt = catch_interrupt,
-            )
+    return solve(
+        cache.solver,
+        cache.starts;
+        stop_early_cb = cache.stop_early_cb,
+        show_progress = cache.show_progress,
+        threading = cache.threading,
+        catch_interrupt = cache.catch_interrupt,
+    )
+end
+
+function solve!(cache::SweepSolveCache)
+    if cache.iterator_only
+        return map(cache.targets) do p
+            solverᵢ = deepcopy(cache.solver)
+            target_parameters!(solverᵢ, cache.transform_parameters(p))
+            ResultIterator(cache.starts, solverᵢ; bitmask = cache.bitmask)
         end
     end
+    return solve(
+        cache.solver,
+        cache.starts,
+        cache.targets;
+        show_progress = cache.show_progress,
+        threading = cache.threading,
+        catch_interrupt = cache.catch_interrupt,
+        transform_result = cache.transform_result,
+        transform_parameters = cache.transform_parameters,
+        flatten = cache.flatten,
+    )
 end
 
 solve(S::Solver, R::Result; kwargs...) =
@@ -400,11 +589,11 @@ end
 function solve(
         S::Solver,
         starts::AbstractArray;
-        stop_early_cb = always_false,
+        stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
-    )
+    ) where {F}
 
     n = length(starts)
     progress = show_progress ? make_progress(n; delay = 0.3) : nothing
@@ -421,6 +610,7 @@ function solve(
         serial_solve(S, starts, progress, stop_early_cb; catch_interrupt = catch_interrupt)
     end
 end
+
 (solver::Solver)(starts; kwargs...) = solve(solver, starts; kwargs...)
 track(solver::Solver, s; kwargs...) = track(solver.trackers[1], s; kwargs...)
 
@@ -432,6 +622,7 @@ function make_progress(n::Integer; delay::Float64 = 0.0)
     progress.tlast += delay
     return progress
 end
+
 function update_progress!(progress, stats, ntracked)
     t = time()
     if ntracked == progress.n || t > progress.tlast + progress.dt
@@ -440,6 +631,7 @@ function update_progress!(progress, stats, ntracked)
     end
     return nothing
 end
+
 @noinline function make_showvalues(stats, ntracked)
     nsols = stats.regular[] + stats.singular[]
     nreal = stats.regular_real[] + stats.singular_real[]
@@ -450,15 +642,16 @@ end
         ("# total solutions (real)", "$nsols ($nreal)"),
     )
 end
+
 update_progress!(::Nothing, stats, ntracked) = nothing
 
 function serial_solve(
         solver::Solver,
         starts,
         progress = nothing,
-        stop_early_cb = always_false;
+        stop_early_cb::F = always_false;
         catch_interrupt::Bool = true,
-    )
+    ) where {F}
     path_results = Vector{PathResult}()
     tracker = solver.trackers[1]
     try
@@ -477,21 +670,21 @@ function serial_solve(
 
     return Result(path_results; seed = solver.seed, start_system = solver.start_system)
 end
+
 function threaded_solve(
         solver::Solver,
         S::AbstractArray,
         progress = nothing,
-        stop_early_cb = always_false;
+        stop_early_cb::F = always_false;
         catch_interrupt::Bool = true,
-    )
+    ) where {F}
 
     N = length(S)
     path_results = Vector{PathResult}(undef, N)
     interrupted = Threads.Atomic{Bool}(false)
     finished = Threads.Atomic{Int}(0)
-    next_k = Threads.Atomic{Int}(1)  # next index k to process
+    next_k = Threads.Atomic{Int}(1)
 
-    # Each thread gets its own tracker
     tracker = solver.trackers[1]
     ntrackers = length(solver.trackers)
     nthr = Threads.nthreads()
@@ -500,27 +693,22 @@ function threaded_solve(
         solver.trackers[i] = deepcopy(tracker)
     end
 
-    # Use a lock for progress
     progress_lock = ReentrantLock()
 
-    # threading block
     try
         Base.@sync begin
             for lt in solver.trackers
                 let tracker = lt
                     Threads.@spawn begin
                         while true
-                            # get current index
                             idx = Threads.atomic_add!(next_k, 1)
                             k = idx
                             if k > N || interrupted[]
                                 break
                             end
-                            # track
                             r = track(tracker, S[k]; path_number = k)
                             path_results[k] = r
                             nfinished = Threads.atomic_add!(finished, 1) + 1
-                            # update progress and stats in a locked state
                             lock(progress_lock) do
                                 update!(solver.stats, r)
                                 update_progress!(progress, solver.stats, nfinished)
@@ -544,7 +732,7 @@ function threaded_solve(
             rethrow(e)
         end
     end
-    # if we got interrupted we need to remove the unassigned filedds
+
     return if interrupted[]
         assigned_results = Vector{PathResult}()
         for i in eachindex(path_results)
@@ -572,6 +760,7 @@ function target_parameters!(solver::Solver, p)
     end
     return solver
 end
+
 function parameters!(solver::Solver, p, q)
     for tracker in solver.trackers
         parameters!(tracker, p, q)
@@ -579,11 +768,6 @@ function parameters!(solver::Solver, p, q)
     return solver
 end
 
-"""
-    paths_to_track(f; options...)
-
-Returns the number of paths tracked when calling [`solve`](@ref) with the given arguments.
-"""
 function paths_to_track(
         f::Union{System, AbstractSystem};
         start_system::Symbol = :polyhedral,
@@ -623,11 +807,6 @@ function paths_to_track(
     end
 end
 
-#############################
-### Many parameter solver ###
-#############################
-
-
 function solve(
         S::Solver,
         starts,
@@ -639,7 +818,7 @@ function solve(
         transform_parameters = nothing,
         flatten = nothing,
     )
-    transform_result = something(transform_result, tuple) # (solutions ∘ first) ∘ tuple
+    transform_result = something(transform_result, tuple)
     transform_parameters = something(transform_parameters, identity)
     flatten = something(flatten, false)
 
@@ -660,7 +839,6 @@ function solve(
     )
 end
 
-
 function make_many_progress(n::Integer; delay::Float64 = 0.0)
     desc = "Solving for $n parameters... "
     barlen = min(ProgressMeter.tty_width(desc, stdout, false), 40)
@@ -669,6 +847,7 @@ function make_many_progress(n::Integer; delay::Float64 = 0.0)
     progress.tlast += delay
     return progress
 end
+
 function update_many_progress!(progress, results, k, paths_per_param; flatten::Bool)
     t = time()
     if k == progress.n || t > progress.tlast + progress.dt
@@ -677,6 +856,7 @@ function update_many_progress!(progress, results, k, paths_per_param; flatten::B
     end
     return nothing
 end
+
 @noinline function make_many_showvalues(results, k, paths_per_param; flatten::Bool)
     return if flatten
         [
@@ -688,6 +868,7 @@ end
         [("# parameters solved", k), ("# paths tracked", paths_per_param * k)]
     end
 end
+
 update_many_progress!(::Nothing, results, k, paths_per_param; kwargs...) = nothing
 
 function many_solve(

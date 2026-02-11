@@ -417,7 +417,7 @@ end
 end
 
 ^(a::DoubleF64, p::Integer) = power_by_squaring(a, p)
-^(a::DoubleF64, b::Rational) = a ^ float(b)
+^(a::DoubleF64, b::Rational) = a^float(b)
 ^(a::DoubleF64, b::Real) = iszero(a) ? one(a) : exp(b * log(a))
 
 @inline function Base.sqrt(a::DoubleF64)

@@ -885,7 +885,7 @@ function ExpressionMap(
     throw(
         ArgumentError(
             "Substitution arguments don't have the same shape. " *
-            "When substituting arrays, both sides must be arrays of equal size.",
+                "When substituting arrays, both sides must be arrays of equal size.",
         ),
     )
 end

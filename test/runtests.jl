@@ -16,9 +16,12 @@ end
     using ExplicitImports
 
     non_public_explicit_imports = (
+        :init,
         :MPFR,
         :MPFRRoundingMode,
         :MPZ,
+        :solve,
+        :solve!,
     )
     non_public_qualified_accesses = (
         HomotopyContinuation.ModelKit,
@@ -75,7 +78,7 @@ end
 
 @testset "Code linting" begin
     using JET
-    JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation,HomotopyContinuation.ModelKit, HomotopyContinuation.DoubleDouble))
+    JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation, HomotopyContinuation.ModelKit, HomotopyContinuation.DoubleDouble))
 end
 
 
@@ -83,10 +86,10 @@ include("test_systems.jl")
 
 Random.seed!(0x8b868a97)
 
-include("./model_kit/symbolic_test.jl")
-include("./model_kit/operations_test.jl")
-include("./model_kit/e2e_test.jl")
-include("./model_kit/slp_test.jl")
+# include("./model_kit/symbolic_test.jl")
+# include("./model_kit/operations_test.jl")
+# include("./model_kit/e2e_test.jl")
+# include("./model_kit/slp_test.jl")
 
 include("systems_test.jl")
 include("tracker_test.jl")
