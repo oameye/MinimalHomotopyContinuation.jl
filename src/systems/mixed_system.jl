@@ -16,13 +16,12 @@ MixedSystem(F::System; kwargs...) =
 Base.size(F::MixedSystem) = size(F.compiled)
 ModelKit.variables(F::MixedSystem) = variables(F.interpreted)
 ModelKit.parameters(F::MixedSystem) = parameters(F.interpreted)
-ModelKit.variable_groups(F::MixedSystem) = variable_groups(F.interpreted)
 ModelKit.System(F::MixedSystem) = System(F.interpreted)
 Base.:(==)(F::MixedSystem, G::MixedSystem) = F.interpreted == G.interpreted
 
 function Base.show(io::IO, F::MixedSystem)
     print(io, "Mixed: ")
-    show(io, System(F))
+    return show(io, System(F))
 end
 
 (F::MixedSystem)(x, p = nothing) = F.interpreted(x, p)

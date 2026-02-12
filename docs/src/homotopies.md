@@ -27,13 +27,6 @@ higher level constructors are exported.
 
 ```@docs
 parameter_homotopy
-linear_subspace_homotopy
-```
-
-## AffineChartHomotopy
-```@docs
-AffineChartHomotopy
-on_affine_chart(F::Homotopy, dims)
 ```
 
 ## CoefficientHomotopy
@@ -45,21 +38,6 @@ CoefficientHomotopy
 ```@docs
 FixedParameterHomotopy
 fix_parameters(H::AbstractHomotopy, p)
-```
-
-## ExtrinsicSubspaceHomotopy
-```@docs
-ExtrinsicSubspaceHomotopy
-```
-
-## IntrinsicSubspaceHomotopy
-```@docs
-IntrinsicSubspaceHomotopy
-```
-
-## IntrinsicSubspaceProjectiveHomotopy
-```@docs
-IntrinsicSubspaceProjectiveHomotopy
 ```
 
 ## ParameterHomotopy

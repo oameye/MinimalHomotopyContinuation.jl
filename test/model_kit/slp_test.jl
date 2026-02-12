@@ -38,7 +38,7 @@
 
             evaluate_and_jacobian!(u, U, H, v, t, [p; q])
             @test U ≈
-                  differentiate(f, [x, y])([x, y] => v, [a, b, c] => t * p + (1 - t) * q)
+                differentiate(f, [x, y])([x, y] => v, [a, b, c] => t * p + (1 - t) * q)
         end
     end
 
@@ -48,12 +48,12 @@
         @var x[0:n] ẋ[0:n] ẍ[0:n] x3[0:n] t γ
         K = [
             (
-                sum(x[abs(l)+1] * x[abs(m - l)+1] for l = -n:n if abs(m - l) <= n) - x[m+1] for m = 0:n-1
+                sum(x[abs(l) + 1] * x[abs(m - l) + 1] for l in -n:n if abs(m - l) <= n) - x[m + 1] for m in 0:(n - 1)
             )...,
-            x[1] + 2 * sum(x[i+1] for i = 1:n) - 1,
+            x[1] + 2 * sum(x[i + 1] for i in 1:n) - 1,
         ]
 
-        h = γ .* t .* [x[1:n] .^ 2 .- 1; x[n+1] - 1] + (1 - t) .* K
+        h = γ .* t .* [x[1:n] .^ 2 .- 1; x[n + 1] - 1] + (1 - t) .* K
         H = ModelKit.Homotopy(h, x, t, [γ])
         TH = CompiledHomotopy(H)
 
@@ -145,9 +145,9 @@
         f₂ = x^2 + 2x * y^2 - 2 * y^2 - 1 / 2
         F = System([f₁, f₂])
         for I in [
-            Arblib.AcbMatrix(randn(ComplexF64, 2, 1)),
-            Arblib.AcbRefVector(randn(ComplexF64, 2)),
-        ]
+                Arblib.AcbMatrix(randn(ComplexF64, 2, 1)),
+                Arblib.AcbRefVector(randn(ComplexF64, 2)),
+            ]
             @test all(!iszero, F(I))
 
             u = Arblib.AcbVector(2)

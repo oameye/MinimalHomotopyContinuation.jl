@@ -102,7 +102,7 @@
         @test differentiate(f, [x, y]) == [2x, 2y]
 
         @test differentiate([f, g], x) == [2x, 3 * x^2]
-        @test differentiate([f, g], [x, y]) == [2x 2y; 3*x^2 3*y^2]
+        @test differentiate([f, g], [x, y]) == [2x 2y; 3 * x^2 3 * y^2]
     end
 
     @testset "Expand" begin
@@ -113,7 +113,7 @@
     @testset "to_dict" begin
         @var x y a
         @test ModelKit.to_dict(x^2 + y * x * a + y * x, [x, y]) ==
-              Dict([2, 0] => Expression(1), [1, 1] => a + 1)
+            Dict([2, 0] => Expression(1), [1, 1] => a + 1)
         @test ModelKit.degree(x * y^5 + y^2, [x, y]) == 6
     end
 
@@ -141,7 +141,7 @@
             @var x y z
             f = [
                 (0.3 * x^2 + 0.5z + 0.3x + 1.2 * y^2 - 1.1)^2 +
-                (0.7 * (y - 0.5x)^2 + y + 1.2 * z^2 - 1)^2 - 0.3,
+                    (0.7 * (y - 0.5x)^2 + y + 1.2 * z^2 - 1)^2 - 0.3,
             ]
 
             I = let x = [x, y, z]
@@ -210,10 +210,10 @@
         ν = monomials(x, 5; affine = false)
         N = length(ν)
         q₀ = randn(ComplexF64, N - 1)
-        @var q[1:N-1]
-        F = sum(q[i] * ν[i] for i = 1:N-1) + 1
+        @var q[1:(N - 1)]
+        F = sum(q[i] * ν[i] for i in 1:(N - 1)) + 1
 
-        @var a[1:n-1] b[1:n-1] t
+        @var a[1:(n - 1)] b[1:(n - 1)] t
         L = [a; 1] .* t + [b; 0]
 
         G = subs(F, x => L)
@@ -286,25 +286,21 @@
         @test variables(F4) == [x, y]
 
         @var x y a b
-        f = Any[(x+y)^3+x^2+x+5y+3a, 2*x^2+b]
+        f = Any[(x + y)^3 + x^2 + x + 5y + 3a, 2 * x^2 + b]
         F = System(f, [x, y], [b, a])
         @test F isa System
     end
 
-    @testset "System variables groups + homogeneous" begin
+    @testset "System homogeneous" begin
         @var x y z
-        f = System([
-            (x^2 + y^2 + x * y - 3 * z^2) * (x + 3z),
-            (x^2 + y^2 + x * y - 3 * z^2) * (y - x + 2z),
-            2x + 5y - 3z,
-        ])
+        f = System(
+            [
+                (x^2 + y^2 + x * y - 3 * z^2) * (x + 3z),
+                (x^2 + y^2 + x * y - 3 * z^2) * (y - x + 2z),
+                2x + 5y - 3z,
+            ]
+        )
         @test is_homogeneous(f)
-        multi_degrees(f) == [1 1; 2 0]
-
-        @var x y z v w
-        g = System([x * y - 2v * w, x^2 - 4 * v^2], variable_groups = [[x, v], [y, w]])
-        @test is_homogeneous(g)
-        multi_degrees(g) == [1 1; 2 0]
     end
 
     @testset "Homotopy" begin

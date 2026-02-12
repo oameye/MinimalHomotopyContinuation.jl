@@ -13,7 +13,6 @@
 
         @test startswith(sprint(show, res), "Result with 3 solutions")
         @test seed(res) isa UInt32
-        test_treeviews(res)
 
         seeded_res = solve(
             F;
@@ -21,7 +20,6 @@
             seed = seed(res),
         )
         @test seed(seeded_res) == seed(res)
-        test_treeviews(res)
 
         @test length(path_results(res)) == ntracked(res) == 7
         @test length(results(res)) == nresults(res) == 3
@@ -29,11 +27,11 @@
         @test length(findall(is_success, res)) == 3
         @test real_solutions(res) isa Vector{Vector{Float64}}
         @test length(real_solutions(res)) == nreal(res) == 1
-        @test length(real_solutions(res; atol = 1e-16)) == 1
+        @test length(real_solutions(res; atol = 1.0e-16)) == 1
         @test length(real_solutions(res; atol = 0.0)) == 0
-        @test length(real_solutions(res; atol = 0.0, rtol = 1e-16)) == 1
+        @test length(real_solutions(res; atol = 0.0, rtol = 1.0e-16)) == 1
         @test length(real_solutions(res; atol = Inf, rtol = Inf)) == 3
-        @test length(real_solutions(res; atol = 1.0, rtol = 1e-16)) == 1
+        @test length(real_solutions(res; atol = 1.0, rtol = 1.0e-16)) == 1
         @test length(nonsingular(res)) == nnonsingular(res) == 3
         @test isempty(singular(res))
         @test nsingular(res) == 0
@@ -49,7 +47,6 @@
         res = solve(g; start_system = :total_degree)
         @test startswith(sprint(show, res), "Result with 1 solution")
         @test seed(res) isa UInt32
-        test_treeviews(res)
         @test !isempty(sprint(show, statistics(res)))
         @test !isempty(sprint(show, res))
     end
@@ -83,7 +80,7 @@ end
         @test nsingular(res) == 0
         @test nexcess_solutions(res) == 0
 
-        # pass bit-vector 
+        # pass bit-vector
         B = BitVector([1, 0, 0, 0, 0, 0, 0])
         res_B = solve(F; iterator_only = true, bitmask = B, target_parameters = param)
         @test length(res_B) == 1
@@ -144,7 +141,7 @@ end
         @test length(BM) == sum(bitmask(isfinite, tsi_total_degree)) == 3
 
         t = trace(BM)
-        @test norm([1.0 + 0.0im, 1.0 + 0.0im] - t) < 1e-12
+        @test norm([1.0 + 0.0im, 1.0 + 0.0im] - t) < 1.0e-12
     end
 
     @testset "Manual start solutions" begin
@@ -187,7 +184,7 @@ end
         p₀ = randn(ComplexF64, 3)
         S₀ = solutions(solve(subs(F, [a, b, c] => p₀)))
         # The parameters we are intersted in
-        params = [rand(3) for i = 1:100]
+        params = [rand(3) for i in 1:100]
 
         result1 = solve(
             F,
@@ -265,56 +262,4 @@ end
         @test !isempty(r4)
     end
 
-    @testset "Target subspaces" begin
-        @var x y
-        F = System([x^2 + y^2 - 5], [x, y])
-        l1 = rand_subspace(2; codim = 1)
-        l2 = rand_subspace(2; codim = 1)
-
-        r1 = solve(F; target_subspace = l1, intrinsic = true, iterator_only = true)
-
-        w1 = collect(r1)
-        @test length(w1) == 2
-        @test w1 isa Vector{PathResult}
-
-        r2 = solve(F, r1; start_subspace = l1, target_subspace = l2, iterator_only = true)
-
-        w2 = collect(r2)
-        @test length(w2) == 2
-        pt = solution(w2[1])
-        @test norm(l2(pt)) < 1e-12
-    end
-
-    @testset "Compression" begin
-        F = cyclic(5)
-        R = solve(F)
-        # this function encodes the zeros R of F as an iterator with total degree start system 
-        function compress(F, R; gamma = cis(rand() * 2pi))
-            d = degrees(F)
-            v = variables(F)
-            k = length(R)
-            S = total_degree_start_solutions(d)
-            G = System(gamma .* [vi^di - 1 for (vi, di) in zip(v, d)], variables = v)
-            T = solutions(solve(F, G, R))
-
-            U = UniquePoints(first(T), 0)
-            for (i, t) in enumerate(T)
-                add!(U, t, i)
-            end
-            B = BitVector()
-            for (i, s) in enumerate(S)
-                _, j = add!(U, s, i + k)
-                push!(B, !j)
-            end
-
-            solve(G, F, S; iterator_only = true, bitmask = B)
-        end
-
-        C = compress(F, R)
-
-        @test C isa ResultIterator
-        R_test = collect(C)
-        @test length(R_test) == 70
-        @test all(is_success, R_test)
-    end
 end

@@ -34,7 +34,6 @@ An [`AbstractSystem`](@ref) needs to implement the following methods:
 Base.size(F::AbstractSystem)
 ModelKit.variables(F::AbstractSystem)::Vector{Variable}
 ModelKit.parameters(F::AbstractSystem) = Variable[]
-ModelKit.variable_groups(::AbstractSystem)::Union{Nothing,Vector{Vector{Variable}}} = nothing
  # this has to work with x::Vector{Variable}
 (F::AbstractSystem)(x, p = nothing)
  # this has to work with x::Vector{ComplexF64} and x::Vector{ComplexDF64}
@@ -50,27 +49,10 @@ implement
 taylor!(u, ::Val{1}, F::AbstractSystem, x, p::TaylorVector{2})
 ```
 
-## AffineChartSystem
-```@docs
-AffineChartSystem
-on_affine_chart(F::System, dims)
-```
-
-## CompositionSystem
-```@docs
-CompositionSystem
-compose
-```
-
 ## FixedParameterSystem
 ```@docs
 FixedParameterSystem
 fix_parameters(F::AbstractSystem, p)
-```
-
-## RandomizedSystem
-```@docs
-RandomizedSystem
 ```
 
 ## Real Systems

@@ -1,14 +1,14 @@
 @testset "test operations against taylor operations (N=$N, K=$K)" for (K, N) in [
-    (3, 4),
-    (3, 2),
-    (2, 1),
-]
+        (3, 4),
+        (3, 2),
+        (2, 1),
+    ]
     @var x[0:5] y[0:5] z[0:5] w[0:5]
 
-    tx = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(x[1:N+1]))
-    ty = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(y[1:N+1]))
-    tz = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(z[1:N+1]))
-    tw = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(w[1:N+1]))
+    tx = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(x[1:(N + 1)]))
+    ty = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(y[1:(N + 1)]))
+    tz = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(z[1:(N + 1)]))
+    tw = ModelKit.TruncatedTaylorSeries(ModelKit.Expression.(w[1:(N + 1)]))
 
     function normalized_taylor_term(expr, order, ε = Variable(:ε))
         isnothing(expr) && return nothing
@@ -20,13 +20,15 @@
         taylor_op_f = getfield(ModelKit, ModelKit.taylor_op_call(op))
         f =
             (val, args...) -> begin
-                taylor_res = taylor_op_f(val, args...)
-                expected_res = ModelKit.TruncatedTaylorSeries([
+            taylor_res = taylor_op_f(val, args...)
+            expected_res = ModelKit.TruncatedTaylorSeries(
+                [
                     normalized_taylor_term(op_f(ModelKit.expression.(args)...), k)
-                    for k = 0:K
-                ])
-                (expand.(taylor_res), expand.(expected_res))
-            end
+                        for k in 0:K
+                ]
+            )
+            (expand.(taylor_res), expand.(expected_res))
+        end
 
         (taylor_res, expected_res) = if ModelKit.arity(op) === 0
 
