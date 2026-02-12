@@ -69,7 +69,6 @@ include("algorithms/binomial_system.jl")
 include("algorithms/polyhedral.jl")
 
 include("problems/problems_core.jl")
-include("problems/problems_frontend.jl")
 
 include("result/types.jl")
 include("result/iterate.jl")

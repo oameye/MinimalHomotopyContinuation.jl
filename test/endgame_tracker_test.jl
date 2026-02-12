@@ -1,11 +1,17 @@
-const total_degree = HC.total_degree
 const track = HC.track
+const TotalDegreeAlgorithm = HC.TotalDegreeAlgorithm
 
 @testset "EndgameTracker" begin
     @testset "Tracking and PathResult" begin
         @var x y
         f = [2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3, 2.3 * x^2 + 1.2 * y^2 + 5x + 2y - 5]
-        tracker, starts = total_degree(System(f); gamma = 1.3im + 0.4)
+        cache = HC.init(
+            SystemProblem(System(f)),
+            TotalDegreeAlgorithm(gamma = 1.3im + 0.4);
+            show_progress = false,
+            threading = false,
+        )
+        tracker, starts = cache.solver.trackers[1], cache.starts
         S = collect(starts)
         @test !isempty(sprint(show, tracker.options))
 
@@ -35,7 +41,13 @@ const track = HC.track
         # singular stuff
         @var x
         f = [(x - 10)^2]
-        tracker, starts = total_degree(System(f))
+        cache = HC.init(
+            SystemProblem(System(f)),
+            TotalDegreeAlgorithm();
+            show_progress = false,
+            threading = false,
+        )
+        tracker, starts = cache.solver.trackers[1], cache.starts
         res = track.(tracker, starts)
         @test winding_number(res[1]) == 2
         @test last_path_point(res[1]) isa Tuple{Vector{ComplexF64}, Float64}
@@ -47,5 +59,4 @@ const track = HC.track
         @test all(isreal, res)
         @test all(is_singular, res)
     end
-
 end

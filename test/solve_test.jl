@@ -1,5 +1,3 @@
-const total_degree = HC.total_degree
-const polyhedral = HC.polyhedral
 const track = HC.track
 const mixed_volume = HC.MixedSubdivisions.mixed_volume
 
@@ -13,7 +11,16 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             ]
         )
         @test count(
-            is_success, track.(total_degree(affine_sqr; compile_mode = CompileNone())...)
+            is_success,
+            begin
+                cache = HC.init(
+                    SystemProblem(affine_sqr),
+                    TotalDegreeAlgorithm(compile_mode = CompileNone());
+                    show_progress = false,
+                    threading = false,
+                )
+                track.(cache.solver.trackers[1], cache.starts)
+            end,
         ) == 2
 
         @var x y
@@ -24,7 +31,9 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
                 2x + 5y - 3,
             ]
         )
-        @test_throws ArgumentError total_degree(affine_ov; compile_mode = CompileNone())
+        @test_throws ArgumentError HC.init(
+            SystemProblem(affine_ov), TotalDegreeAlgorithm(compile_mode = CompileNone())
+        )
 
         @var x y
         affine_ov_reordering = System(
@@ -34,17 +43,21 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
                 (x^2 + y^2 + x * y - 3) * (y^2 - x + 2),
             ]
         )
-        @test_throws ArgumentError total_degree(
-            affine_ov_reordering; compile_mode = CompileNone()
+        @test_throws ArgumentError HC.init(
+            SystemProblem(affine_ov_reordering), TotalDegreeAlgorithm(compile_mode = CompileNone())
         )
 
         @var x y z
         homogeneous = System([x^2 + y^2 + z^2, x * z + y * z])
-        @test_throws ArgumentError total_degree(homogeneous; compile_mode = CompileNone())
+        @test_throws ArgumentError HC.init(
+            SystemProblem(homogeneous), TotalDegreeAlgorithm(compile_mode = CompileNone())
+        )
 
         @var x y
         affine_underdetermined = System([2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3])
-        @test_throws HC.FiniteException total_degree(affine_underdetermined)
+        @test_throws HC.FiniteException HC.init(
+            SystemProblem(affine_underdetermined), TotalDegreeAlgorithm()
+        )
     end
 
     @testset "polyhedral" begin
@@ -56,14 +69,22 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         )
         @test count(
             is_success,
-            track.(
-                polyhedral(affine_sqr; compile_mode = CompileNone(), show_progress = false)...
-            ),
+            begin
+                cache = HC.init(
+                    SystemProblem(affine_sqr),
+                    PolyhedralAlgorithm(compile_mode = CompileNone());
+                    show_progress = false,
+                    threading = false,
+                )
+                track.(cache.solver.trackers[1], cache.starts)
+            end,
         ) == 2
 
         @var x y z
         homogeneous = System([x^2 + y^2 + z^2, x * z + y * z])
-        @test_throws ArgumentError polyhedral(homogeneous; compile_mode = CompileNone())
+        @test_throws ArgumentError HC.init(
+            SystemProblem(homogeneous), PolyhedralAlgorithm(compile_mode = CompileNone())
+        )
 
         @var x y
         affine_ov = System(
@@ -73,11 +94,15 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
                 2x + 5y - 3,
             ]
         )
-        @test_throws ArgumentError polyhedral(affine_ov; compile_mode = CompileNone())
+        @test_throws ArgumentError HC.init(
+            SystemProblem(affine_ov), PolyhedralAlgorithm(compile_mode = CompileNone())
+        )
 
         @var x y
         affine_underdetermined = System([2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3])
-        @test_throws HC.FiniteException polyhedral(affine_underdetermined)
+        @test_throws HC.FiniteException HC.init(
+            SystemProblem(affine_underdetermined), PolyhedralAlgorithm()
+        )
     end
 
     @testset "paths to track" begin
@@ -162,13 +187,11 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @test nsolutions(res) == 1
     end
 
-    @testset "solve (Vector{Expression})" begin
+    @testset "solve (System from expressions)" begin
         @var x a y b
-        F = [x^2 - a, x * y - a + b]
+        F = System([x^2 - a, x * y - a + b], [x, y], [a, b])
         s = [1, 1]
-        prob = ParameterHomotopyProblem(
-            F, [s]; parameters = [a, b], start_parameters = [1, 0], target_parameters = [2, 4]
-        )
+        prob = ParameterHomotopyProblem(F, [s]; start_parameters = [1, 0], target_parameters = [2, 4])
         res = solve(prob, PathTrackingAlgorithm(); show_progress = false)
         @test nsolutions(res) == 1
     end
@@ -177,32 +200,26 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @polyvar x y
         f₁ = (x^4 + y^4 - 1) * (x^2 + y^2 - 2) + x^5 * y
         f₂ = x^2 + 2x * y^2 - 2 * y^2 - 1 / 2
-        result = solve(SystemProblem([f₁, f₂]), PolyhedralAlgorithm(); show_progress = false)
+        result = solve(
+            SystemProblem(System([f₁, f₂])), PolyhedralAlgorithm(); show_progress = false
+        )
         @test nsolutions(result) == 18
 
         @polyvar x a y b
         F = [x^2 - a, x * y - a + b]
         s = [1, 1]
+        Fxy = System(F; variables = [x, y], parameters = [a, b])
         prob = ParameterHomotopyProblem(
-            F,
-            [s];
-            variables = [x, y],
-            parameters = [a, b],
-            start_parameters = [1, 0],
-            target_parameters = [2, 4],
+            Fxy, [s]; start_parameters = [1, 0], target_parameters = [2, 4]
         )
         res = solve(
             prob, PathTrackingAlgorithm(compile_mode = CompileNone()); show_progress = false
         )
         @test nsolutions(res) == 1
 
+        Fyx = System(F; variables = [y, x], parameters = [a, b])
         prob2 = ParameterHomotopyProblem(
-            F,
-            [s];
-            variable_ordering = [y, x],
-            parameters = [a, b],
-            start_parameters = [1, 0],
-            target_parameters = [2, 4],
+            Fyx, [s]; start_parameters = [1, 0], target_parameters = [2, 4]
         )
         res2 = solve(
             prob2, PathTrackingAlgorithm(compile_mode = CompileNone()); show_progress = false
@@ -233,11 +250,11 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @test nsolutions(res) == 924
     end
 
-    @testset "stop early callback" begin
-        @var x
-        first_result = nothing
-        prob = SystemProblem([(x - 3) * (x + 6) * (x + 2)])
-        alg = TotalDegreeAlgorithm()
+        @testset "stop early callback" begin
+            @var x
+            first_result = nothing
+            prob = SystemProblem(System([(x - 3) * (x + 6) * (x + 2)]))
+            alg = TotalDegreeAlgorithm()
         results = solve(
             prob,
             alg;
@@ -265,11 +282,13 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @var x y z
         first_result = nothing
         prob = SystemProblem(
-            [
-                (x - 3) * (x + 6) * (x + 2) * (x - 2) * (x + 2.5),
-                (y + 2) * (y - 2) * (y + 3) * (y + 5) * (y - 1),
-                (z + 2) * (z - 2) * (z + 3) * (z + 5) * (z - 2.1),
-            ],
+            System(
+                [
+                    (x - 3) * (x + 6) * (x + 2) * (x - 2) * (x + 2.5),
+                    (y + 2) * (y - 2) * (y + 3) * (y + 5) * (y - 1),
+                    (z + 2) * (z - 2) * (z + 3) * (z + 5) * (z - 2.1),
+                ],
+            ),
         )
         results = solve(
             prob,
@@ -290,21 +309,19 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
 
         @var a b c
         l = a * x + b * y + c
-        F = [f, l]
+        F = System([f, l]; parameters = [a, b, c])
 
         p₀ = randn(ComplexF64, 3)
         S₀ = solutions(
             solve(
-                SystemProblem(subs(F, [a, b, c] => p₀)),
+                SystemProblem(System(subs(F.expressions, [a, b, c] => p₀))),
                 PolyhedralAlgorithm();
                 show_progress = false,
             ),
         )
         params = [rand(3) for i in 1:100]
 
-        prob = ParameterSweepProblem(
-            F, S₀; start_parameters = p₀, targets = params, parameters = [a, b, c]
-        )
+        prob = ParameterSweepProblem(F, S₀; start_parameters = p₀, targets = params)
         result1 = solve(prob, PathTrackingAlgorithm(); threading = true, show_progress = false)
         @test eltype(result1) <: Result
 
@@ -316,7 +333,6 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             S₀;
             start_parameters = p₀,
             targets = params,
-            parameters = [a, b, c],
             reducer = MapReducer((r, p) -> real_solutions(r)),
         )
         result2 = solve(prob2, PathTrackingAlgorithm(); threading = true, show_progress = false)
@@ -328,7 +344,6 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             S₀;
             start_parameters = p₀,
             targets = params,
-            parameters = [a, b, c],
             reducer = FlatMapReducer((r, p) -> real_solutions(r)),
         )
         result3 = solve(
@@ -342,7 +357,6 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             S₀;
             start_parameters = p₀,
             targets = [rand(3) for _ in 1:100],
-            parameters = [a, b, c],
             reducer = MapReducer((r, p) -> (real_solutions(r), p)),
         )
         result4 = solve(prob4, PathTrackingAlgorithm(); show_progress = false)

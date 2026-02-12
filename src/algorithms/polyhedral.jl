@@ -128,115 +128,34 @@ struct PolyhedralTracker{H1 <: ToricHomotopy, H2 <: AbstractHomotopy, M} <: Abst
 end
 
 """
-    polyhedral(F::Union{System, AbstractSystem};
-        only_non_zero = false,
-        endgame_options = EndgameOptions(),
-        tracker_options = TrackerOptions())
-
-Solve the system `F` in two steps: first solve a generic system derived from the support
-of `F` using a polyhedral homotopy as proposed in [^HS95], then perform a
-coefficient-parameter homotopy towards `F`.
-This returns a path tracker ([`PolyhedralTracker`](@ref)) and an iterator to compute the start solutions.
-
-If `only_non_zero` is true, then the algorithm will set up a start system that tracks fewer paths compared to `only_non_zero = false`.
-In this case the number of paths to track is equal to the mixed volume of the Newton polytopes of `F`.
-The computed solutions will include all solutions with non-zero coordinates.
-
-If `only_non_zero` is `false`, then all isolated solutions of `F` are computed.
-In this case the number of paths to track is equal to the
-mixed volume of the convex hulls of ``supp(F_i) ∪ \\{0\\}`` where ``supp(F_i)`` is the support
-of ``F_i``. See also [^LW96].
-
-
-    function polyhedral(
-        support::AbstractVector{<:AbstractMatrix},
-        coefficientss::AbstractVector{<:AbstractVector{<:Number}};
-        kwargs...,
-    )
-
-It is also possible to provide directly the support and coefficients of the system `F` to be solved.
-
-[^HS95]: Birkett Huber and Bernd Sturmfels. “A Polyhedral Method for Solving Sparse Polynomial Systems.” Mathematics of Computation, vol. 64, no. 212, 1995, pp. 1541–1555
-[^LW96]: T.Y. Li and Xiaoshen Wang. "The BKK root count in C^n". Math. Comput. 65, 216 (October 1996), 1477–1484.
-
-### Example
-
-We consider a system `f` which has in total 6 isolated solutions,
-but only 3 where all coordinates are non-zero.
-```julia
-@var x y
-f = System([2y + 3 * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y])
-tracker, starts = polyhedral(f; only_non_zero = false)
-# length(starts) == 8
-count(is_success, track.(tracker, starts)) # 6
-
-tracker, starts = polyhedral(f; only_non_zero = true)
-# length(starts) == 3
-count(is_success, track.(tracker, starts)) # 3
-```
+Internal polyhedral start-system kernel used by solve preparation.
+Returns `(tracker, starts)` for a fixed `SystemProblem + PolyhedralAlgorithm` setup.
 """
-function polyhedral(
-        F::AbstractSystem;
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        target_parameters = nothing,
-        endgame_options = EndgameOptions(),
-        tracker_options = TrackerOptions(),
-        only_torus::Bool = false,
-        only_non_zero::Bool = only_torus,
+_polyhedral_rng(alg::PolyhedralAlgorithm, rng::Union{Nothing, Random.AbstractRNG}) = isnothing(rng) ? Random.Xoshiro(
+    alg.seed
+) : rng
+
+function _polyhedral_kernel(
+        F::AbstractSystem,
+        alg::PolyhedralAlgorithm;
         show_progress::Bool = true,
-        rng::Random.AbstractRNG = Random.default_rng(),
+        rng::Union{Nothing, Random.AbstractRNG} = nothing,
     )
     _, n = size(F)
     @var x[1:n]
-    return polyhedral(
-        System(F(x), x);
-        compile_mode,
-        target_parameters,
-        endgame_options,
-        tracker_options,
-        only_torus,
-        only_non_zero,
-        show_progress,
-        rng,
-    )
+    return _polyhedral_kernel(System(F(x), x), alg; show_progress, rng)
 end
-function polyhedral(
-        f::System;
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        target_parameters = nothing,
-        endgame_options = EndgameOptions(),
-        tracker_options = TrackerOptions(),
-        only_torus::Bool = false,
-        only_non_zero::Bool = only_torus,
+
+function _polyhedral_kernel(
+        f::System,
+        alg::PolyhedralAlgorithm;
         show_progress::Bool = true,
-        rng::Random.AbstractRNG = Random.default_rng(),
+        rng::Union{Nothing, Random.AbstractRNG} = nothing,
     )
     _validate_affine_square_system(f; check_square = false)
-    if target_parameters !== nothing
-        return polyhedral(
-            FixedParameterSystem(fixed(f; compile_mode = compile_mode), target_parameters);
-            endgame_options = endgame_options,
-            tracker_options = tracker_options,
-            only_torus = only_torus,
-            only_non_zero = only_non_zero,
-            show_progress = show_progress,
-            rng = rng,
-        )
-    end
     _validate_affine_square_system(f)
     support, target_coeffs = support_coefficients(f)
-    tracker, starts = polyhedral(
-        support,
-        target_coeffs;
-        endgame_options = endgame_options,
-        tracker_options = tracker_options,
-        only_torus = only_torus,
-        only_non_zero = only_non_zero,
-        compile_mode = compile_mode,
-        show_progress = show_progress,
-        rng = rng,
-    )
-    return tracker, starts
+    return _polyhedral_kernel(support, target_coeffs, alg; show_progress, rng)
 end
 
 function has_zero_col(A)
@@ -253,8 +172,10 @@ function has_zero_col(A)
     return false
 end
 
-paths_to_track(f::AbstractSystem, alg::PolyhedralAlgorithm) = paths_to_track(System(f), alg)
-function paths_to_track(f::System, alg::PolyhedralAlgorithm)
+_paths_to_track_polyhedral(f::AbstractSystem, alg::PolyhedralAlgorithm) = _paths_to_track_polyhedral(
+    System(f), alg
+)
+function _paths_to_track_polyhedral(f::System, alg::PolyhedralAlgorithm)
     only_non_zero = alg.only_non_zero
     _validate_affine_square_system(f)
     supp, _ = support_coefficients(f)
@@ -266,35 +187,23 @@ function paths_to_track(f::System, alg::PolyhedralAlgorithm)
         MixedSubdivisions.mixed_volume(supp′)
     end
 end
-MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) = paths_to_track(
+MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) = _paths_to_track_polyhedral(
     f, PolyhedralAlgorithm(only_torus = true)
 )
 
-function polyhedral(
+function _polyhedral_kernel(
         support::AbstractVector{<:AbstractMatrix},
-        target_coeffs::AbstractVector;
-        endgame_options = EndgameOptions(),
-        tracker_options = TrackerOptions(),
-        only_torus::Bool = false,
-        only_non_zero::Bool = only_torus,
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        target_coeffs::AbstractVector,
+        alg::PolyhedralAlgorithm;
         show_progress::Bool = true,
-        rng::Random.AbstractRNG = Random.default_rng(),
+        rng::Union{Nothing, Random.AbstractRNG} = nothing,
     )
+    effective_rng = _polyhedral_rng(alg, rng)
     start_coeffs = map(
-        c -> rand_approx_unit(length(c); rng = rng) .* LA.norm(c, Inf), target_coeffs
+        c -> rand_approx_unit(length(c); rng = effective_rng) .* LA.norm(c, Inf), target_coeffs
     )
-    return polyhedral(
-        support,
-        start_coeffs,
-        target_coeffs;
-        endgame_options = endgame_options,
-        tracker_options = tracker_options,
-        only_torus = only_torus,
-        only_non_zero = only_non_zero,
-        compile_mode = compile_mode,
-        show_progress = show_progress,
-        rng = rng,
+    return _polyhedral_kernel(
+        support, start_coeffs, target_coeffs, alg; show_progress, rng = effective_rng
     )
 end
 
@@ -310,18 +219,16 @@ rand_approx_unit(n; rng::Random.AbstractRNG = Random.default_rng()) = map(
 
 cis2pi(x) = complex(cospi(2x), sinpi(2x))
 
-function polyhedral(
+function _polyhedral_kernel(
         support::AbstractVector{<:AbstractMatrix},
         start_coeffs::AbstractVector,
-        target_coeffs::AbstractVector;
-        endgame_options = EndgameOptions(),
-        tracker_options = TrackerOptions(),
-        only_torus::Bool = false,
-        only_non_zero::Bool = only_torus,
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        target_coeffs::AbstractVector,
+        alg::PolyhedralAlgorithm;
         show_progress::Bool = true,
-        rng::Random.AbstractRNG = Random.default_rng(),
+        rng::Union{Nothing, Random.AbstractRNG} = nothing,
     )
+    rng = _polyhedral_rng(alg, rng)
+    only_non_zero = alg.only_non_zero
     size.(support, 2) == length.(start_coeffs) == length.(target_coeffs) ||
         throw(ArgumentError("Number of terms do not coincide."))
     if only_non_zero
@@ -348,9 +255,9 @@ function polyhedral(
         target_coeffs = targets
     end
 
-    F = fixed(polyhedral_system(support); compile_mode = compile_mode)
+    F = fixed(polyhedral_system(support); compile_mode = alg.compile_mode)
     H₁ = ToricHomotopy(F, start_coeffs)
-    toric_tracker = Tracker(H₁; options = tracker_options)
+    toric_tracker = Tracker(H₁; options = alg.tracker_options)
 
     H₂ = begin
         p = reduce(append!, start_coeffs; init = ComplexF64[])
@@ -358,7 +265,7 @@ function polyhedral(
         CoefficientHomotopy(F, p, q)
     end
     generic_tracker = EndgameTracker(
-        Tracker(H₂; options = tracker_options); options = endgame_options
+        Tracker(H₂; options = alg.tracker_options); options = alg.endgame_options
     )
 
     S = PolyhedralStartSolutionsIterator(support, start_coeffs; show_progress)

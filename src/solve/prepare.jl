@@ -1,87 +1,17 @@
-function _seed_rng(seed::UInt32)
-    return Random.Xoshiro(seed)
-end
+_seed_rng(seed::UInt32) = Random.Xoshiro(seed)
+_solver_from_tracker(tracker, alg::AbstractHCAlgorithm) = Solver(tracker, alg; seed = alg.seed)
 
-function parameter_homotopy_tracker(
-        F::Union{System, AbstractSystem};
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        tracker_options::TrackerOptions = TrackerOptions(),
-        endgame_options::EndgameOptions = EndgameOptions(),
-        start_parameters = randn(ComplexF64, nparameters(F)),
+function _parameter_homotopy_tracker(
+        F::Union{System, AbstractSystem},
+        alg::PathTrackingAlgorithm;
+        start_parameters,
         target_parameters = start_parameters,
     )
-    H = parameter_homotopy(
-        F;
-        start_parameters = start_parameters,
-        target_parameters = target_parameters,
-        compile_mode = compile_mode,
-    )
-    return EndgameTracker(H; tracker_options = tracker_options, options = endgame_options)
-end
-
-function parameter_homotopy(
-        F::Union{System, AbstractSystem};
-        generic_parameters = randn(ComplexF64, nparameters(F)),
-        p₁ = generic_parameters,
-        start_parameters = p₁,
-        p₀ = generic_parameters,
-        target_parameters = p₀,
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-    )
-    H = ParameterHomotopy(
-        fixed(F; compile_mode = compile_mode), start_parameters, target_parameters
-    )
     _validate_affine_square_system(F)
-
-    return H
-end
-
-function _system_solver_startsolutions(
-        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
+    H = ParameterHomotopy(
+        fixed(F; compile_mode = alg.compile_mode), start_parameters, target_parameters
     )
-    tracker, starts = polyhedral(
-        prob.system;
-        compile_mode = alg.compile_mode,
-        target_parameters = prob.target_parameters,
-        tracker_options = alg.tracker_options,
-        endgame_options = alg.endgame_options,
-        only_torus = alg.only_torus,
-        only_non_zero = alg.only_non_zero,
-        show_progress = show_progress,
-        rng = _seed_rng(alg.seed),
-    )
-    return Solver(tracker, alg; seed = alg.seed), starts
-end
-
-function _system_solver_startsolutions(prob::SystemProblem, alg::TotalDegreeAlgorithm)
-    tracker, starts = total_degree(
-        prob.system;
-        compile_mode = alg.compile_mode,
-        target_parameters = prob.target_parameters,
-        gamma = alg.gamma,
-        tracker_options = alg.tracker_options,
-        endgame_options = alg.endgame_options,
-    )
-    try
-        first(starts)
-    catch
-        throw("The number of start solutions is zero (total degree is zero).")
-    end
-    return Solver(tracker, alg; seed = alg.seed), starts
-end
-
-function _parameter_solver_startsolutions(
-        prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm
-    )
-    tracker = parameter_homotopy_tracker(
-        prob.system;
-        start_parameters = prob.start_parameters,
-        target_parameters = prob.target_parameters,
-        compile_mode = alg.compile_mode,
-        tracker_options = alg.tracker_options,
-        endgame_options = alg.endgame_options,
-    )
-    return Solver(tracker, alg; seed = alg.seed), prob.start_solutions
+    return EndgameTracker(H; tracker_options = alg.tracker_options, options = alg.endgame_options)
 end
 
 function _first_target(targets)
@@ -90,42 +20,103 @@ function _first_target(targets)
     return first(target_it)
 end
 
-function _sweep_solver_startsolutions(
-        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm
-    )
-    first_target = _first_target(prob.targets)
-    return _sweep_solver(prob, alg, first_target), prob.start_solutions
-end
-
 function _sweep_solver(
         prob::ParameterSweepProblem, alg::PathTrackingAlgorithm, target_parameters
     )
-    tracker = parameter_homotopy_tracker(
-        prob.system;
-        start_parameters = prob.start_parameters,
-        target_parameters = target_parameters,
-        compile_mode = alg.compile_mode,
-        tracker_options = alg.tracker_options,
-        endgame_options = alg.endgame_options,
+    tracker = _parameter_homotopy_tracker(
+        prob.system, alg; start_parameters = prob.start_parameters, target_parameters
     )
-    return Solver(tracker, alg; seed = alg.seed)
+    return _solver_from_tracker(tracker, alg)
 end
 
-function _homotopy_solver_startsolutions(prob::HomotopyProblem, alg::PathTrackingAlgorithm)
+function _polyhedral_startsystem(
+        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
+    )
+    F = prob.system
+    if prob.target_parameters !== nothing
+        F = fix_parameters(F, prob.target_parameters; compile_mode = alg.compile_mode)
+    end
+    return _polyhedral_kernel(
+        F,
+        alg;
+        show_progress,
+        rng = _seed_rng(alg.seed),
+    )
+end
+
+function _total_degree_startsystem(
+        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
+    )
+    F = prob.system
+    if prob.target_parameters !== nothing
+        F = fix_parameters(F, prob.target_parameters; compile_mode = alg.compile_mode)
+    end
+    return _total_degree_kernel(F, alg; show_progress)
+end
+
+function _solver_startsolutions(
+        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
+    )
+    tracker, starts = _polyhedral_startsystem(prob, alg; show_progress)
+    return _solver_from_tracker(tracker, alg), starts
+end
+
+function _solver_startsolutions(
+        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
+    )
+    tracker, starts = _total_degree_startsystem(prob, alg; show_progress)
+    return _solver_from_tracker(tracker, alg), starts
+end
+
+function _solver_startsolutions(
+        prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+    )
+    _ = show_progress
+    tracker = _parameter_homotopy_tracker(
+        prob.system,
+        alg;
+        start_parameters = prob.start_parameters,
+        target_parameters = prob.target_parameters,
+    )
+    return _solver_from_tracker(tracker, alg), prob.start_solutions
+end
+
+function _solver_startsolutions(
+        prob::HomotopyProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+    )
+    _ = show_progress
     tracker = EndgameTracker(
         fixed(prob.homotopy; compile_mode = alg.compile_mode);
         tracker_options = alg.tracker_options,
         options = alg.endgame_options,
     )
-    return Solver(tracker, alg; seed = alg.seed), prob.start_solutions
+    return _solver_from_tracker(tracker, alg), prob.start_solutions
+end
+
+function _solver_startsolutions(
+        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+    )
+    _ = show_progress
+    return _sweep_solver(prob, alg, _first_target(prob.targets)), prob.start_solutions
+end
+
+function _solver_startsolutions(
+        prob::AbstractHCProblem, alg::AbstractHCAlgorithm; show_progress::Bool = true
+    )
+    _ = show_progress
+    throw(
+        ArgumentError(
+            "Unsupported problem/algorithm combination: $(typeof(prob)) with $(typeof(alg)).",
+        ),
+    )
 end
 
 function paths_to_track(prob::SystemProblem, alg::PolyhedralAlgorithm)
     f = prob.system isa System ? prob.system : System(prob.system)
-    return paths_to_track(f, alg)
+    return _paths_to_track_polyhedral(f, alg)
 end
 
 function paths_to_track(prob::SystemProblem, alg::TotalDegreeAlgorithm)
     f = prob.system isa System ? prob.system : System(prob.system)
-    return paths_to_track(f, alg)
+    return _paths_to_track_total_degree(f, alg)
 end

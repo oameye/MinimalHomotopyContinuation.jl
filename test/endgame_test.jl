@@ -1,6 +1,6 @@
-const total_degree = HC.total_degree
 const track = HC.track
 const EndgameOptions = HC.EndgameOptions
+const TotalDegreeAlgorithm = HC.TotalDegreeAlgorithm
 
 @testset "Endgame" begin
     @testset "Cyclic 7" begin
@@ -41,9 +41,13 @@ const EndgameOptions = HC.EndgameOptions
     @testset "Wilkinson $d" for d in [12]
         @var x
         f = System([expand(prod(x - i for i in 1:d))])
-        res = track.(
-            total_degree(f, endgame_options = EndgameOptions(only_nonsingular = true))...
+        cache = HC.init(
+            SystemProblem(f),
+            TotalDegreeAlgorithm(endgame_options = EndgameOptions(only_nonsingular = true));
+            show_progress = false,
+            threading = false,
         )
+        res = track.(cache.solver.trackers[1], cache.starts)
         @test all(is_success, res)
         @test round.(Int, real.(sort(first.(solution.(res)); by = abs))) == 1:d
         @test maximum(abs.(imag.(first.(solution.(res))))) < 1.0e-4
@@ -52,14 +56,20 @@ const EndgameOptions = HC.EndgameOptions
     @testset "(x-10)^$d" for d in [2, 6]
         @var x
         f = System([(x - 10)^d])
-        res = track.(total_degree(f)...)
+        cache = HC.init(
+            SystemProblem(f), TotalDegreeAlgorithm(); show_progress = false, threading = false
+        )
+        res = track.(cache.solver.trackers[1], cache.starts)
         @test count(r -> r.winding_number == d, res) == d
     end
 
     @testset "Beyond Polyhedral Homotopy Example" begin
         @var x y
         f = [2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3, 2.3 * x^2 + 1.2 * y^2 + 5x + 2y - 5]
-        res = track.(total_degree(System(f))...)
+        cache = HC.init(
+            SystemProblem(System(f)), TotalDegreeAlgorithm(); show_progress = false, threading = false
+        )
+        res = track.(cache.solver.trackers[1], cache.starts)
         @test count(is_success, res) == 2
         @test count(is_at_infinity, res) == 2
     end
@@ -69,7 +79,13 @@ const EndgameOptions = HC.EndgameOptions
         a = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32]
         f1 = (a[1] * x^d + a[2] * y) * (a[3] * x + a[4] * y) + 1
         f2 = (a[1] * x^d + a[2] * y) * (a[5] * x + a[6] * y) + 1
-        res = track.(total_degree(System([f1, f2]))...)
+        cache = HC.init(
+            SystemProblem(System([f1, f2])),
+            TotalDegreeAlgorithm();
+            show_progress = false,
+            threading = false,
+        )
+        res = track.(cache.solver.trackers[1], cache.starts)
         @test count(is_success, res) == d + 1
     end
 

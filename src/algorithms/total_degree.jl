@@ -1,41 +1,13 @@
 """
-    total_degree(
-        F::System;
-        parameters = nothing,
-        gamma = cis(2π * rand()),
-        tracker_options = TrackerOptions(),
-        endgame_options = EndgameOptions(),
-    )
-
-Solve the system `F` using a total degree homotopy.
-This returns a path tracker ([`EndgameTracker`](@ref)) and an iterator to compute the start solutions.
+Internal total-degree start-system kernel used by solve preparation.
+Returns `(tracker, starts)` for a fixed `SystemProblem + TotalDegreeAlgorithm` setup.
 """
-function total_degree(
-        F::Union{System, AbstractSystem};
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        target_parameters = nothing,
-        gamma = cis(2π * rand()),
-        tracker_options = TrackerOptions(),
-        endgame_options = EndgameOptions(),
-    )
-    return total_degree_variables(
-        F; target_parameters, gamma, tracker_options, endgame_options, compile_mode
-    )
-end
 
-
-function total_degree_variables(
-        F::Union{System, AbstractSystem};
-        target_parameters = nothing,
-        gamma = cis(2π * rand()),
-        tracker_options = TrackerOptions(),
-        endgame_options = EndgameOptions(),
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-    )
+function _total_degree_impl(F::Union{System, AbstractSystem}, alg::TotalDegreeAlgorithm)
     _, n = size(F)
 
     @unique_var x[1:n] s[1:n]
-    F₀ = System(F(x, target_parameters), x)
+    F₀ = System(F(x), x)
     _validate_affine_square_system(F; homogeneous_system = F₀)
     support, coeffs = support_coefficients(F₀)
 
@@ -54,20 +26,34 @@ function total_degree_variables(
     scaling = maximum.(abs ∘ float, coeffs)
 
     if F isa System
-        F = fixed(F; compile_mode = compile_mode)
+        F = fixed(F; compile_mode = alg.compile_mode)
     end
-    if target_parameters !== nothing
-        F = fix_parameters(F, target_parameters; compile_mode = compile_mode)
-    end
-    G = fixed(System(s .* (x .^ D .- 1), x, s); compile_mode = compile_mode)
+    G = fixed(System(s .* (x .^ D .- 1), x, s); compile_mode = alg.compile_mode)
     G = fix_parameters(G, scaling)
 
-    H = StraightLineHomotopy(G, F; γ = gamma)
-    T = EndgameTracker(H; tracker_options = tracker_options, options = endgame_options)
+    H = StraightLineHomotopy(G, F; γ = alg.gamma)
+    T = EndgameTracker(H; tracker_options = alg.tracker_options, options = alg.endgame_options)
     starts = total_degree_start_solutions(D)
 
     return T, starts
 end
+
+function _total_degree_kernel(
+        F::Union{System, AbstractSystem},
+        alg::TotalDegreeAlgorithm;
+        show_progress::Bool = true,
+    )
+    _ = show_progress
+    tracker, starts = _total_degree_impl(F, alg)
+    # Keep historical behavior from solve preparation: zero starts are rejected.
+    try
+        first(starts)
+    catch
+        throw("The number of start solutions is zero (total degree is zero).")
+    end
+    return tracker, starts
+end
+
 
 struct TotalDegreeStartSolutionsIterator{Iter}
     degrees::Vector{Int}
@@ -133,8 +119,8 @@ total_degree_start_solutions(degrees::AbstractVector{<:Integer}) = TotalDegreeSt
 )
 
 
-function paths_to_track(f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm)::Int
-    target_parameters = zeros(ComplexF64, nparameters(f))
-    _, starts = total_degree(f; target_parameters = target_parameters)
+function _paths_to_track_total_degree(f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm)::Int
+    fixed_f = fix_parameters(f, zeros(ComplexF64, nparameters(f)))
+    _, starts = _total_degree_kernel(fixed_f, TotalDegreeAlgorithm())
     return length(starts)
 end

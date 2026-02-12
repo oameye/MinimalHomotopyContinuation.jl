@@ -120,7 +120,7 @@ end
         @var x y
         f₁ = y - x^2
         f₂ = y - x^3
-        F = [f₁, f₂]
+        F = System([f₁, f₂])
         tsi_polyhedral = solve(
             SystemProblem(F), PolyhedralAlgorithm(), ResultIterator; show_progress = false
         )
@@ -176,12 +176,12 @@ end
 
         @var a b c
         l = a * x + b * y + c
-        F = [f, l]
+        F = System([f, l]; parameters = [a, b, c])
 
         p₀ = randn(ComplexF64, 3)
         S₀ = solutions(
             solve(
-                SystemProblem(subs(F, [a, b, c] => p₀)),
+                SystemProblem(System(subs(F.expressions, [a, b, c] => p₀))),
                 PolyhedralAlgorithm();
                 show_progress = false,
             ),
@@ -189,9 +189,7 @@ end
         params = [rand(3) for i in 1:100]
 
         result1 = solve(
-            ParameterSweepProblem(
-                F, S₀; start_parameters = p₀, targets = params, parameters = [a, b, c]
-            ),
+            ParameterSweepProblem(F, S₀; start_parameters = p₀, targets = params),
             PathTrackingAlgorithm(),
             ResultIterator,
         )
@@ -199,9 +197,7 @@ end
         @test !isempty(r1)
 
         result1 = solve(
-            ParameterSweepProblem(
-                F, S₀; start_parameters = p₀, targets = params, parameters = [a, b, c]
-            ),
+            ParameterSweepProblem(F, S₀; start_parameters = p₀, targets = params),
             PathTrackingAlgorithm(),
             ResultIterator,
         )
@@ -214,7 +210,6 @@ end
                 S₀;
                 start_parameters = p₀,
                 targets = params,
-                parameters = [a, b, c],
                 reducer = MapReducer((r, p) -> real_solutions(r)),
             ),
             PathTrackingAlgorithm(),
@@ -229,7 +224,6 @@ end
                 S₀;
                 start_parameters = p₀,
                 targets = params,
-                parameters = [a, b, c],
                 reducer = FlatMapReducer((r, p) -> real_solutions(r)),
             ),
             PathTrackingAlgorithm(),
@@ -244,7 +238,6 @@ end
                 S₀;
                 start_parameters = p₀,
                 targets = [rand(3) for _ in 1:100],
-                parameters = [a, b, c],
                 reducer = MapReducer((r, p) -> (real_solutions(r), p)),
             ),
             PathTrackingAlgorithm(),

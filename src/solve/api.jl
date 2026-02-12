@@ -1,4 +1,6 @@
-function _path_cache(
+const PathProblems = Union{SystemProblem, ParameterHomotopyProblem, HomotopyProblem}
+
+function _cache_from_startsolutions(
         startsolutions::Tuple;
         stop_early_cb,
         show_progress::Bool,
@@ -11,12 +13,7 @@ function _path_cache(
     )
 end
 
-function _path_iter_cache(startsolutions::Tuple; bitmask = nothing)
-    solver, starts = startsolutions
-    return PathIteratorSolveCache(solver, starts, bitmask)
-end
-
-function _sweep_cache(
+function _cache_from_startsolutions(
         startsolutions::Tuple,
         prob::ParameterSweepProblem;
         show_progress::Bool,
@@ -35,138 +32,82 @@ function _sweep_cache(
     )
 end
 
-function _sweep_iter_cache(
-        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm; bitmask = nothing
+_iter_cache_from_startsolutions(startsolutions::Tuple; bitmask = nothing) = begin
+    solver, starts = startsolutions
+    PathIteratorSolveCache(solver, starts, bitmask)
+end
+
+function _iter_cache_from_startsolutions(
+        startsolutions::Tuple,
+        prob::ParameterSweepProblem,
+        alg::PathTrackingAlgorithm;
+        bitmask = nothing,
     )
-    _, starts = _sweep_solver_startsolutions(prob, alg)
+    _, starts = startsolutions
     solvers = map(p -> _sweep_solver(prob, alg, p), prob.targets)
     return SweepIteratorSolveCache(solvers, starts, bitmask)
 end
 
-function _system_startsolutions(
-        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
-    )
-    return _system_solver_startsolutions(prob, alg; show_progress)
-end
-
-function _system_startsolutions(
-        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
-    )
-    return _system_solver_startsolutions(prob, alg)
-end
-
-_path_startsolutions(prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm) = _parameter_solver_startsolutions(
-    prob, alg
-)
-_path_startsolutions(prob::HomotopyProblem, alg::PathTrackingAlgorithm) = _homotopy_solver_startsolutions(
-    prob, alg
-)
-
-function _solve_from_init(prob, alg; kwargs...)
-    return solve!(init(prob, alg; kwargs...))
-end
-
-function _solve_from_iter_init(prob, alg; kwargs...)
-    return solve!(init(prob, alg, ResultIterator; kwargs...))
-end
-
 function init(
-        prob::SystemProblem,
-        alg::Union{PolyhedralAlgorithm, TotalDegreeAlgorithm};
+        prob::PathProblems,
+        alg::AbstractHCAlgorithm;
         stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    sol = _system_startsolutions(prob, alg; show_progress)
-    return _path_cache(sol; stop_early_cb, show_progress, threading, catch_interrupt)
-end
-
-function init(
-        prob::SystemProblem,
-        alg::Union{PolyhedralAlgorithm, TotalDegreeAlgorithm},
-        ::Type{ResultIterator};
-        show_progress::Bool = true,
-        bitmask = nothing,
+    startsolutions = _solver_startsolutions(prob, alg; show_progress)
+    return _cache_from_startsolutions(
+        startsolutions; stop_early_cb, show_progress, threading, catch_interrupt
     )
-    return _path_iter_cache(_system_startsolutions(prob, alg; show_progress); bitmask)
-end
-
-function init(
-        prob::Union{ParameterHomotopyProblem, HomotopyProblem},
-        alg::PathTrackingAlgorithm;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    sol = _path_startsolutions(prob, alg)
-    return _path_cache(sol; stop_early_cb, show_progress, threading, catch_interrupt)
-end
-
-function init(
-        prob::Union{ParameterHomotopyProblem, HomotopyProblem},
-        alg::PathTrackingAlgorithm,
-        ::Type{ResultIterator};
-        bitmask = nothing,
-    )
-    return _path_iter_cache(_path_startsolutions(prob, alg); bitmask)
 end
 
 function init(
         prob::ParameterSweepProblem,
         alg::PathTrackingAlgorithm;
+        stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
+    ) where {F}
+    _ = stop_early_cb
+    startsolutions = _solver_startsolutions(prob, alg; show_progress)
+    return _cache_from_startsolutions(
+        startsolutions, prob; show_progress, threading, catch_interrupt
     )
-    sol = _sweep_solver_startsolutions(prob, alg)
-    return _sweep_cache(sol, prob; show_progress, threading, catch_interrupt)
+end
+
+function init(
+        prob::PathProblems,
+        alg::AbstractHCAlgorithm,
+        ::Type{ResultIterator};
+        show_progress::Bool = true,
+        bitmask = nothing,
+    )
+    startsolutions = _solver_startsolutions(prob, alg; show_progress)
+    return _iter_cache_from_startsolutions(startsolutions; bitmask)
 end
 
 function init(
         prob::ParameterSweepProblem,
         alg::PathTrackingAlgorithm,
         ::Type{ResultIterator};
+        show_progress::Bool = true,
         bitmask = nothing,
     )
-    return _sweep_iter_cache(prob, alg; bitmask)
+    startsolutions = _solver_startsolutions(prob, alg; show_progress)
+    return _iter_cache_from_startsolutions(startsolutions, prob, alg; bitmask)
 end
 
 function solve(
-        prob::SystemProblem,
-        alg::Union{PolyhedralAlgorithm, TotalDegreeAlgorithm};
+        prob::AbstractHCProblem,
+        alg::AbstractHCAlgorithm;
         stop_early_cb::F = always_false,
         show_progress::Bool = true,
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    return _solve_from_init(
-        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt
-    )
-end
-
-function solve(
-        prob::Union{ParameterHomotopyProblem, HomotopyProblem},
-        alg::PathTrackingAlgorithm;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    return _solve_from_init(
-        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt
-    )
-end
-
-function solve(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm;
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    )
-    return _solve_from_init(prob, alg; show_progress, threading, catch_interrupt)
+    return solve!(init(prob, alg; stop_early_cb, show_progress, threading, catch_interrupt))
 end
 
 function solve!(cache::PathSolveCache)
@@ -203,20 +144,21 @@ function solve!(cache::SweepIteratorSolveCache)
 end
 
 function solve(
-        prob::SystemProblem,
-        alg::Union{PolyhedralAlgorithm, TotalDegreeAlgorithm},
+        prob::PathProblems,
+        alg::AbstractHCAlgorithm,
         ::Type{ResultIterator};
         show_progress::Bool = true,
         bitmask = nothing,
     )
-    return _solve_from_iter_init(prob, alg; show_progress, bitmask)
+    return solve!(init(prob, alg, ResultIterator; show_progress, bitmask))
 end
 
 function solve(
-        prob::Union{ParameterHomotopyProblem, ParameterSweepProblem, HomotopyProblem},
+        prob::ParameterSweepProblem,
         alg::PathTrackingAlgorithm,
         ::Type{ResultIterator};
+        show_progress::Bool = true,
         bitmask = nothing,
     )
-    return _solve_from_iter_init(prob, alg; bitmask)
+    return solve!(init(prob, alg, ResultIterator; show_progress, bitmask))
 end
