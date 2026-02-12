@@ -131,9 +131,8 @@ end
 Internal polyhedral start-system kernel used by solve preparation.
 Returns `(tracker, starts)` for a fixed `SystemProblem + PolyhedralAlgorithm` setup.
 """
-_polyhedral_rng(alg::PolyhedralAlgorithm, rng::Union{Nothing, Random.AbstractRNG}) = isnothing(rng) ? Random.Xoshiro(
-    alg.seed
-) : rng
+_polyhedral_rng(alg::PolyhedralAlgorithm, rng::Union{Nothing, Random.AbstractRNG}) =
+    isnothing(rng) ? Random.Xoshiro(alg.seed) : rng
 
 function _polyhedral_kernel(
         F::AbstractSystem,
@@ -200,7 +199,8 @@ function _polyhedral_kernel(
     )
     effective_rng = _polyhedral_rng(alg, rng)
     start_coeffs = map(
-        c -> rand_approx_unit(length(c); rng = effective_rng) .* LA.norm(c, Inf), target_coeffs
+        c -> rand_approx_unit(length(c); rng = effective_rng) .* LA.norm(c, Inf),
+        target_coeffs,
     )
     return _polyhedral_kernel(
         support, start_coeffs, target_coeffs, alg; show_progress, rng = effective_rng
@@ -312,7 +312,7 @@ function track(
             ω = 20.0,
             μ = 1.0e-12,
             max_initial_step_size = 0.2,
-            debug = debug,
+            debug,
         )
         @unpack μ, ω = PT.toric_tracker.state
     else
@@ -325,7 +325,7 @@ function track(
             ω = 20.0,
             μ = 1.0e-12,
             max_initial_step_size = 0.2,
-            debug = debug,
+            debug,
         )
 
         @unpack μ, ω = PT.toric_tracker.state
@@ -347,7 +347,7 @@ function track(
                 μ = μ,
                 τ = 0.1 * t_restart,
                 keep_steps = true,
-                debug = debug,
+                debug,
             )
             @unpack μ, ω = PT.toric_tracker.state
             PT.toric_tracker.options.min_step_size = min_step_size
@@ -358,7 +358,7 @@ function track(
         return PathResult(;
             return_code = PathResultCode.polyhedral_failed,
             solution = copy(state.x),
-            start_solution = start_solution,
+            start_solution,
             t = real(state.t),
             accuracy = state.accuracy,
             singular = false,
@@ -369,7 +369,7 @@ function track(
             valuation = nothing,
             ω = state.ω,
             μ = state.μ,
-            path_number = path_number,
+            path_number,
             extended_precision = state.extended_prec,
             accepted_steps = state.accepted_steps,
             rejected_steps = state.rejected_steps,
@@ -380,12 +380,12 @@ function track(
     r = track(
         PT.generic_tracker,
         PT.toric_tracker.state.x;
-        start_solution = start_solution,
+        start_solution,
         # Don't provide ω since this can be misleading a lead to a too large initial step
         # ω = ω,
         μ = μ,
-        path_number = path_number,
-        debug = debug,
+        path_number,
+        debug,
     )
     # report accurate steps
     r.accepted_steps += PT.toric_tracker.state.accepted_steps

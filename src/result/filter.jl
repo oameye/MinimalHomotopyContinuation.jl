@@ -40,16 +40,16 @@ function ResultStatistics(result::Result; real_atol::Float64 = 1.0e-6, real_rtol
         end
     end
     return ResultStatistics(;
-        nonsingular = nonsingular,
-        singular = singular,
-        singular_with_multiplicity = singular_with_multiplicity,
-        real_nonsingular = real_nonsingular,
-        real_singular = real_singular,
-        real_singular_with_multiplicity = real_singular_with_multiplicity,
+        nonsingular,
+        singular,
+        singular_with_multiplicity,
+        real_nonsingular,
+        real_singular,
+        real_singular_with_multiplicity,
         real = real_nonsingular + real_singular,
-        at_infinity = at_infinity,
-        excess_solution = excess_solution,
-        failed = failed,
+        at_infinity,
+        excess_solution,
+        failed,
         total = result.tracked_paths,
     )
 end
@@ -99,13 +99,13 @@ function results(
         _filtered_results(
             f,
             R;
-            only_real = only_real,
-            real_atol = real_atol,
-            real_rtol = real_rtol,
-            only_nonsingular = only_nonsingular,
-            only_singular = only_singular,
-            only_finite = only_finite,
-            multiple_results = multiple_results,
+            only_real,
+            real_atol,
+            real_rtol,
+            only_nonsingular,
+            only_singular,
+            only_finite,
+            multiple_results,
         ),
     )
 end
@@ -125,13 +125,13 @@ function results(
         _filtered_results(
             f,
             R;
-            only_real = only_real,
-            real_atol = real_atol,
-            real_rtol = real_rtol,
-            only_nonsingular = only_nonsingular,
-            only_singular = only_singular,
-            only_finite = only_finite,
-            multiple_results = multiple_results,
+            only_real,
+            real_atol,
+            real_rtol,
+            only_nonsingular,
+            only_singular,
+            only_finite,
+            multiple_results,
         ),
     )
 end
@@ -151,13 +151,13 @@ function results(
     return _filtered_results(
         f,
         R;
-        only_real = only_real,
-        real_atol = real_atol,
-        real_rtol = real_rtol,
-        only_nonsingular = only_nonsingular,
-        only_singular = only_singular,
-        only_finite = only_finite,
-        multiple_results = multiple_results,
+        only_real,
+        real_atol,
+        real_rtol,
+        only_nonsingular,
+        only_singular,
+        only_finite,
+        multiple_results,
     )
 end
 
@@ -192,13 +192,13 @@ function nresults(
     )
     return _count_results(
         R;
-        only_real = only_real,
-        real_atol = real_atol,
-        real_rtol = real_rtol,
-        only_nonsingular = only_nonsingular,
-        only_singular = only_singular,
-        only_finite = only_finite,
-        multiple_results = multiple_results,
+        only_real,
+        real_atol,
+        real_rtol,
+        only_nonsingular,
+        only_singular,
+        only_finite,
+        multiple_results,
     )
 end
 
@@ -214,13 +214,13 @@ function nresults(
     )
     return _count_results(
         R;
-        only_real = only_real,
-        real_atol = real_atol,
-        real_rtol = real_rtol,
-        only_nonsingular = only_nonsingular,
-        only_singular = only_singular,
-        only_finite = only_finite,
-        multiple_results = multiple_results,
+        only_real,
+        real_atol,
+        real_rtol,
+        only_nonsingular,
+        only_singular,
+        only_finite,
+        multiple_results,
     )
 end
 
@@ -237,18 +237,18 @@ function nresults(
     multiple_results = true
     return _count_results(
         R;
-        only_real = only_real,
-        real_atol = real_atol,
-        real_rtol = real_rtol,
-        only_nonsingular = only_nonsingular,
-        only_singular = only_singular,
-        only_finite = only_finite,
-        multiple_results = multiple_results,
+        only_real,
+        real_atol,
+        real_rtol,
+        only_nonsingular,
+        only_singular,
+        only_finite,
+        multiple_results,
     )
 end
 
 solutions(result::AbstractResults; only_nonsingular = true, kwargs...) = results(
-    solution, result; only_nonsingular = only_nonsingular, kwargs...
+    solution, result; only_nonsingular, kwargs...
 )
 
 function real_solutions(
@@ -272,7 +272,7 @@ failed(R::Results) = filter(is_failed, path_results(R))
 at_infinity(R::Results) = filter(is_at_infinity, path_results(R))
 
 nsolutions(R::AbstractResults; only_nonsingular = true, options...) = nresults(
-    R; only_nonsingular = only_nonsingular, options...
+    R; only_nonsingular, options...
 )
 
 nfinite(R::AbstractResults; kwargs...) = nresults(R; only_finite = true, kwargs...)

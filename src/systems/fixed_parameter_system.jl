@@ -14,7 +14,7 @@ FixedParameterSystem(F::AbstractSystem, p; compile_mode::AbstractCompileMode = D
     F, p
 )
 FixedParameterSystem(F::System, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = FixedParameterSystem(
-    fixed(F; compile_mode = compile_mode), p
+    fixed(F; compile_mode), p
 )
 Base.size(F::FixedParameterSystem) = size(F.system)
 
@@ -47,5 +47,5 @@ ModelKit.jacobian!(U, F::FixedParameterSystem{<:InterpretedSystem}, x, p, cache)
 Fix the parameters of the given system `F`. Returns a [`FixedParameterSystem`](@ref).
 """
 fix_parameters(F::Union{System, AbstractSystem}, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = FixedParameterSystem(
-    F, p; compile_mode = compile_mode
+    F, p; compile_mode
 )

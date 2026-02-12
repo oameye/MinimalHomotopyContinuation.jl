@@ -434,11 +434,7 @@ function Tracker(
         weighted_norm_options::WeightedNormOptions = WeightedNormOptions(),
         options::TrackerOptions = TrackerOptions(),
     )
-    return Tracker(
-        fixed(H; compile_mode = compile_mode);
-        weighted_norm_options = weighted_norm_options,
-        options = options,
-    )
+    return Tracker(fixed(H; compile_mode); weighted_norm_options, options)
 end
 function Tracker(
         H::AbstractHomotopy,
@@ -648,20 +644,12 @@ function init!(
     if isnan(ω) || isnan(μ)
         a = options.parameters.a
         valid, ω, μ = init_newton!(
-            x̄,
-            corrector,
-            homotopy,
-            x,
-            t,
-            jacobian,
-            norm;
-            a = a,
-            extended_precision = extended_precision,
+            x̄, corrector, homotopy, x, t, jacobian, norm; a, extended_precision
         )
         if !valid && !extended_precision
             extended_precision = true
             valid, ω, μ = init_newton!(
-                x̄, corrector, homotopy, x, t, jacobian, norm; a = a, extended_precision = true
+                x̄, corrector, homotopy, x, t, jacobian, norm; a, extended_precision = true
             )
         end
     else
@@ -895,10 +883,10 @@ function track!(
         t₀;
         ω = ω,
         μ = μ,
-        extended_precision = extended_precision,
+        extended_precision,
         τ = τ,
-        keep_steps = keep_steps,
-        max_initial_step_size = max_initial_step_size,
+        keep_steps,
+        max_initial_step_size,
     )
 
     while is_tracking(tracker.state.code)
@@ -914,7 +902,7 @@ function track!(tracker::Tracker, r::TrackerResult, t₁ = 1.0, t₀ = 0.0; debu
         solution(r),
         t₁,
         t₀;
-        debug = debug,
+        debug,
         ω = r.ω,
         μ = r.μ,
         τ = r.τ,
@@ -922,7 +910,7 @@ function track!(tracker::Tracker, r::TrackerResult, t₁ = 1.0, t₀ = 0.0; debu
     )
 end
 function track!(tracker::Tracker, t₀; debug::Bool = false, max_initial_step_size::Float64 = Inf)
-    init!(tracker, t₀; max_initial_step_size = max_initial_step_size)
+    init!(tracker, t₀; max_initial_step_size)
 
     while is_tracking(tracker.state.code)
         step!(tracker, debug)
@@ -976,11 +964,11 @@ Track the solution of the result `r` from `t₁` to `t₀`.
         t₀;
         ω = ω,
         μ = μ,
-        extended_precision = extended_precision,
+        extended_precision,
         τ = τ,
-        keep_steps = keep_steps,
-        max_initial_step_size = max_initial_step_size,
-        debug = debug,
+        keep_steps,
+        max_initial_step_size,
+        debug,
     )
     return TrackerResult(tracker.homotopy, tracker.state)
 end
@@ -988,7 +976,7 @@ end
 @inline function track(
         tracker::Tracker, r::TrackerResult, t₁ = 1.0, t₀ = 0.0; debug::Bool = false
     )
-    track!(tracker, r, t₁, t₀; debug = debug)
+    track!(tracker, r, t₁, t₀; debug)
     return TrackerResult(tracker.homotopy, tracker.state)
 end
 
@@ -1059,9 +1047,9 @@ function iterator(
         ω = ω,
         μ = μ,
         τ = τ,
-        keep_steps = keep_steps,
-        max_initial_step_size = max_initial_step_size,
-        extended_precision = extended_precision,
+        keep_steps,
+        max_initial_step_size,
+        extended_precision,
     )
     return PathIterator(tracker, typeof(t₁ - t₀) <: Real)
 end

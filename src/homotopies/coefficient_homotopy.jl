@@ -35,9 +35,7 @@ function CoefficientHomotopy(
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
     @assert length(start_coeffs) == length(target_coeffs) == length(F.parameters)
-    return CoefficientHomotopy(
-        fixed(F; compile_mode = compile_mode), start_coeffs, target_coeffs
-    )
+    return CoefficientHomotopy(fixed(F; compile_mode), start_coeffs, target_coeffs)
 end
 function CoefficientHomotopy(
         F::AbstractSystem, start_coeffs::AbstractVector, target_coeffs::AbstractVector

@@ -138,12 +138,12 @@ function buildvars(args; unique::Bool = false)
     for arg in args
         if arg isa Expr && arg.head == :tuple
             for _arg in arg.args
-                var, expr = buildvar(_arg; unique = unique)
+                var, expr = buildvar(_arg; unique)
                 push!(vars, var)
                 push!(exprs, expr)
             end
         else
-            var, expr = buildvar(arg; unique = unique)
+            var, expr = buildvar(arg; unique)
             push!(vars, var)
             push!(exprs, expr)
         end
@@ -456,7 +456,7 @@ end
     coeffs_as_dense_poly(f, vars, d; homogeneous = false)
 
 Given a polynomial `f` this returns a vector `c` of coefficients such that
-`subs(dense_poly(vars, d; homogeneous = homogeneous), c) == f`.
+`subs(dense_poly(vars, d; homogeneous), c) == f`.
 
 ## Example
 
@@ -966,7 +966,7 @@ end
 
 """
     System(exprs::AbstractVector{Expression};
-                variables = variables(exprssion),
+                variables(exprssion),
                 parameters = Variable[])
 
 Create a system from the given [`Expression`](@ref)s `exprs`.

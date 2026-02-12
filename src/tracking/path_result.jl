@@ -283,7 +283,7 @@ function is_real(r::PathResult; atol::Float64 = 1.0e-6, rtol::Float64 = 0.0)
     thresh = rtol * norm(r.solution, 1)
     return m < thresh
 end
-is_real(r::PathResult, atol::Float64) = is_real(r; atol = atol)
+is_real(r::PathResult, atol::Float64) = is_real(r; atol)
 is_real(r::PathResult, atol::Float64, rtol::Float64) = is_real(r; atol, rtol)
 # provide fallback since this in in Base
 Base.isreal(r::PathResult, atol) = is_real(r, atol)

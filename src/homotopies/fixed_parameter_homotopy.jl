@@ -11,7 +11,7 @@ struct FixedParameterHomotopy{S <: AbstractHomotopy, T} <: AbstractHomotopy
     parameters::Vector{T}
 end
 FixedParameterHomotopy(H::Homotopy, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = FixedParameterHomotopy(
-    fixed(H; compile_mode = compile_mode), p
+    fixed(H; compile_mode), p
 )
 FixedParameterHomotopy(H::AbstractHomotopy, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = FixedParameterHomotopy(
     H, p
@@ -39,5 +39,5 @@ ModelKit.taylor!(u, v::Val, H::FixedParameterHomotopy, tx, t) = taylor!(
 Fix the parameters of the given homotopy `H`. Returns a [`FixedParameterHomotopy`](@ref).
 """
 fix_parameters(H::Union{Homotopy, AbstractHomotopy}, p; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE) = FixedParameterHomotopy(
-    H, p; compile_mode = compile_mode
+    H, p; compile_mode
 )

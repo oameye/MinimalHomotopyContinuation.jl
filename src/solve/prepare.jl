@@ -1,5 +1,7 @@
 _seed_rng(seed::UInt32) = Random.Xoshiro(seed)
-_solver_from_tracker(tracker, alg::AbstractHCAlgorithm) = Solver(tracker, alg; seed = alg.seed)
+_solver_from_tracker(tracker, alg::AbstractHCAlgorithm) = Solver(
+    tracker, alg; seed = alg.seed
+)
 
 function _parameter_homotopy_tracker(
         F::Union{System, AbstractSystem},
@@ -11,7 +13,9 @@ function _parameter_homotopy_tracker(
     H = ParameterHomotopy(
         fixed(F; compile_mode = alg.compile_mode), start_parameters, target_parameters
     )
-    return EndgameTracker(H; tracker_options = alg.tracker_options, options = alg.endgame_options)
+    return EndgameTracker(
+        H; tracker_options = alg.tracker_options, options = alg.endgame_options
+    )
 end
 
 function _first_target(targets)
@@ -36,12 +40,7 @@ function _polyhedral_startsystem(
     if prob.target_parameters !== nothing
         F = fix_parameters(F, prob.target_parameters; compile_mode = alg.compile_mode)
     end
-    return _polyhedral_kernel(
-        F,
-        alg;
-        show_progress,
-        rng = _seed_rng(alg.seed),
-    )
+    return _polyhedral_kernel(F, alg; show_progress, rng = _seed_rng(alg.seed))
 end
 
 function _total_degree_startsystem(

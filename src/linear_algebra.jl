@@ -462,7 +462,7 @@ function row_scaling!(
     )
     m, n = size(WS)
     if m == n
-        skeel_row_scaling!(d, WS.A, c; scaling_threshold = scaling_threshold)
+        skeel_row_scaling!(d, WS.A, c; scaling_threshold)
     else
         d .= 1.0
     end

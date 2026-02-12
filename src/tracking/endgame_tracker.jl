@@ -247,18 +247,14 @@ function EndgameTracker(
         tracker_options::TrackerOptions = TrackerOptions(),
         options::EndgameOptions = EndgameOptions(),
     )
-    return EndgameTracker(
-        fixed(H; compile_mode = compile_mode);
-        tracker_options = tracker_options,
-        options = options,
-    )
+    return EndgameTracker(fixed(H; compile_mode); tracker_options, options)
 end
 function EndgameTracker(
         H::AbstractHomotopy;
         tracker_options::TrackerOptions = TrackerOptions(),
         options::EndgameOptions = EndgameOptions(),
     )
-    return EndgameTracker(Tracker(H; options = tracker_options); options = options)
+    return EndgameTracker(Tracker(H; options = tracker_options); options)
 end
 function EndgameTracker(tracker::Tracker; options::EndgameOptions = EndgameOptions())
     state = EndgameTrackerState(size(tracker.homotopy, 1), tracker.state.x)
@@ -280,7 +276,7 @@ function init!(
     @unpack tracker, state, options = endgame_tracker
 
     tracker.options.min_rel_step_size = 0.0
-    init!(tracker, x, t₁, 0.0; ω = ω, μ = μ, extended_precision = extended_precision)
+    init!(tracker, x, t₁, 0.0; ω = ω, μ = μ, extended_precision)
     state.code = status(tracker)
     state.singular_endgame = false
     state.jump_to_zero_failed = (false, false)
@@ -315,7 +311,7 @@ function track!(
         extended_precision::Bool = false,
         debug::Bool = false,
     )
-    init!(endgame_tracker, x, t₁; ω = ω, μ = μ, extended_precision = extended_precision)
+    init!(endgame_tracker, x, t₁; ω = ω, μ = μ, extended_precision)
 
     while is_tracking(endgame_tracker.state.code)
         step!(endgame_tracker, debug)
@@ -402,9 +398,9 @@ function step!(endgame_tracker::EndgameTracker, debug::Bool = false)
     update!(state.val, tracker.predictor, t)
     debug && println(state.val)
     if check_finite!(state, options)
-        switch_to_singular!(state, tracker, options; debug = debug)
+        switch_to_singular!(state, tracker, options; debug)
         return state.code
-    elseif check_at_infinity!(state, tracker, options; debug = debug)
+    elseif check_at_infinity!(state, tracker, options; debug)
         return state.code
     end
 
@@ -782,17 +778,17 @@ function PathResult(
 
     return PathResult(;
         return_code = convert(PathResultCode.codes, state.code),
-        solution = solution,
-        t = t,
+        solution,
+        t,
         singular = state.singular,
         accuracy = state.accuracy,
-        residual = residual,
+        residual,
         condition_jacobian = state.cond,
         winding_number = state.winding_number,
         last_path_point = (get_solution(H, state.last_point, state.last_t), state.last_t),
         valuation = t > options.endgame_start ? nothing : copy(state.val.val_x),
-        start_solution = start_solution,
-        path_number = path_number,
+        start_solution,
+        path_number,
         ω = tracker.state.ω,
         μ = tracker.state.μ,
         extended_precision = tracker.state.extended_prec,
@@ -826,9 +822,7 @@ function track(
         extended_precision::Bool = false,
         debug::Bool = false,
     )
-    track!(
-        endgame_tracker, x, t₁; ω = ω, μ = μ, extended_precision = extended_precision, debug = debug
-    )
+    track!(endgame_tracker, x, t₁; ω = ω, μ = μ, extended_precision, debug)
     return PathResult(endgame_tracker, start_solution, path_number)
 end
 function track(
@@ -845,8 +839,8 @@ function track(
         ω = r.ω,
         μ = r.μ,
         extended_precision = r.extended_precision,
-        path_number = path_number,
+        path_number,
         start_solution = start_solution(r),
-        debug = debug,
+        debug,
     )
 end

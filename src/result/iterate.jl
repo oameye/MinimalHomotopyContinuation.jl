@@ -14,7 +14,7 @@ function ResultIterator(
     return ResultIterator{Iter, SolverT}(starts, S, bitmask)
 end
 ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask = nothing) where {SolverT <: AbstractSolver} = ResultIterator(
-    [starts], S; bitmask = bitmask
+    [starts], S; bitmask
 )
 
 seed(ri::ResultIterator) = ri.S.seed

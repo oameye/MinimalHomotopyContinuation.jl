@@ -19,7 +19,7 @@ end
 
 function sequence_to_expr(
         seq::InstructionSequence;
-        op_call = op_call,
+        op_call,
         instr_symbol = :τ,
         unique_variable_names = true,
         order = nothing,
@@ -122,10 +122,10 @@ function instruction_sequence(F::Union{System, Homotopy}; output_dim::Integer = 
     params = Symbol.(parameters(F))
     continuation_parameter = F isa Homotopy ? Symbol(F.t) : nothing
     return instruction_sequence(
-        intermediate_representation(expressions(F); output_dim = output_dim);
+        intermediate_representation(expressions(F); output_dim);
         variables = vars,
         parameters = params,
-        continuation_parameter = continuation_parameter,
+        continuation_parameter,
     )
 end
 

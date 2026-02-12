@@ -67,7 +67,10 @@ const TotalDegreeAlgorithm = HC.TotalDegreeAlgorithm
         @var x y
         f = [2.3 * x^2 + 1.2 * y^2 + 3x - 2y + 3, 2.3 * x^2 + 1.2 * y^2 + 5x + 2y - 5]
         cache = HC.init(
-            SystemProblem(System(f)), TotalDegreeAlgorithm(); show_progress = false, threading = false
+            SystemProblem(System(f)),
+            TotalDegreeAlgorithm();
+            show_progress = false,
+            threading = false,
         )
         res = track.(cache.solver.trackers[1], cache.starts)
         @test count(is_success, res) == 2

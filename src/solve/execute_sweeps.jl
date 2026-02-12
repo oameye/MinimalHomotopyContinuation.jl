@@ -12,20 +12,14 @@ function solve(
     progress = show_progress ? make_many_progress(n; delay = 0.3) : nothing
 
     return many_solve(
-        S,
-        starts,
-        target_parameters,
-        progress,
-        reducer;
-        catch_interrupt = catch_interrupt,
-        threading = threading,
+        S, starts, target_parameters, progress, reducer; catch_interrupt, threading
     )
 end
 
 function make_many_progress(n::Integer; delay::Float64 = 0.0)
     desc = "Solving for $n parameters... "
     barlen = min(ProgressMeter.tty_width(desc, stdout, false), 40)
-    progress = ProgressMeter.Progress(n; dt = 0.3, desc = desc, barlen = barlen, output = stdout)
+    progress = ProgressMeter.Progress(n; dt = 0.3, desc, barlen, output = stdout)
     progress.tlast += delay
     return progress
 end
@@ -34,7 +28,7 @@ function update_many_progress!(progress, results, k, paths_per_param)
     t = time()
     if k == progress.n || t > progress.tlast + progress.dt
         showvalues = make_many_showvalues(results, k, paths_per_param)
-        ProgressMeter.update!(progress, k; showvalues = showvalues)
+        ProgressMeter.update!(progress, k; showvalues)
     end
     return nothing
 end

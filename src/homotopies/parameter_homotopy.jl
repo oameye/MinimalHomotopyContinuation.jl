@@ -28,7 +28,7 @@ function ParameterHomotopy(
         q::AbstractVector;
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    return ParameterHomotopy(fixed(F; compile_mode = compile_mode), p, q)
+    return ParameterHomotopy(fixed(F; compile_mode), p, q)
 end
 function ParameterHomotopy(F::AbstractSystem, p::AbstractVector, q::AbstractVector)
     @assert length(p) == length(q) == nparameters(F)

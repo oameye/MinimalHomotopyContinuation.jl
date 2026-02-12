@@ -115,7 +115,7 @@ function newton(
         p = nothing,
         norm::AbstractNorm = InfNorm();
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        cache::NewtonCache = NewtonCache(fixed(f; compile_mode = compile_mode)),
+        cache::NewtonCache = NewtonCache(fixed(f; compile_mode)),
         extended_precision::Bool = false,
         atol::Float64 = 1.0e-8,
         rtol::Float64 = atol,
@@ -126,19 +126,19 @@ function newton(
         max_rel_norm_first_update::Float64 = max_abs_norm_first_update,
     )
     return newton(
-        fixed(f; compile_mode = compile_mode),
+        fixed(f; compile_mode),
         x₀,
         p,
         norm,
         cache;
-        extended_precision = extended_precision,
-        atol = atol,
-        rtol = rtol,
-        max_iters = max_iters,
-        contraction_factor = contraction_factor,
-        min_contraction_iters = min_contraction_iters,
-        max_abs_norm_first_update = max_abs_norm_first_update,
-        max_rel_norm_first_update = max_rel_norm_first_update,
+        extended_precision,
+        atol,
+        rtol,
+        max_iters,
+        contraction_factor,
+        min_contraction_iters,
+        max_abs_norm_first_update,
+        max_rel_norm_first_update,
     )
 end
 function newton(

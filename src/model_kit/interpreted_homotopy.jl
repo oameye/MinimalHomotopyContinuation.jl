@@ -86,25 +86,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{2, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_1 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -115,25 +99,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{3, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_2 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -144,25 +112,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{4, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_3 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -173,25 +125,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{5, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_4 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end

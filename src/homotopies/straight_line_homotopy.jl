@@ -28,9 +28,7 @@ function StraightLineHomotopy(
         kwargs...,
     )
     return StraightLineHomotopy(
-        fixed(start; compile_mode = compile_mode),
-        fixed(target; compile_mode = compile_mode);
-        kwargs...,
+        fixed(start; compile_mode), fixed(target; compile_mode); kwargs...
     )
 end
 function StraightLineHomotopy(start::AbstractSystem, target::AbstractSystem; γ = 1.0, gamma = γ)

@@ -44,7 +44,8 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             ]
         )
         @test_throws ArgumentError HC.init(
-            SystemProblem(affine_ov_reordering), TotalDegreeAlgorithm(compile_mode = CompileNone())
+            SystemProblem(affine_ov_reordering),
+            TotalDegreeAlgorithm(compile_mode = CompileNone()),
         )
 
         @var x y z
@@ -191,7 +192,9 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @var x a y b
         F = System([x^2 - a, x * y - a + b], [x, y], [a, b])
         s = [1, 1]
-        prob = ParameterHomotopyProblem(F, [s]; start_parameters = [1, 0], target_parameters = [2, 4])
+        prob = ParameterHomotopyProblem(
+            F, [s]; start_parameters = [1, 0], target_parameters = [2, 4]
+        )
         res = solve(prob, PathTrackingAlgorithm(); show_progress = false)
         @test nsolutions(res) == 1
     end
@@ -250,11 +253,11 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         @test nsolutions(res) == 924
     end
 
-        @testset "stop early callback" begin
-            @var x
-            first_result = nothing
-            prob = SystemProblem(System([(x - 3) * (x + 6) * (x + 2)]))
-            alg = TotalDegreeAlgorithm()
+    @testset "stop early callback" begin
+        @var x
+        first_result = nothing
+        prob = SystemProblem(System([(x - 3) * (x + 6) * (x + 2)]))
+        alg = TotalDegreeAlgorithm()
         results = solve(
             prob,
             alg;
@@ -463,11 +466,7 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         sweep_alg = PathTrackingAlgorithm(seed = UInt32(0x55667788))
 
         sweep_id = ParameterSweepProblem(
-            Fp,
-            starts;
-            start_parameters = [1.0, 0.0],
-            targets = targets,
-            reducer = IdentityReducer(),
+            Fp, starts; start_parameters = [1.0, 0.0], targets, reducer = IdentityReducer()
         )
         r_id = @inferred solve(sweep_id, sweep_alg; threading = false, show_progress = false)
         @test r_id isa Vector{<:Result}
@@ -476,7 +475,7 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             Fp,
             starts;
             start_parameters = [1.0, 0.0],
-            targets = targets,
+            targets,
             reducer = MapReducer((r, p) -> nsolutions(r)),
         )
         r_map = @inferred solve(sweep_map, sweep_alg; threading = false, show_progress = false)
@@ -486,7 +485,7 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             Fp,
             starts;
             start_parameters = [1.0, 0.0],
-            targets = targets,
+            targets,
             reducer = FlatMapReducer((r, p) -> real_solutions(r)),
         )
         r_flat = @inferred solve(

@@ -6,14 +6,8 @@ function solve(
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    return solve(
-        S,
-        solutions(R; only_nonsingular = true);
-        stop_early_cb = stop_early_cb,
-        show_progress = show_progress,
-        threading = threading,
-        catch_interrupt = catch_interrupt,
-    )
+    sol = solutions(R; only_nonsingular = true)
+    return solve(S, sol; stop_early_cb, show_progress, threading, catch_interrupt)
 end
 
 function solve(
@@ -24,14 +18,7 @@ function solve(
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    return solve(
-        S,
-        [s];
-        stop_early_cb = stop_early_cb,
-        show_progress = show_progress,
-        threading = threading,
-        catch_interrupt = catch_interrupt,
-    )
+    return solve(S, [s]; stop_early_cb, show_progress, threading, catch_interrupt)
 end
 
 function solve(
@@ -42,18 +29,12 @@ function solve(
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    return solve(
-        S,
-        collect(starts);
-        stop_early_cb = stop_early_cb,
-        show_progress = show_progress,
-        threading = threading,
-        catch_interrupt = catch_interrupt,
-    )
+    sol = collect(starts)
+    return solve(S, sol; stop_early_cb, show_progress, threading, catch_interrupt)
 end
 
 solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) = ResultIterator(
-    starts, S; bitmask = bitmask
+    starts, S; bitmask
 )
 
 function solve(
@@ -69,7 +50,7 @@ function solve(
     progress = show_progress ? make_progress(n; delay = 0.3) : nothing
     init!(S.stats)
     return if threading
-        threaded_solve(S, starts, progress, stop_early_cb; catch_interrupt = catch_interrupt)
+        threaded_solve(S, starts, progress, stop_early_cb; catch_interrupt)
     else
         serial_solve(S, starts, progress, stop_early_cb; catch_interrupt)
     end
@@ -79,7 +60,7 @@ track(solver::Solver, s; path_number::Union{Nothing, Int} = nothing) =
 if isnothing(path_number)
     track(solver.trackers[1], s)
 else
-    track(solver.trackers[1], s; path_number = path_number)
+    track(solver.trackers[1], s; path_number)
 end
 
 function make_progress(n::Integer; delay::Float64 = 0.0)

@@ -180,7 +180,7 @@ function compiled_execute_impl(
     if taylor
         expr, get_var_name = sequence_to_expr(seq; op_call = taylor_op_call, order = :Order)
     else
-        expr, get_var_name = sequence_to_expr(seq; op_call = op_call)
+        expr, get_var_name = sequence_to_expr(seq; op_call)
     end
     assignments = if has_second_output
         quote
@@ -242,7 +242,7 @@ function compiled_execute_impl(
         $(
             boundschecks(;
                 nexpressions = seq.output_dim,
-                has_second_output = has_second_output,
+                has_second_output,
                 nparameters = length(seq.parameters_range),
                 nvariables = length(seq.variables_range),
             )

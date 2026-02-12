@@ -48,10 +48,10 @@ function interpreter(
 
     return interpreter(
         V,
-        intermediate_representation(expressions(F); output_dim = output_dim);
+        intermediate_representation(expressions(F); output_dim);
         variables = vars,
         parameters = params,
-        continuation_parameter = continuation_parameter,
+        continuation_parameter,
     )
 end
 
@@ -62,13 +62,8 @@ function interpreter(
         parameters::Vector{Symbol} = Symbol[],
         continuation_parameter::Union{Symbol, Nothing} = nothing,
     ) where {V <: AbstractVector}
-    sequence = instruction_sequence(
-        ir;
-        variables = variables,
-        parameters = parameters,
-        continuation_parameter = continuation_parameter,
-    )
-    return interpreter(V, sequence; variables = variables, parameters = parameters)
+    sequence = instruction_sequence(ir; variables, parameters, continuation_parameter)
+    return interpreter(V, sequence; variables, parameters)
 end
 
 function interpreter(

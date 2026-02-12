@@ -39,9 +39,7 @@ function _total_degree_impl(F::Union{System, AbstractSystem}, alg::TotalDegreeAl
 end
 
 function _total_degree_kernel(
-        F::Union{System, AbstractSystem},
-        alg::TotalDegreeAlgorithm;
-        show_progress::Bool = true,
+        F::Union{System, AbstractSystem}, alg::TotalDegreeAlgorithm; show_progress::Bool = true
     )
     _ = show_progress
     tracker, starts = _total_degree_impl(F, alg)
@@ -119,7 +117,9 @@ total_degree_start_solutions(degrees::AbstractVector{<:Integer}) = TotalDegreeSt
 )
 
 
-function _paths_to_track_total_degree(f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm)::Int
+function _paths_to_track_total_degree(
+        f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm
+    )::Int
     fixed_f = fix_parameters(f, zeros(ComplexF64, nparameters(f)))
     _, starts = _total_degree_kernel(fixed_f, TotalDegreeAlgorithm())
     return length(starts)

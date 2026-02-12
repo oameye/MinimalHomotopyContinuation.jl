@@ -246,7 +246,7 @@ function init_newton!(
                     ω = ω,
                     μ = a^7 / ω,
                     accurate_μ = true,
-                    extended_precision = extended_precision,
+                    extended_precision,
                 )
                 if is_converged(refined_res)
                     valid = true

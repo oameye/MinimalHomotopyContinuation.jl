@@ -42,7 +42,7 @@ function ToricHomotopy(system::AbstractSystem, system_coeffs::Vector{Vector{Comp
     n = nvariables(system)
     taylor_coeffs = TaylorVector{5}(ComplexF64, m)
     return ToricHomotopy(;
-        system = system,
+        system,
         system_coeffs = reduce(vcat, system_coeffs),
         weights = zeros(m),
         t_weights = zeros(m),
@@ -52,7 +52,7 @@ function ToricHomotopy(system::AbstractSystem, system_coeffs::Vector{Vector{Comp
         x = zeros(ComplexF64, n),
         t_coeffs = Ref(complex(0.0, 0.0)),
         t_taylor_coeffs = Ref(complex(0.0, 0.0)),
-        taylor_coeffs = taylor_coeffs,
+        taylor_coeffs,
         tc3 = TaylorVector{4}(taylor_coeffs),
         tc2 = TaylorVector{3}(taylor_coeffs),
     )
