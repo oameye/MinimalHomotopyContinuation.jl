@@ -10,8 +10,10 @@ struct MixedSystem{ID} <: AbstractSystem
     compiled::CompiledSystem{ID}
     interpreted::InterpretedSystem
 end
-MixedSystem(F::System; kwargs...) =
-    MixedSystem(CompiledSystem(F; kwargs...), InterpretedSystem(F; kwargs...))
+function MixedSystem(F::System; kwargs...)
+    unsupported_kwargs(kwargs)
+    return MixedSystem(CompiledSystem(F), InterpretedSystem(F))
+end
 
 Base.size(F::MixedSystem) = size(F.compiled)
 ModelKit.variables(F::MixedSystem) = variables(F.interpreted)

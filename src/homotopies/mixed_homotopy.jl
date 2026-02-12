@@ -15,7 +15,7 @@ MixedHomotopy(H::Homotopy) = MixedHomotopy(CompiledHomotopy(H), InterpretedHomot
 Base.size(H::MixedHomotopy) = size(H.compiled)
 ModelKit.variables(H::MixedHomotopy) = variables(H.interpreted)
 ModelKit.parameters(H::MixedHomotopy) = parameters(H.interpreted)
-ModelKit.Homotopy(H::MixedHomotopy) = Homotopy(H.interpreted)
+ModelKit.Homotopy(H::MixedHomotopy) = H.interpreted.homotopy
 
 function Base.show(io::IO, H::MixedHomotopy)
     print(io, "Hybrid: ")

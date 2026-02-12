@@ -9,15 +9,15 @@ const SUBSCRIPT_TO_INT_MAP = Dict([SUBSCRIPTS[i + 1] => i for i in 0:9])
 map_subscripts(index) = join(SUBSCRIPT_MAP[c] for c in string(index))
 
 function sort_key(v::Variable)
-    name = string(ModelKit.name(v))
-    sub_start = findnext(c -> c in ModelKit.SUBSCRIPTS, name, 1)
+    name = string(Symbol(v))
+    sub_start = findnext(c -> c in SUBSCRIPTS, name, 1)
     if isnothing(sub_start)
         return name, Int[]
     end
     var_base = name[1:prevind(name, sub_start)]
     str_indices = split(name[sub_start:end], "₋")
     indices = map(str_indices) do str_index
-        digits = map(s -> ModelKit.SUBSCRIPT_TO_INT_MAP[s], collect(str_index))
+        digits = map(s -> SUBSCRIPT_TO_INT_MAP[s], collect(str_index))
         n = length(digits)
         sum([digits[n - k + 1] * 10^(k - 1) for k in 1:n])
     end
@@ -265,8 +265,18 @@ julia> (x * y)([x,y] => [x+2,y+2])
  (x + 2) * (y + 2)
 ```
 """
+const _MP_SUBS_PAIR = Union{
+    Pair{<:MP.AbstractVariable, <:Any},
+    Pair{<:NTuple{N, MP.AbstractVariable}, <:NTuple{N, Any}} where {N},
+    Pair{<:Tuple{Vararg{MP.AbstractVariable}}, <:AbstractVector},
+    Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:AbstractVector},
+    Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:Tuple},
+}
 subs(ex::Basic, args...) = subs(ex, ExpressionMap(args...))
 subs(exs::AbstractArray{<:Basic}, args...) = subs.(exs, Ref(ExpressionMap(args...)))
+subs(ex::Basic, args::_MP_SUBS_PAIR...) = subs(ex, ExpressionMap(args...))
+subs(exs::AbstractArray{<:Basic}, args::_MP_SUBS_PAIR...) =
+    subs.(exs, Ref(ExpressionMap(args...)))
 
 """
     evaluate(expr::Expression, subs...)
@@ -736,9 +746,9 @@ function degree(
         expanded::Bool = false,
     )
     if !expanded
-        f = ModelKit.expand(f)
+        f = expand(f)
     end
-    dicts = ModelKit.to_dict(f, vars)
+    dicts = to_dict(f, vars)
     return maximum(sum, keys(dicts))
 end
 
@@ -790,7 +800,7 @@ function is_homogeneous(f::Expression, vars::Vector{Variable}; expanded::Bool = 
         if err isa PolynomialError
             return false
         else
-            rethrow(e)
+            rethrow(err)
         end
     end
 end
@@ -827,6 +837,7 @@ function horner(f::Expression, vars = variables(f))
         end
     end
 end
+horner(f::Expression, var::Variable) = horner(f, [var])
 
 function horner(coeffs::AbstractVector, var::Variable)
     d = length(coeffs) - 1
@@ -938,12 +949,15 @@ end
 function check_vars_params(f, vars, params)
     vars_params = params === nothing ? vars : [vars; params]
     Δ = setdiff(variables(f), vars_params)
-    isempty(Δ) || throw(
-        ArgumentError(
-            "Not all variables or parameters of the system are given. Missing: " *
-                join(Δ, ", "),
-        ),
-    )
+    if !isempty(Δ)
+        missing_vars = string(join([string(v) for v in Δ], ", "))
+        throw(
+            ArgumentError(
+                "Not all variables or parameters of the system are given. Missing: " *
+                missing_vars,
+            ),
+        )
+    end
     if params !== nothing
         both = Set(vars) ∩ Set(params)
         if !isempty(both)
@@ -1099,7 +1113,7 @@ function System(
         map(support, coefficients) do A, c
             fi = Expression(0)
             for (k, a) in enumerate(eachcol(A))
-                ModelKit.add!(fi, fi, c[k] * prod(variables .^ convert.(Int, a)))
+                add!(fi, fi, c[k] * prod(variables .^ convert.(Int, a)))
             end
             fi
         end,
@@ -1206,13 +1220,10 @@ jacobian(F, [2, 3])
  441  294
 ```
 """
-function jacobian(F::System, x, p = nothing)
-    return if p isa Nothing
-        evaluate(jacobian(F), F.variables => x)
-    else
-        evaluate(jacobian(F), F.variables => x, F.parameters => p)
-    end
-end
+jacobian(F::System, x::AbstractVector, p::Nothing = nothing) =
+    evaluate(jacobian(F), F.variables => x)
+jacobian(F::System, x::AbstractVector, p::AbstractVector) =
+    evaluate(jacobian(F), F.variables => x, F.parameters => p)
 
 function Base.:(==)(F::System, G::System)
     return F.expressions == G.expressions &&

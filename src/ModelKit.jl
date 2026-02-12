@@ -64,7 +64,6 @@ import MultivariatePolynomials:
     monomials,
     subs,
     variables
-using Parameters: @unpack
 const MP = MultivariatePolynomials
 
 include("./model_kit/symengine.jl")

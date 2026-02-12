@@ -210,14 +210,16 @@ function evaluate!(
         u::AbstractArray{<:Union{Acb, AcbRef}},
         H::InterpretedHomotopy,
         x::AbstractArray{<:Union{Acb, AcbRef}},
+        t,
         p = nothing;
         prec = max(precision(first(u)), precision(first(x))),
     )
     if isnothing(H.eval_acb)
         H.eval_acb = interpreter(AcbRefVector, H.eval_ComplexF64)
     end
-    setprecision!(H.eval_acb, prec)
-    return execute!(u, H.eval_acb, x, t, p)
+    I = H.eval_acb::Interpreter{AcbRefVector}
+    setprecision!(I, prec)
+    return execute!(u, I, x, t, p)
 end
 
 function evaluate_and_jacobian!(
@@ -232,9 +234,10 @@ function evaluate_and_jacobian!(
     if isnothing(H.jac_acb)
         H.jac_acb = interpreter(AcbRefVector, H.jac_ComplexF64)
     end
-    setprecision!(H.jac_acb, prec)
+    I = H.jac_acb::Interpreter{AcbRefVector}
+    setprecision!(I, prec)
 
-    execute!(u, U, H.jac_acb, x, t, p)
+    execute!(u, U, I, x, t, p)
     return nothing
 end
 
@@ -245,6 +248,8 @@ function (H::InterpretedHomotopy)(x::AbstractArray{<:Union{Acb, AcbRef}}, t, p =
     return u
 end
 (H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) =
+    InterpretedHomotopy(H)(x, t, p)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) =
     InterpretedHomotopy(H)(x, t, p)
 (H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) =
     InterpretedHomotopy(H)(x, t, p)

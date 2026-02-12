@@ -120,6 +120,9 @@ end
 function ModelKit.taylor!(u, v::Val{1}, H::CoefficientHomotopy, x::TaylorVector{1}, t)
     return evaluate!(u, H.F, first(vectors(x)), H.dt_coeffs)
 end
+function ModelKit.taylor!(u, v::Val{1}, H::CoefficientHomotopy, tx::TaylorVector, t)
+    return taylor!(u, v, H.F, tx, taylor_coeffs!(H, t))
+end
 
 
 function taylor_coeffs!(H::CoefficientHomotopy, t::Union{ComplexF64, Float64})

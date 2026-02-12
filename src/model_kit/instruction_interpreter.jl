@@ -111,7 +111,7 @@ function jacobian_interpreter(::Type{T}, H::Homotopy, ; kwargs...) where {T}
 end
 
 function setprecision!(i::Interpreter{<:AcbRefVector}, prec::Int)
-    i.tape = Arblib.setprecision(i.tape, prec)
+    i.tape = setprecision(i.tape, prec)
     return i
 end
 
@@ -296,7 +296,7 @@ for has_parameters in [true, false],
         has_second_output in [true, false]
 
     @eval Base.@propagate_inbounds function execute!(
-            u::Union{Nothing, AbstractArray},
+            $(has_second_output ? :(u::Union{Nothing, AbstractArray}) : :(u::AbstractArray)),
             $((has_second_output ? (:(U::AbstractArray),) : ())...),
             I::Interpreter,
             x::AbstractArray,
@@ -309,8 +309,10 @@ for has_parameters in [true, false],
         checkbounds(x, 1:length(vars_range))
         isnothing(parameters) || checkbounds(parameters, 1:length(params_range))
 
-        @inbounds for (i, k) in enumerate(params_range)
-            I.tape[k] = parameters[i]
+        @inbounds if !isnothing(parameters)
+            for (i, k) in enumerate(params_range)
+                I.tape[k] = parameters[i]
+            end
         end
         $(
             has_continuation_parameter ?
@@ -482,7 +484,7 @@ end
 for has_parameters in [true, false], has_continuation_parameter in [true, false]
 
     @eval Base.@propagate_inbounds function execute_taylor!(
-            u::Union{Nothing, AbstractArray},
+            u::AbstractArray,
             V::Val{K},
             I::Interpreter,
             x::AbstractArray,
@@ -497,8 +499,10 @@ for has_parameters in [true, false], has_continuation_parameter in [true, false]
         checkbounds(x, 1:length(vars_range))
         isnothing(parameters) || checkbounds(parameters, 1:length(params_range))
 
-        @inbounds for (i, k) in enumerate(params_range)
-            I.tape[k] = parameters[i]
+        @inbounds if !isnothing(parameters)
+            for (i, k) in enumerate(params_range)
+                I.tape[k] = parameters[i]
+            end
         end
         $(
             has_continuation_parameter ?

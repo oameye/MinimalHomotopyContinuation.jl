@@ -441,13 +441,13 @@ function track(
     r = track(
         PT.generic_tracker,
         PT.toric_tracker.state.x;
+        start_solution = start_solution,
         # Don't provide ω since this can be misleading a lead to a too large initial step
         # ω = ω,
         μ = μ,
         path_number = path_number,
         debug = debug,
     )
-    r.start_solution = start_solution
     # report accurate steps
     r.accepted_steps += PT.toric_tracker.state.accepted_steps
     r.rejected_steps += PT.toric_tracker.state.rejected_steps

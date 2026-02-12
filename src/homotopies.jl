@@ -16,12 +16,13 @@ Constructs either a [`CompiledHomotopy`](@ref) (if `compile = :all`), an
 [`MixedHomotopy`](@ref) (`compile = :mixed`).
 """
 function fixed(H::Homotopy; compile::Union{Bool, Symbol} = COMPILE_DEFAULT[], kwargs...)
+    unsupported_kwargs(kwargs)
     return if compile == true || compile == :all
-        CompiledHomotopy(H; kwargs...)
+        CompiledHomotopy(H)
     elseif compile == false || compile == :none
-        InterpretedHomotopy(H; kwargs...)
+        InterpretedHomotopy(H)
     elseif compile == :mixed
-        MixedHomotopy(H; kwargs...)
+        MixedHomotopy(H)
     else
         error("Unknown argument $compile for keyword `compile`.")
     end

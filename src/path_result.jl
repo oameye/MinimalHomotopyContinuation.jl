@@ -73,7 +73,7 @@ Possible return codes are:
   modified which introduced artificial solutions and this solution is one of them.
 * various return codes indicating termination of the tracking
 """
-Base.@kwdef mutable struct PathResult
+Base.@kwdef mutable struct PathResult{StartSolutionT}
     return_code::Symbol
     solution::Vector{ComplexF64}
     t::Float64
@@ -85,7 +85,7 @@ Base.@kwdef mutable struct PathResult
     winding_number::Union{Nothing, Int}
     extended_precision::Bool
     path_number::Union{Nothing, Int}
-    start_solution::Any
+    start_solution::StartSolutionT
     last_path_point::Tuple{Vector{ComplexF64}, Float64}
     valuation::Union{Nothing, Vector{Float64}}
     ω::Float64

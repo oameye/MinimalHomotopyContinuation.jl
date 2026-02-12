@@ -54,7 +54,7 @@ end
 
 function fill_unit_roots_combinations!(S::ElasticArray, H, d̂)
     n = size(H, 1)
-    ElasticArrays.resize!(S, n, d̂)
+    resize!(S, n, d̂)
     d, e = d̂, 1
     @inbounds for i in 1:n
         dᵢ = Int64(H[i, i])
@@ -241,7 +241,7 @@ function solve!(BSS::BinomialSystemSolver, H::Matrix{<:Integer}, U::Matrix{<:Int
     for i in 1:n
         d̂ *= Int64(H[i, i])
     end
-    ElasticArrays.resize!(BSS.X, n, d̂)
+    resize!(BSS.X, n, d̂)
     fill_unit_roots_combinations!(BSS.unit_roots_table, H, d̂)
 
     # We split the computation of the solution in 2 stages

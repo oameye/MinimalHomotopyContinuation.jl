@@ -3,13 +3,14 @@ export FiniteException
 ###
 ### Exceptions
 ###
-struct KeywordArgumentException <: Exception
+struct KeywordArgumentException{T} <: Exception
     key::Symbol
-    given::Any
+    given::T
     msg::String
 end
-function KeywordArgumentException(key, given)
-    return KeywordArgumentException(key, given, "")
+KeywordArgumentException(key, given) = KeywordArgumentException(key, given, "")
+function KeywordArgumentException(key, given, msg)
+    return KeywordArgumentException{typeof(given)}(key, given, String(msg))
 end
 function Base.showerror(io::IO, E::KeywordArgumentException)
     return print(io, "Invalid argument $(E.given) for $(E.key). ", E.msg)
@@ -34,24 +35,6 @@ end
     end
 end
 
-
-# Perform type piracy here until https://github.com/JuliaArrays/StructArrays.jl/issues/131
-# is fixed
-const _C64SA = StructArrays.StructArray{
-    Complex{Float64},
-    2,
-    NamedTuple{(:re, :im), Tuple{Array{Float64, 2}, Array{Float64, 2}}},
-    Int64,
-}
-Base.@propagate_inbounds function Base.setindex!(s::_C64SA, vals, I::Int)
-    @boundscheck checkbounds(s, I)
-    StructArrays.foreachfield(
-        (col, val) -> (@inbounds col[I] = val),
-        s,
-        convert(ComplexF64, vals),
-    )
-    return s
-end
 
 fast_abs(z::Complex) = sqrt(abs2(z))
 fast_abs(x::Real) = abs(x)
@@ -294,7 +277,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::Float64, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::Float64, x::BigFloat) = ($fJ)(x, x, c)
 
         function ($fJ)(z::BigFloat, x::BigFloat, c::Int64)
             ccall(
@@ -308,7 +291,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::Int64, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::Int64, x::BigFloat) = ($fJ)(x, x, c)
 
         # BigInt
         function ($fJ)(z::BigFloat, x::BigFloat, c::BigInt)
@@ -323,7 +306,7 @@ for (fJ, fC) in ((:add!, :add), (:mul!, :mul))
             )
             return z
         end
-        ($fJ)(c::BigInt, x::BigFloat) = ($fJ)(x, c)
+        ($fJ)(c::BigInt, x::BigFloat) = ($fJ)(x, x, c)
     end
 end
 

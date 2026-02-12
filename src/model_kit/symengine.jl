@@ -44,6 +44,8 @@ end
 
 Expression(ex::Expression) = ex
 Expression(T) = convert(Expression, T)
+Expression(x::Base.TwicePrecision) = convert(Expression, BigFloat(x))
+Expression(x::AbstractChar) = convert(Expression, Int(x))
 
 free!(b::Expression) =
     ccall((:basic_free_stack, libsymengine), Nothing, (Ref{Expression},), b)
@@ -313,7 +315,7 @@ function get_error(error_code::Cuint, str = nothing)
     elseif error_code == 4
         return DomainError(str)
     elseif error_code == 5
-        return Meta.ParseError(str)
+        return Meta.ParseError(something(str, "SymEngine parse error."))
     else
         return ErrorException("Unexpected SymEngine error code")
     end
@@ -383,7 +385,7 @@ function Base.cos(b::Basic)
 end
 Base.sincos(x::Basic) = (sin(x), cos(x))
 
-function Base.log(b::ModelKit.Basic)
+function Base.log(b::Basic)
     a = Expression()
     ccall((:basic_log, libsymengine), Nothing, (Ref{Expression}, Ref{ExpressionRef}), a, b)
     return a
@@ -519,6 +521,7 @@ function Base.getindex(s::ExpressionSet, n::Int)
 end
 
 _variables(ex::Variable) = [ex]
+_variables(ex::ExpressionRef) = _variables(copy(ex))
 function _variables(ex::Expression)
     syms = ExpressionSet()
     ccall(
@@ -609,7 +612,7 @@ end
 
 mutable struct ExprVec <: AbstractVector{ExpressionRef}
     ptr::Ptr{Cvoid}
-    m::Union{Nothing, Ptr{ModelKit.ExpressionRef}}
+    m::Union{Nothing, Ptr{ExpressionRef}}
 
     function ExprVec()
         ptr = ccall((:vecbasic_new, libsymengine), Ptr{Cvoid}, ())
@@ -619,7 +622,7 @@ mutable struct ExprVec <: AbstractVector{ExpressionRef}
     end
 end
 function vec_set_ptr!(v::ExprVec)
-    v.m = unsafe_load(Ptr{Ptr{ModelKit.ExpressionRef}}(v.ptr))
+    v.m = unsafe_load(Ptr{Ptr{ExpressionRef}}(v.ptr))
     return v
 end
 
@@ -634,14 +637,14 @@ Base.eltype(v::ExprVec) = ExpressionRef
 Base.length(s::ExprVec) = ccall((:vecbasic_size, libsymengine), UInt, (Ptr{Cvoid},), s.ptr)
 Base.size(s::ExprVec) = (length(s),)
 
-function Base.getindex(v::ExprVec, n)
+function Base.getindex(v::ExprVec, n::Integer)
     @boundscheck checkbounds(v, n)
-    return if v.m === nothing
+    ptr = v.m
+    if ptr === nothing
         vec_set_ptr!(v)
-        unsafe_load(v.m, n)
-    else
-        unsafe_load(v.m, n)
+        ptr = v.m
     end
+    return unsafe_load(ptr::Ptr{ExpressionRef}, n)
 end
 
 function Base.push!(v::ExprVec, x::Basic)
@@ -829,6 +832,8 @@ function (::Type{T})(x::Basic) where {T <: Union{AbstractFloat, Rational, Comple
         T(y)
     end
 end
+Arblib.Arb(x::Basic) = Arblib.Arb(BigFloat(x))
+Arblib.Arf(x::Basic) = Arblib.Arf(BigFloat(x))
 
 ##########
 ## SUBS ##
@@ -871,6 +876,18 @@ function ExpressionMap(
         D[x] = y
     end
     return ExpressionMap(D, args...)
+end
+function ExpressionMap(
+        D::ExpressionMap,
+        (xs, y)::Pair{<:AbstractArray{<:Basic}, Any},
+        args...,
+    )
+    throw(
+        ArgumentError(
+            "Substitution arguments don't have the same shape. " *
+            "When substituting arrays, both sides must be arrays of equal size.",
+        ),
+    )
 end
 function ExpressionMap(D::ExpressionMap, (x, y), args...)
     D[Expression(x)] = Expression(y)

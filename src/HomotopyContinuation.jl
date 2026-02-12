@@ -17,7 +17,6 @@ import Random
 import Printf
 using Reexport: @reexport
 import StructArrays
-import Base.Iterators: product, reverse
 import Base: push!
 
 const LA = LinearAlgebra
@@ -27,6 +26,8 @@ function is_real end
 
 include("DoubleDouble.jl")
 using .DoubleDouble
+Arblib.Arb(a::DoubleF64) = Arblib.Arb(BigFloat(a))
+Arblib.Arf(a::DoubleF64) = Arblib.Arf(BigFloat(a))
 
 include("ModelKit.jl")
 export @polyvar

@@ -205,8 +205,9 @@ function evaluate!(
     if isnothing(F.eval_acb)
         F.eval_acb = interpreter(AcbRefVector, F.eval_ComplexF64)
     end
-    setprecision!(F.eval_acb, prec)
-    return execute!(u, F.eval_acb, x, p)
+    I = F.eval_acb::Interpreter{AcbRefVector}
+    setprecision!(I, prec)
+    return execute!(u, I, x, p)
 end
 
 function evaluate_and_jacobian!(
@@ -220,9 +221,10 @@ function evaluate_and_jacobian!(
     if isnothing(F.jac_acb)
         F.jac_acb = interpreter(AcbRefVector, F.jac_ComplexF64)
     end
-    setprecision!(F.jac_acb, prec)
+    I = F.jac_acb::Interpreter{AcbRefVector}
+    setprecision!(I, prec)
 
-    execute!(u, U, F.jac_acb, x, p)
+    execute!(u, U, I, x, p)
     return nothing
 end
 
@@ -233,6 +235,8 @@ function (F::InterpretedSystem)(x::AbstractArray{<:Union{Acb, AcbRef}}, p = noth
     return u
 end
 (F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::Nothing = nothing) =
+    InterpretedSystem(F)(x, p)
+(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractVector) =
     InterpretedSystem(F)(x, p)
 (F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractArray) =
     InterpretedSystem(F)(x, p)

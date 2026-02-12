@@ -98,6 +98,7 @@ end
 function DoubleF64(x::Rational)
     return DoubleF64(numerator(x)) / DoubleF64(denominator(x))
 end
+DoubleF64(x::Real, r::RoundingMode) = DoubleF64(Float64(x, r))
 
 const ComplexDF64 = Complex{DoubleF64}
 
@@ -255,6 +256,7 @@ end
 *(a::Integer, b::DoubleF64) = b * float(a)
 *(a::Bool, b::DoubleF64) = b * convert(Float64, a)
 *(a::DoubleF64, b::Integer) = a * float(b)
+*(a::DoubleF64, b::Bool) = a * convert(Float64, b)
 
 
 @inline function *(a::DoubleF64, b::DoubleF64)
@@ -342,14 +344,20 @@ Base.rem(a::DoubleF64, b::Union{Float64, DoubleF64}, r::RoundingMode{:Nearest}) 
     a - round(a / b, r) * b
 Base.rem(a::DoubleF64, b::Union{Float64, DoubleF64}, r::RoundingMode) =
     a - round(a / b, r) * b
+Base.rem(a::DoubleF64, b::Union{Float64, DoubleF64}, r::RoundingMode{:FromZero}) =
+    invoke(Base.rem, Tuple{DoubleF64, Union{Float64, DoubleF64}, RoundingMode}, a, b, r)
+Base.rem(a::DoubleF64, b::Union{Float64, DoubleF64}, r::RoundingMode{:Down}) =
+    invoke(Base.rem, Tuple{DoubleF64, Union{Float64, DoubleF64}, RoundingMode}, a, b, r)
+Base.rem(a::DoubleF64, b::Union{Float64, DoubleF64}, r::RoundingMode{:Up}) =
+    invoke(Base.rem, Tuple{DoubleF64, Union{Float64, DoubleF64}, RoundingMode}, a, b, r)
 @inline function Base.divrem(a::DoubleF64, b::DoubleF64)
     n = round(a / b)
     return n, a - n * b
 end
 
 function Base.mod(x::DoubleF64, y::DoubleF64)
-    n = round(a / b)
-    return (a - b * n)
+    n = round(x / y)
+    return x - y * n
 end
 
 #
@@ -409,6 +417,7 @@ end
 end
 
 ^(a::DoubleF64, p::Integer) = power_by_squaring(a, p)
+^(a::DoubleF64, b::Rational) = a ^ float(b)
 ^(a::DoubleF64, b::Real) = iszero(a) ? one(a) : exp(b * log(a))
 
 @inline function Base.sqrt(a::DoubleF64)
@@ -500,6 +509,12 @@ Base.isfinite(a::DoubleF64) = isfinite(a.hi)
 
     return DoubleF64(hi, lo)
 end
+Base.round(a::DoubleF64, r::RoundingMode{:NearestTiesAway}) =
+    invoke(Base.round, Tuple{DoubleF64, RoundingMode}, a, r)
+Base.round(a::DoubleF64, r::RoundingMode{:FromZero}) =
+    invoke(Base.round, Tuple{DoubleF64, RoundingMode}, a, r)
+Base.round(a::DoubleF64, r::RoundingMode{:NearestTiesUp}) =
+    invoke(Base.round, Tuple{DoubleF64, RoundingMode}, a, r)
 
 @inline function Base.floor(a::DoubleF64)
     hi = floor(a.hi)
@@ -1029,7 +1044,7 @@ function Base.asin(a::DoubleF64)
     abs_a = abs(a)
 
     if abs_a > 1.0
-        throw(DomainError())
+        throw(DomainError(a, "asin is only defined for arguments in [-1, 1]."))
     end
 
     if isone(abs_a)
@@ -1043,7 +1058,7 @@ function Base.acos(a::DoubleF64)
     abs_a = abs(a)
 
     if abs_a > 1.0
-        throw(DomainError())
+        throw(DomainError(a, "acos is only defined for arguments in [-1, 1]."))
     end
 
     if isone(abs_a)

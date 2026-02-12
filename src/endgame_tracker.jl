@@ -596,6 +596,7 @@ function singular_endgame_step!(endgame_tracker::EndgameTracker, debug::Bool = f
 
     @label prediction
     m = state.winding_number
+    isnothing(m) && return state.code
     κ = state.sample_conds[3]
     zero_cond = 1 / (m + 1)
     for i in 1:length(state.prediction)
@@ -630,6 +631,7 @@ end
 function add_sample!(state, tracker, t)
     tx¹ = tracker.predictor.tx¹
     m = state.winding_number
+    isnothing(m) && return nothing
     s = nthroot(t, m)
     # will transform the samples to s-plane
     μ = m * s^(m - 1)
@@ -904,10 +906,11 @@ function track(
         x,
         t₁::Real = 1.0;
         path_number::Union{Nothing, Int} = nothing,
+        start_solution = x,
         kwargs...,
     )
     track!(endgame_tracker, x, t₁; kwargs...)
-    return PathResult(endgame_tracker, x, path_number)
+    return PathResult(endgame_tracker, start_solution, path_number)
 end
 function track(endgame_tracker::EndgameTracker, r::PathResult, t₁::Real; kwargs...)
     return track(endgame_tracker, solution(r), t₁; ω = r.ω, μ = r.μ, kwargs...)
