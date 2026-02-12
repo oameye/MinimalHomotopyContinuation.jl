@@ -358,7 +358,7 @@ function polyhedral(
     generic_tracker =
         EndgameTracker(Tracker(H₂; options = tracker_options), options = endgame_options)
 
-    S = PolyhedralStartSolutionsIterator(support, start_coeffs; show_progress = show_progress)
+    S = PolyhedralStartSolutionsIterator(support, start_coeffs; show_progress)
     tracker = PolyhedralTracker(toric_tracker, generic_tracker, S.support, S.lifting)
 
     return tracker, S
