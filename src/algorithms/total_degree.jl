@@ -37,17 +37,14 @@ function total_degree_variables(
         endgame_options = EndgameOptions(),
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    m, n = size(F)
+    _, n = size(F)
 
     @unique_var x[1:n] s[1:n]
     F₀ = System(F(x, target_parameters), x)
-    if is_homogeneous(F₀)
-        throw(
-            ArgumentError(
-                "Homogeneous/projective systems are not supported in this minimal build.",
-            ),
-        )
-    end
+    _validate_affine_square_system(
+        F;
+        homogeneous_system = F₀,
+    )
     support, coeffs = support_coefficients(F₀)
 
     D = zeros(Int, length(support))
@@ -63,16 +60,6 @@ function total_degree_variables(
         D[k] = d
     end
     scaling = maximum.(abs ∘ float, coeffs)
-
-    if m < n
-        throw(FiniteException(n - m))
-    elseif m > n
-        throw(
-            ArgumentError(
-                "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
-            ),
-        )
-    end
 
     if F isa System
         F = fixed(F; compile_mode = compile_mode)

@@ -28,25 +28,8 @@ function parameter_homotopy(
         target_parameters = p₀,
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    m, n = size(F)
     H = ParameterHomotopy(fixed(F; compile_mode = compile_mode), start_parameters, target_parameters)
-    f = System(F)
-    if is_homogeneous(f)
-        throw(
-            ArgumentError(
-                "Homogeneous/projective systems are not supported in affine-only mode.",
-            ),
-        )
-    end
-    if m < n
-        throw(FiniteException(n - m))
-    elseif m > n
-        throw(
-            ArgumentError(
-                "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
-            ),
-        )
-    end
+    _validate_affine_square_system(F)
 
     return H
 end

@@ -37,6 +37,31 @@ nanmax(a, b) = isnan(a) ? b : (isnan(b) ? a : max(a, b))
 
 always_false(::Any) = false
 
+function _validate_affine_square_system(
+        F;
+        check_square::Bool = true,
+        homogeneous_system = nothing,
+    )
+    f = homogeneous_system === nothing ? (F isa System ? F : System(F)) : homogeneous_system
+    if is_homogeneous(f)
+        throw(ArgumentError(String("Homogeneous/projective systems are not supported, only affine systems.")))
+    end
+
+    if check_square
+        m, n = size(F)
+        if m < n
+            throw(FiniteException(n - m))
+        elseif m > n
+            throw(
+                ArgumentError(
+                    "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
+                ),
+            )
+        end
+    end
+    return nothing
+end
+
 """
     all2(f, a, b)
 

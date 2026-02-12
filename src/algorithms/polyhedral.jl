@@ -210,13 +210,7 @@ function polyhedral(
         show_progress::Bool = true,
         rng::Random.AbstractRNG = Random.default_rng(),
     )
-    if is_homogeneous(f)
-        throw(
-            ArgumentError(
-                "Homogeneous/projective systems are not supported in affine-only mode.",
-            ),
-        )
-    end
+    _validate_affine_square_system(f; check_square = false)
     if target_parameters !== nothing
         return polyhedral(
             FixedParameterSystem(fixed(f; compile_mode = compile_mode), target_parameters);
@@ -228,16 +222,7 @@ function polyhedral(
             rng = rng,
         )
     end
-    m, n = size(f)
-    if m < n
-        throw(FiniteException(n - m))
-    elseif m > n
-        throw(
-            ArgumentError(
-                "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
-            ),
-        )
-    end
+    _validate_affine_square_system(f)
     support, target_coeffs = support_coefficients(f)
     tracker, starts = polyhedral(
         support,
@@ -273,23 +258,7 @@ function paths_to_track(
         alg::PolyhedralAlgorithm,
     )
     only_non_zero = alg.only_non_zero
-    if is_homogeneous(f)
-        throw(
-            ArgumentError(
-                "Homogeneous/projective systems are not supported in affine-only mode.",
-            ),
-        )
-    end
-    m, n = size(f)
-    if m < n
-        throw(FiniteException(n - m))
-    elseif m > n
-        throw(
-            ArgumentError(
-                "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
-            ),
-        )
-    end
+    _validate_affine_square_system(f)
     supp, _ = support_coefficients(f)
 
     return if only_non_zero
