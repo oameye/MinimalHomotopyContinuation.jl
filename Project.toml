@@ -5,7 +5,7 @@ version = "2.17.1"
 
 [deps]
 Arblib = "fb37089c-8514-4489-9461-98f9c8763369"
-CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 DynamicPolynomials = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
 ElasticArrays = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -23,7 +23,7 @@ SymEngine_jll = "3428059b-622b-5399-b16f-d347a77089a4"
 
 [compat]
 Arblib = "1.2"
-CommonSolve = "0.2, 0.3"
+DelimitedFiles = "1"
 DynamicPolynomials = "0.5, 0.6"
 ElasticArrays = "1"
 LoopVectorization = "0.12"
