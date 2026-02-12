@@ -95,7 +95,7 @@ function init(
     )
 end
 
-function init(about:blank#blocked
+function init(
         prob::PathProblems,
         alg::AbstractHCAlgorithm,
         ::Type{ResultIterator};
@@ -139,10 +139,6 @@ function solve!(cache::SweepIteratorSolveCache)
     end
 end
 
-solve(prob::PathProblems, alg::AbstractHCAlgorithm, ::Type{ResultIterator}; kwargs...) = solve!(
-    init(prob, alg, ResultIterator; kwargs...)
-)
-
-solve(prob::ParameterSweepProblem, alg::PathTrackingAlgorithm, ::Type{ResultIterator}; kwargs...) = solve!(
+solve(prob::AbstractHCProblem, alg::AbstractHCAlgorithm, ::Type{ResultIterator}; kwargs...) = solve!(
     init(prob, alg, ResultIterator; kwargs...)
 )

@@ -97,10 +97,9 @@ function many_solve(
             update_many_progress!(progress, results, k, m)
         end
     catch e
-        if !(
-                isa(e, InterruptException) ||
-                    (isa(e, TaskFailedException) && isa(e.task.exception, InterruptException))
-            )
+        interrupted = isa(e, InterruptException) ||
+            (isa(e, TaskFailedException) && isa(e.task.exception, InterruptException))
+        if !interrupted || !catch_interrupt
             rethrow(e)
         end
     end

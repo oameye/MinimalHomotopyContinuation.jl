@@ -59,9 +59,7 @@ statistics(r; kwargs...) = ResultStatistics(r; kwargs...)
 const Results = Union{Result, AbstractVector{<:PathResult}}
 const AbstractResults = Union{AbstractResult, AbstractVector{<:PathResult}}
 
-results(R::Result; kwargs...) = results(identity, R; kwargs...)
-results(R::AbstractVector{<:PathResult}; kwargs...) = results(identity, R; kwargs...)
-results(R::AbstractResult; kwargs...) = results(identity, R; kwargs...)
+results(R::AbstractResults; kwargs...) = results(identity, R; kwargs...)
 
 _effective_multiple_results(::Result, multiple_results::Bool) = multiple_results
 _effective_multiple_results(::AbstractVector{<:PathResult}, multiple_results::Bool) =
@@ -142,11 +140,7 @@ function _results_impl(
     return _results_output(R, iter)
 end
 
-results(f::Function, R::Result; kwargs...) = _results_impl(f, R; kwargs...)
-results(f::Function, R::AbstractVector{<:PathResult}; kwargs...) = _results_impl(
-    f, R; kwargs...
-)
-results(f::Function, R::AbstractResult; kwargs...) = _results_impl(f, R; kwargs...)
+results(f::Function, R::AbstractResults; kwargs...) = _results_impl(f, R; kwargs...)
 
 function _count_results(
         R;
@@ -174,9 +168,7 @@ function _count_results(
     end
 end
 
-nresults(R::Result; kwargs...) = _count_results(R; kwargs...)
-nresults(R::AbstractVector{<:PathResult}; kwargs...) = _count_results(R; kwargs...)
-nresults(R::AbstractResult; kwargs...) = _count_results(R; kwargs...)
+nresults(R::AbstractResults; kwargs...) = _count_results(R; kwargs...)
 
 solutions(result::AbstractResults; only_nonsingular = true, kwargs...) = results(
     solution, result; only_nonsingular, kwargs...
