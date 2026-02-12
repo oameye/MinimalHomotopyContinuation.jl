@@ -1,5 +1,8 @@
 module HomotopyContinuation
 
+# TODO:
+# - use use the interface of [EnumX.jl](https://github.com/fredrikekre/EnumX.jl)
+
 export ModelKit
 
 using Arblib: Arblib
@@ -7,7 +10,7 @@ using DynamicPolynomials: @polyvar
 import ElasticArrays: ElasticArrays, ElasticArray
 import LinearAlgebra
 import LoopVectorization
-import MixedSubdivisions: MixedSubdivisions, MixedCell, mixed_volume
+import MixedSubdivisions: MixedSubdivisions, MixedCell
 import MultivariatePolynomials
 const MP = MultivariatePolynomials
 using Parameters: @unpack
@@ -17,6 +20,8 @@ import Random
 import Printf
 using Reexport: @reexport
 import StructArrays
+
+import CommonSolve: init, solve, solve!
 import Base: push!
 
 const LA = LinearAlgebra
@@ -29,41 +34,53 @@ using .DoubleDouble
 Arblib.Arb(a::DoubleF64) = Arblib.Arb(BigFloat(a))
 Arblib.Arf(a::DoubleF64) = Arblib.Arf(BigFloat(a))
 
-include("ModelKit.jl")
+include("model_kit/ModelKit.jl")
 export @polyvar
-
-const COMPILE_DEFAULT = Ref(:mixed)
-
-export set_default_compile
-
-"""
-    set_default_compile(mode::Symbol)
-
-Set the default value for the `compile` flag in [`solve`](@ref) and other functions.
-Possible values are `:mixed` (default), `:all` and `:none`.
-"""
-function set_default_compile(mode::Symbol)
-    mode ∈ [:mixed, :all, :none] ||
-        error("Invalid value `:$mode`, valid values are `:mixed`, `:all`, `:none`.")
-    return COMPILE_DEFAULT[] = mode
-end
 
 include("utils.jl")
 include("norm.jl")
 include("linear_algebra.jl")
-include("systems.jl")
-include("homotopies.jl")
-include("predictor.jl")
-include("newton_corrector.jl")
-include("newton.jl")
-include("tracker.jl")
-include("valuation.jl")
-include("path_result.jl")
-include("endgame_tracker.jl")
-include("total_degree.jl")
-include("binomial_system.jl")
-include("polyhedral.jl")
-include("result.jl")
-include("solve.jl")
+
+include("systems/compile_modes.jl")
+include("systems/mixed_system.jl")
+include("systems/fixed_parameter_system.jl")
+include("systems/systems.jl")
+
+include("homotopies/toric_homotopy.jl")
+include("homotopies/mixed_homotopy.jl")
+include("homotopies/parameter_homotopy.jl")
+include("homotopies/coefficient_homotopy.jl")
+include("homotopies/straight_line_homotopy.jl")
+include("homotopies/fixed_parameter_homotopy.jl")
+include("homotopies/homotopies.jl")
+
+include("newton/predictor.jl")
+include("newton/corrector.jl")
+include("newton/newton.jl")
+
+include("tracking/tracker.jl")
+include("tracking/valuation.jl")
+include("tracking/path_result.jl")
+include("tracking/endgame_tracker.jl")
+
+include("algorithms/algorithms.jl")
+include("algorithms/total_degree.jl")
+include("algorithms/binomial_system.jl")
+include("algorithms/polyhedral.jl")
+
+include("problems/problems_core.jl")
+
+include("result/types.jl")
+include("result/iterate.jl")
+include("result/filter.jl")
+include("result/show.jl")
+
+include("solve/types.jl")
+include("solve/prepare.jl")
+include("solve/execute_paths.jl")
+include("solve/execute_sweeps.jl")
+include("solve/api.jl")
+
+include("public_api.jl")
 
 end #module

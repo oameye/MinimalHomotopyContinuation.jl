@@ -10,20 +10,18 @@ Although they sound similar, [`AbstractSystem`](@ref)s and [`System`](@ref) shar
 purposes. [`AbstractSystem`](@ref)s are intented for the fast numerical evaluation
 of a fixed system. Whereas a [`System`](@ref) is intended for formulating your problem
 symbolically.
-A [`System`](@ref) can be converted to two different basic `AbstractSystem`s,
-a [`CompiledSystem`](@ref) (fast, but introduce compilation overhead) and an
-[`InterpretedSystem`](@ref) (slower, but not compilation overhead).
+A [`System`](@ref) can be converted to three basic `AbstractSystem`s,
+a [`CompiledSystem`](@ref), an [`InterpretedSystem`](@ref), or a [`MixedSystem`](@ref),
+selected via a typed compile mode.
 
 ```@docs
 CompiledSystem
 InterpretedSystem
 MixedSystem
 fixed(::System)
-```
-
-It is also possible to set the default compile flag.
-```@docs
-set_default_compile
+CompileAll
+CompileMixed
+CompileNone
 ```
 
 ## Interface

@@ -18,8 +18,9 @@ mutable struct Valuation
 end
 
 Valuation(x::AbstractVector) = Valuation(length(x))
-Valuation(n::Integer) =
-    Valuation((zeros(n) for i in 1:4)..., ((zeros(n), zeros(n)) for i in 1:4)..., (NaN, NaN))
+Valuation(n::Integer) = Valuation(
+    (zeros(n) for i in 1:4)..., ((zeros(n), zeros(n)) for i in 1:4)..., (NaN, NaN)
+)
 
 function Base.show(io::IO, val::Valuation)
     print(io, "Valuation :")
@@ -27,7 +28,7 @@ function Base.show(io::IO, val::Valuation)
         vs = [Printf.@sprintf("%#.4g", v) for v in getfield(val, field)]
         print(io, "\n • ", field, " → ", "[", join(vs, ", "), "]")
     end
-    return
+    return nothing
 end
 Base.show(io::IO, ::MIME"application/prs.juno.inline", v::Valuation) = v
 
@@ -142,10 +143,7 @@ function finite_diff(ν, s, ν₂, s₂, ν₁, s₁)
 end
 
 function at_infinity_tol!(
-        at_infinity_tols,
-        val::Valuation;
-        finite_tol::Float64,
-        zero_is_finite::Bool,
+        at_infinity_tols, val::Valuation; finite_tol::Float64, zero_is_finite::Bool
     )
     @unpack val_x, val_tẋ, Δval_x, Δval_tẋ = val
 
@@ -174,10 +172,7 @@ function at_infinity_tol!(
 end
 
 function is_finite(
-        val::Valuation;
-        finite_tol::Float64,
-        zero_is_finite::Bool,
-        max_winding_number::Int,
+        val::Valuation; finite_tol::Float64, zero_is_finite::Bool, max_winding_number::Int
     )
     @unpack val_x, val_tẋ, Δval_x, Δval_tẋ = val
 

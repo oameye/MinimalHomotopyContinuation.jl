@@ -106,7 +106,7 @@ end
 function Predictor(H::AbstractHomotopy)
     m, n = size(H)
     tx³ = TaylorVector{4}(ComplexF64, n)
-    return Predictor(
+    return Predictor(;
         tx⁰ = TaylorVector{1}(tx³),
         tx¹ = TaylorVector{2}(tx³),
         tx² = TaylorVector{3}(tx³),

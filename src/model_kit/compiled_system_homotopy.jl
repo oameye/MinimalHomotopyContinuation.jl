@@ -164,25 +164,23 @@ interpret(::Type{CompiledHomotopy{HI}}) where {HI} = THOMOTOPY_TABLE[first(HI)][
 function boundschecks(; nexpressions::Int, nvariables, nparameters, has_second_output)
     checks = Expr[]
     if has_second_output
-        push!(checks, :(@boundscheck checkbounds(U, 1:$nexpressions, 1:$nvariables)))
+        push!(checks, :(@boundscheck checkbounds(U, 1:($nexpressions), 1:($nvariables))))
     end
-    push!(checks, :(@boundscheck u === nothing || checkbounds(u, 1:$nexpressions)))
-    push!(checks, :(@boundscheck checkbounds(x, 1:$nvariables)))
-    push!(checks, :(@boundscheck p === nothing || checkbounds(p, 1:$nparameters)))
+    push!(checks, :(@boundscheck u === nothing || checkbounds(u, 1:($nexpressions))))
+    push!(checks, :(@boundscheck checkbounds(x, 1:($nvariables))))
+    push!(checks, :(@boundscheck p === nothing || checkbounds(p, 1:($nparameters))))
 
     return Expr(:block, checks...)
 end
 
 
 function compiled_execute_impl(
-        seq::InstructionSequence;
-        has_second_output = false,
-        taylor = false,
+        seq::InstructionSequence; has_second_output = false, taylor = false
     )
     if taylor
         expr, get_var_name = sequence_to_expr(seq; op_call = taylor_op_call, order = :Order)
     else
-        expr, get_var_name = sequence_to_expr(seq; op_call = op_call)
+        expr, get_var_name = sequence_to_expr(seq; op_call)
     end
     assignments = if has_second_output
         quote
@@ -242,9 +240,9 @@ function compiled_execute_impl(
 
     return quote
         $(
-            boundschecks(
+            boundschecks(;
                 nexpressions = seq.output_dim,
-                has_second_output = has_second_output,
+                has_second_output,
                 nparameters = length(seq.parameters_range),
                 nvariables = length(seq.variables_range),
             )
@@ -279,8 +277,7 @@ Evaluate `T` for variables `x`, `t` and parameters `p` and store result in `u`.
 end
 
 _evaluate_and_jacobian!_impl(T) = compiled_execute_impl(
-    jacobian_instruction_sequence(interpret(T));
-    has_second_output = true,
+    jacobian_instruction_sequence(interpret(T)); has_second_output = true
 )
 
 """

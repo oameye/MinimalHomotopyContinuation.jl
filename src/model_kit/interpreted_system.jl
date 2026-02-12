@@ -6,8 +6,9 @@ mutable struct TaylorInterpreters{T}
     order_3::Union{Nothing, Interpreter{Vector{TruncatedTaylorSeries{4, T}}}}
     order_4::Union{Nothing, Interpreter{Vector{TruncatedTaylorSeries{5, T}}}}
 end
-TaylorInterpreters{T}() where {T} =
-    TaylorInterpreters{ComplexF64}(nothing, nothing, nothing, nothing)
+TaylorInterpreters{T}() where {T} = TaylorInterpreters{ComplexF64}(
+    nothing, nothing, nothing, nothing
+)
 
 """
     InterpretedSystem <: AbstractSystem
@@ -92,23 +93,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{2, ComplexF64}, F.eval_ComplexF64)
                 F.taylor_ComplexF64.order_1 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, p; assign_highest_order_only)
             end
             u
         end
@@ -118,23 +105,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{3, ComplexF64}, F.eval_ComplexF64)
                 F.taylor_ComplexF64.order_2 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, p; assign_highest_order_only)
             end
             u
         end
@@ -144,23 +117,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{4, ComplexF64}, F.eval_ComplexF64)
                 F.taylor_ComplexF64.order_3 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, p; assign_highest_order_only)
             end
             u
         end
@@ -170,23 +129,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{5, ComplexF64}, F.eval_ComplexF64)
                 F.taylor_ComplexF64.order_4 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, p; assign_highest_order_only)
             end
             u
         end
@@ -234,11 +179,17 @@ function (F::InterpretedSystem)(x::AbstractArray{<:Union{Acb, AcbRef}}, p = noth
     evaluate!(u, F, x, p)
     return u
 end
-(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::Nothing = nothing) =
-    InterpretedSystem(F)(x, p)
-(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractVector) =
-    InterpretedSystem(F)(x, p)
-(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractArray) =
-    InterpretedSystem(F)(x, p)
-(F::System)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, p = nothing) =
-    InterpretedSystem(F)(x, p)
+(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::Nothing = nothing) = InterpretedSystem(
+    F
+)(
+    x, p
+)
+(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractVector) = InterpretedSystem(
+    F
+)(
+    x, p
+)
+(F::System)(x::AbstractVector{<:Union{Acb, AcbRef}}, p::AbstractArray) = InterpretedSystem(F)(
+    x, p
+)
+(F::System)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, p = nothing) = InterpretedSystem(F)(x, p)

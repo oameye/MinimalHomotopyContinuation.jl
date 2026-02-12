@@ -1,24 +1,25 @@
-export PathResult,
-    solution,
-    accuracy,
-    residual,
-    steps,
-    accepted_steps,
-    rejected_steps,
-    winding_number,
-    path_number,
-    start_solution,
-    multiplicity,
-    last_path_point,
-    valuation,
-    is_success,
-    is_at_infinity,
-    is_excess_solution,
-    is_failed,
-    is_finite,
-    is_singular,
-    is_nonsingular,
-    is_real
+module PathResultCode
+    @enum codes begin
+        tracking
+        success
+        at_infinity
+        at_zero
+        terminated_accuracy_limit
+        terminated_invalid_startvalue
+        terminated_invalid_startvalue_singular_jacobian
+        terminated_ill_conditioned
+        terminated_max_steps
+        terminated_max_extended_steps
+        terminated_max_winding_number
+        terminated_step_size_too_small
+        terminated_unknown
+        post_check_failed
+        excess_solution
+        polyhedral_failed
+    end
+end
+
+Base.Symbol(code::PathResultCode.codes) = Symbol(string(code))
 
 
 """
@@ -74,7 +75,7 @@ Possible return codes are:
 * various return codes indicating termination of the tracking
 """
 Base.@kwdef mutable struct PathResult{StartSolutionT}
-    return_code::Symbol
+    return_code::PathResultCode.codes
     solution::Vector{ComplexF64}
     t::Float64
     accuracy::Float64
@@ -100,7 +101,7 @@ end
 Base.show(io::IO, ::MIME"application/prs.juno.inline", r::PathResult) = r
 function Base.show(io::IO, r::PathResult)
     println(io, "PathResult:")
-    println(io, " • return_code → :", r.return_code)
+    println(io, " • return_code → :", Symbol(r.return_code))
     for f in [:solution, :accuracy, :residual, :condition_jacobian]
         print_fieldname(io, r, f)
     end
@@ -113,7 +114,7 @@ function Base.show(io::IO, r::PathResult)
     for f in [:extended_precision, :path_number]
         print_fieldname(io, r, f)
     end
-    return
+    return nothing
 end
 
 
@@ -218,14 +219,15 @@ valuation(r::PathResult) = r.valuation
 
 Checks whether the path is successfull.
 """
-is_success(r::PathResult) = r.return_code == :success
+is_success(r::PathResult) = r.return_code == PathResultCode.success
 
 """
     is_at_infinity(r::PathResult)
 
 Checks whether the path goes to infinity.
 """
-is_at_infinity(r::PathResult) = r.return_code == :at_infinity || r.return_code == :at_zero
+is_at_infinity(r::PathResult) =
+    r.return_code == PathResultCode.at_infinity || r.return_code == PathResultCode.at_zero
 
 """
     is_excess_solution(r::PathResult)
@@ -233,7 +235,7 @@ is_at_infinity(r::PathResult) = r.return_code == :at_infinity || r.return_code =
 Checks whether gives an excess solution that was artificially introduced
 by the homotopy continuation from the modified system.
 """
-is_excess_solution(r::PathResult) = r.return_code == :excess_solution
+is_excess_solution(r::PathResult) = r.return_code == PathResultCode.excess_solution
 
 """
     is_failed(r::PathResult)
@@ -274,18 +276,14 @@ We consider a result as `real` if either:
 - the infinity-norm of the imaginary part of the solution is less than `atol`
 - the infinity-norm of the imaginary part of the solution is less than `rtol * norm(s, 1)`, where s is the solution in `PathResult`.
 """
-function is_real(
-        r::PathResult;
-        atol::Float64 = 1.0e-6,
-        rtol::Float64 = 0.0,
-    )
+function is_real(r::PathResult; atol::Float64 = 1.0e-6, rtol::Float64 = 0.0)
     m = maximum(abs ∘ imag, r.solution)
     m < atol && return true
     iszero(rtol) && return false
     thresh = rtol * norm(r.solution, 1)
     return m < thresh
 end
-is_real(r::PathResult, atol::Float64) = is_real(r; atol = atol)
+is_real(r::PathResult, atol::Float64) = is_real(r; atol)
 is_real(r::PathResult, atol::Float64, rtol::Float64) = is_real(r; atol, rtol)
 # provide fallback since this in in Base
 Base.isreal(r::PathResult, atol) = is_real(r, atol)

@@ -21,9 +21,8 @@ struct MatrixWorkspace{M <: AbstractMatrix{ComplexF64}} <: AbstractMatrix{Comple
     inf_norm_est_rwork::Vector{Float64}
 end
 
-MatrixWorkspace(m::Integer, n::Integer; kwargs...) =
-    MatrixWorkspace(zeros(ComplexF64, m, n); kwargs...)
-function MatrixWorkspace(Â::AbstractMatrix; optimize_data_structure = true)
+MatrixWorkspace(m::Integer, n::Integer) = MatrixWorkspace(zeros(ComplexF64, m, n))
+function MatrixWorkspace(Â::AbstractMatrix)
     m, n = size(Â)
     m ≥ n || throw(ArgumentError("Expected system with more rows than columns."))
 
@@ -40,57 +39,38 @@ function MatrixWorkspace(Â::AbstractMatrix; optimize_data_structure = true)
     δx = zeros(ComplexF64, n)
     inf_norm_est_work = Vector{ComplexF64}(undef, n)
     inf_norm_est_rwork = Vector{Float64}(undef, n)
-    # Keep A/lu types aligned in each branch to avoid inference unions.
-    if m > 25 && optimize_data_structure
-        A_sa = StructArrays.StructArray(A)
-        ipiv = zeros(Int, m)
-        lu = LinearAlgebra.LU{eltype(A_sa), typeof(A_sa), typeof(ipiv)}(copy(A_sa), ipiv, 0)
-        return MatrixWorkspace(
-            A_sa,
-            d,
-            factorized,
-            lu,
-            qr,
-            row_scaling,
-            scaled,
-            x̄,
-            r,
-            r̄,
-            δx,
-            inf_norm_est_work,
-            inf_norm_est_rwork,
-        )
-    else
-        ipiv = zeros(Int, m)
-        lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
-        return MatrixWorkspace(
-            A,
-            d,
-            factorized,
-            lu,
-            qr,
-            row_scaling,
-            scaled,
-            x̄,
-            r,
-            r̄,
-            δx,
-            inf_norm_est_work,
-            inf_norm_est_rwork,
-        )
-    end
+    ipiv = zeros(Int, m)
+    lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
+    return MatrixWorkspace(
+        A,
+        d,
+        factorized,
+        lu,
+        qr,
+        row_scaling,
+        scaled,
+        x̄,
+        r,
+        r̄,
+        δx,
+        inf_norm_est_work,
+        inf_norm_est_rwork,
+    )
 end
 
 Base.size(MW::MatrixWorkspace) = size(MW.A)
 
 import Base: @propagate_inbounds
 @propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer) = getindex(MW.A, i)
-@propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer, j::Integer) =
-    getindex(MW.A, i, j)
-@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer) =
-    setindex!(MW.A, x, i)
-@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer, j::Integer) =
-    setindex!(MW.A, x, i, j)
+@propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer, j::Integer) = getindex(
+    MW.A, i, j
+)
+@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer) = setindex!(
+    MW.A, x, i
+)
+@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer, j::Integer) = setindex!(
+    MW.A, x, i, j
+)
 
 matrix(M::MatrixWorkspace) = M.A
 matrix(M::AbstractMatrix) = M
@@ -143,8 +123,7 @@ end
 #    the pivot vector anymore and also avoid the allocations
 #    coming from the LU wrapper
 function lu!(
-        A::AbstractMatrix{T},
-        ipiv::Union{Nothing, AbstractVector{<:Integer}} = nothing,
+        A::AbstractMatrix{T}, ipiv::Union{Nothing, AbstractVector{<:Integer}} = nothing
     ) where {T}
     m, n = size(A)
     minmn = min(m, n)
@@ -281,8 +260,9 @@ end
 ## ldiv ##
 ##########
 @inline _ipiv!(A::LA.LU, b::AbstractVector) = apply_ipiv!(b, 1:length(A.ipiv), A.ipiv)
-@inline _inverse_ipiv!(A::LA.LU, b::StridedVecOrMat) =
-    apply_ipiv!(b, length(A.ipiv):-1:1, A.ipiv)
+@inline _inverse_ipiv!(A::LA.LU, b::StridedVecOrMat) = apply_ipiv!(
+    b, length(A.ipiv):-1:1, A.ipiv
+)
 @inline function apply_ipiv!(b::AbstractVector, range::OrdinalRange, ipiv)
     @inbounds for i in range
         if i != ipiv[i]
@@ -307,11 +287,7 @@ end
     end
     return b
 end
-@inline function ldiv_unit_lower!(
-        A::AbstractMatrix,
-        b::AbstractVector,
-        x::AbstractVector = b,
-    )
+@inline function ldiv_unit_lower!(A::AbstractMatrix, b::AbstractVector, x::AbstractVector = b)
     n = size(A, 2)
     @inbounds for j in 1:n
         xj = x[j] = b[j]
@@ -486,7 +462,7 @@ function row_scaling!(
     )
     m, n = size(WS)
     if m == n
-        skeel_row_scaling!(d, WS.A, c; scaling_threshold = scaling_threshold)
+        skeel_row_scaling!(d, WS.A, c; scaling_threshold)
     else
         d .= 1.0
     end
@@ -839,11 +815,7 @@ end
 solve the linear system `matrix(J)x̂=b`.
 """
 function LA.ldiv!(
-        x̂::AbstractVector,
-        J::Jacobian,
-        b::AbstractVector,
-        norm = nothing;
-        row_scaling::Bool = true,
+        x̂::AbstractVector, J::Jacobian, b::AbstractVector, norm = nothing; row_scaling::Bool = true
     )
     # stats update
     J.factorizations[] += !workspace(J).factorized[]

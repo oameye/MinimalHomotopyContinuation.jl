@@ -18,9 +18,7 @@ struct ParameterHomotopy{T <: AbstractSystem} <: AbstractHomotopy
 end
 
 function ParameterHomotopy(
-        F;
-        start_parameters::AbstractVector,
-        target_parameters::AbstractVector,
+        F; start_parameters::AbstractVector, target_parameters::AbstractVector
     )
     return ParameterHomotopy(F, start_parameters, target_parameters)
 end
@@ -28,9 +26,9 @@ function ParameterHomotopy(
         F::ModelKit.System,
         p::AbstractVector,
         q::AbstractVector;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    return ParameterHomotopy(fixed(F; compile = compile), p, q)
+    return ParameterHomotopy(fixed(F; compile_mode), p, q)
 end
 function ParameterHomotopy(F::AbstractSystem, p::AbstractVector, q::AbstractVector)
     @assert length(p) == length(q) == nparameters(F)

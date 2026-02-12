@@ -44,8 +44,9 @@ results4_template = fill(0, 8)
     results1_template[length(sol_again) + 1] += 1
 
     pol2 = [
-        -x[1]^5 * x[2] * p[5] + x[1]^4 * x[3] * p[6] * p[8] - x[1] * x[2] * p[3]^4 * p[5] + x[3] * p[3]^4 * p[6] * p[8] - x[1]^5 * p[7] +
-            x[1]^4 * x[3] * p[4] - x[1] * p[3]^4 * p[7] +
+        -x[1]^5 * x[2] * p[5] + x[1]^4 * x[3] * p[6] * p[8] - x[1] * x[2] * p[3]^4 * p[5] +
+            x[3] * p[3]^4 * p[6] * p[8] - x[1]^5 * p[7] + x[1]^4 * x[3] * p[4] -
+            x[1] * p[3]^4 * p[7] +
             x[3] * p[3]^4 * p[4] +
             x[1]^4 * p[1] +
             x[1]^4 * p[2] +
@@ -84,8 +85,7 @@ results4_template = fill(0, 8)
     pol3 = pol2
     p3_vals = [0.005, 0.1, 2.8, 10, 100, 0.1, 0.01, 1.0] #Last parameter is 1 and not 0. Here there should be 3 real solutions instead of 1.
     pol3_pars = DynamicPolynomials.subs.(pol3, Ref(p => p3_vals))
-    sol3 =
-        solutions(solve(pol3_pars, precision = PRECISION_ADAPTIVE, show_progress = false))
+    sol3 = solutions(solve(pol3_pars, precision = PRECISION_ADAPTIVE, show_progress = false))
     results3_direct[length(sol3) + 1] += 1
 
     p3_template = randn(ComplexF64, 8)

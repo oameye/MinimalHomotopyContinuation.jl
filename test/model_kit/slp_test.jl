@@ -29,10 +29,7 @@
                 @var s sp[1:3] sq[1:3]
                 pt = s .* sp .+ (1 .- s) .* sq
                 differentiate(subs(f, [a, b, c] => pt), s)(
-                    [x, y] => v,
-                    sp => p,
-                    sq => q,
-                    s => t,
+                    [x, y] => v, sp => p, sq => q, s => t
                 )
             end
 
@@ -48,7 +45,8 @@
         @var x[0:n] ẋ[0:n] ẍ[0:n] x3[0:n] t γ
         K = [
             (
-                sum(x[abs(l) + 1] * x[abs(m - l) + 1] for l in -n:n if abs(m - l) <= n) - x[m + 1] for m in 0:(n - 1)
+                sum(x[abs(l) + 1] * x[abs(m - l) + 1] for l in (-n):n if abs(m - l) <= n) - x[m + 1]
+                    for m in 0:(n - 1)
             )...,
             x[1] + 2 * sum(x[i + 1] for i in 1:n) - 1,
         ]
@@ -64,14 +62,18 @@
         y2 .= ẍ
         y3 .= x3
 
-        dt1 =
-            ModelKit.taylor!(zeros(Expression, 4), Val(1), TH, TaylorVector{1}(tx3), t, [γ])
-        dt2 =
-            ModelKit.taylor!(zeros(Expression, 4), Val(2), TH, TaylorVector{2}(tx3), t, [γ])
-        dt3 =
-            ModelKit.taylor!(zeros(Expression, 4), Val(3), TH, TaylorVector{3}(tx3), t, [γ])
-        dt4 =
-            ModelKit.taylor!(zeros(Expression, 4), Val(4), TH, TaylorVector{4}(tx3), t, [γ])
+        dt1 = ModelKit.taylor!(
+            zeros(Expression, 4), Val(1), TH, TaylorVector{1}(tx3), t, [γ]
+        )
+        dt2 = ModelKit.taylor!(
+            zeros(Expression, 4), Val(2), TH, TaylorVector{2}(tx3), t, [γ]
+        )
+        dt3 = ModelKit.taylor!(
+            zeros(Expression, 4), Val(3), TH, TaylorVector{3}(tx3), t, [γ]
+        )
+        dt4 = ModelKit.taylor!(
+            zeros(Expression, 4), Val(4), TH, TaylorVector{4}(tx3), t, [γ]
+        )
 
         @var λ
         Hd1 = subs(H.expressions, t => t + λ)

@@ -25,5 +25,5 @@ b₀ = randn(ComplexF64, n)
 p₀ = [vec(A₀); b₀]
 
 F₀ = [subs(Fᵢ, p => [vec(A₀); b₀]) for Fᵢ in F]
-complex_result = solve(F₀)
+complex_result = solve(SystemProblem(F₀), PolyhedralAlgorithm())
 println("Degree of the variety: ", nfinite(complex_result)) # should be 1408

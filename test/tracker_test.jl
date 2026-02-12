@@ -1,3 +1,14 @@
+const Tracker = HC.Tracker
+const TrackerOptions = HC.TrackerOptions
+const TrackerCode = HC.TrackerCode
+const track = HC.track
+const track! = HC.track!
+const iterator = HC.iterator
+const start_parameters! = HC.start_parameters!
+const target_parameters! = HC.target_parameters!
+const total_degree_start_solutions = HC.total_degree_start_solutions
+const is_invalid_startvalue = HC.is_invalid_startvalue
+
 @testset "Tracker" begin
     @testset "tracking $mode - AD: $AD" for mode in [InterpretedSystem, CompiledSystem],
             AD in 0:3
@@ -40,8 +51,7 @@
 
         F = System([x - a], [x], [a])
         ct = Tracker(
-            ParameterHomotopy(F, [1], [2]),
-            options = TrackerOptions(max_step_size = 0.015625),
+            ParameterHomotopy(F, [1], [2]), options = TrackerOptions(max_step_size = 0.015625)
         )
         Xs = Vector{ComplexF64}[]
         for (x, t) in iterator(ct, [1.0], 1.0, 0.0)
@@ -68,7 +78,7 @@
         G = System((0.2 + 0.4im) .* [x^2 - 1, y - 1], [x, y])
         H = StraightLineHomotopy(G, F)
         S = [[1, 1], [-1, 1]]
-        tracker = Tracker(H, options = (automatic_differentiation = 3,))
+        tracker = Tracker(H, options = TrackerOptions(automatic_differentiation = 3))
 
         @test is_success(track(tracker, S[1], 1, 0))
         @test is_success(track(tracker, S[2], 1, 0))
@@ -88,7 +98,7 @@
         for make in [CompiledHomotopy, InterpretedHomotopy]
             tracker = Tracker(
                 fix_parameters(make(H), [randn(ComplexF64)]);
-                options = (automatic_differentiation = 3,),
+                options = TrackerOptions(automatic_differentiation = 3),
             )
             @test all(is_success, track.(tracker, S))
         end
@@ -101,7 +111,7 @@
             t,
         )
         for make in [CompiledHomotopy, InterpretedHomotopy]
-            tracker = Tracker(make(H); options = (automatic_differentiation = 1,))
+            tracker = Tracker(make(H); options = TrackerOptions(automatic_differentiation = 1))
             @test all(is_success, track.(tracker, S))
         end
     end
@@ -184,10 +194,11 @@
 
         G = System(vcat(gs, L); variables = xvarz_moving_frame, parameters = bvarz)
         startsolutions0 = [p0[i, k] for i in freevertices for k in 1:2]
-        tracker = Tracker(ParameterHomotopy(G, [b0], [b1]; compile = false))
+        tracker = Tracker(ParameterHomotopy(G, [b0], [b1]; compile_mode = CompileNone()))
         result = track(tracker, startsolutions0, 1, 0)
         @test is_invalid_startvalue(result)
-        @test result.return_code == :terminated_invalid_startvalue_singular_jacobian
+        @test result.return_code ==
+            TrackerCode.terminated_invalid_startvalue_singular_jacobian
     end
 
     include("test_cases/steiner_higher_prec.jl")

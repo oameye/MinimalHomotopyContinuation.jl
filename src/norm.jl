@@ -24,8 +24,9 @@ distance(u, v, norm::AbstractNorm) = throw(MethodError(distance, (u, v, norm)))
 
 Compute the norm ||u|| with respect to the given norm `norm`.
 """
-LinearAlgebra.norm(u, norm::AbstractNorm) =
-    throw(MethodError(LinearAlgebra.norm, (u, norm)))
+LinearAlgebra.norm(u, norm::AbstractNorm) = throw(
+    MethodError(LinearAlgebra.norm, (u, norm))
+)
 
 (N::AbstractNorm)(x) = norm(x, N)
 (N::AbstractNorm)(x, y) = distance(x, y, N)
@@ -69,9 +70,7 @@ struct WeightedNorm{N <: AbstractNorm} <: AbstractNorm
     options::WeightedNormOptions
 end
 function WeightedNorm(
-        weights::Vector{Float64},
-        norm::AbstractNorm,
-        opts = WeightedNormOptions(),
+        weights::Vector{Float64}, norm::AbstractNorm, opts = WeightedNormOptions()
     )
     return WeightedNorm(weights, norm, opts)
 end
@@ -90,8 +89,9 @@ Base.size(WN::WeightedNorm) = (length(WN),)
 Base.ndims(::Type{<:WeightedNorm}) = 1
 Base.copyto!(WN::WeightedNorm, x) = copyto!(WN.weights, x)
 @propagate_inbounds Base.getindex(WN::WeightedNorm, i::Integer) = getindex(WN.weights, i)
-@propagate_inbounds Base.setindex!(WN::WeightedNorm, x, i::Integer) =
-    setindex!(WN.weights, x, i)
+@propagate_inbounds Base.setindex!(WN::WeightedNorm, x, i::Integer) = setindex!(
+    WN.weights, x, i
+)
 
 
 """

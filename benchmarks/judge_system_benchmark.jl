@@ -14,8 +14,7 @@ function judge_results(result1_name, result2_name)
     )
 
     pretty_table(
-        data;
-        header = ["System", "evaluate", "evaluate_and_jacobian", "taylor_1", "taylor_2"],
+        data; header = ["System", "evaluate", "evaluate_and_jacobian", "taylor_1", "taylor_2"]
     )
 
 

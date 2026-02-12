@@ -24,21 +24,14 @@ end
 function StraightLineHomotopy(
         start::System,
         target::System;
-        compile::Union{Bool, Symbol} = COMPILE_DEFAULT[],
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
         kwargs...,
     )
     return StraightLineHomotopy(
-        fixed(start; compile = compile),
-        fixed(target; compile = compile);
-        kwargs...,
+        fixed(start; compile_mode), fixed(target; compile_mode); kwargs...
     )
 end
-function StraightLineHomotopy(
-        start::AbstractSystem,
-        target::AbstractSystem;
-        γ = 1.0,
-        gamma = γ,
-    )
+function StraightLineHomotopy(start::AbstractSystem, target::AbstractSystem; γ = 1.0, gamma = γ)
     size(start) == size(target) || throw(
         ArgumentError(
             "Start and target do not have the same size, got $(size(start)) and $(size(target))",
@@ -55,15 +48,7 @@ function StraightLineHomotopy(
     dv_target = TaylorVector{5}(ComplexF64, m)
 
     return StraightLineHomotopy(
-        start,
-        target,
-        ComplexF64(gamma),
-        u,
-        ū,
-        v̄,
-        U,
-        dv_start,
-        dv_target,
+        start, target, ComplexF64(gamma), u, ū, v̄, U, dv_start, dv_target
     )
 end
 
@@ -79,11 +64,7 @@ function Base.show(io::IO, mime::MIME"text/plain", H::StraightLineHomotopy)
 end
 
 function ModelKit.evaluate!(
-        u,
-        H::StraightLineHomotopy,
-        x::Vector{ComplexDF64},
-        t,
-        p = nothing,
+        u, H::StraightLineHomotopy, x::Vector{ComplexDF64}, t, p = nothing
     )
     evaluate!(H.v̄, H.start, x)
     evaluate!(H.ū, H.target, x)
@@ -91,7 +72,7 @@ function ModelKit.evaluate!(
     for i in 1:size(H, 1)
         @inbounds u[i] = ts * H.v̄[i] + tt * H.ū[i]
     end
-    return
+    return nothing
 end
 
 function ModelKit.evaluate!(u, H::StraightLineHomotopy, x, t, p = nothing)
@@ -105,12 +86,7 @@ function ModelKit.evaluate!(u, H::StraightLineHomotopy, x, t, p = nothing)
 end
 
 function ModelKit.evaluate_and_jacobian!(
-        u,
-        U,
-        H::StraightLineHomotopy,
-        x::AbstractVector{T},
-        t,
-        p = nothing,
+        u, U, H::StraightLineHomotopy, x::AbstractVector{T}, t, p = nothing
     ) where {T}
     evaluate_and_jacobian!(u, U, H.start, x)
     evaluate_and_jacobian!(H.u, H.U, H.target, x)
@@ -123,10 +99,12 @@ function ModelKit.evaluate_and_jacobian!(
     end
     return nothing
 end
-ModelKit.taylor!(u, ::Val{1}, H::StraightLineHomotopy, x::TaylorVector{1}, t) =
-    taylor_1!(u, H, first(vectors(x)), t)
-ModelKit.taylor!(u, ::Val{1}, H::StraightLineHomotopy, x::AbstractVector{<:Number}, t) =
-    taylor_1!(u, H, x, t)
+ModelKit.taylor!(u, ::Val{1}, H::StraightLineHomotopy, x::TaylorVector{1}, t) = taylor_1!(
+    u, H, first(vectors(x)), t
+)
+ModelKit.taylor!(u, ::Val{1}, H::StraightLineHomotopy, x::AbstractVector{<:Number}, t) = taylor_1!(
+    u, H, x, t
+)
 
 function taylor_1!(u, H::StraightLineHomotopy, x, t)
     evaluate!(u, H.start, x)
@@ -137,11 +115,7 @@ function taylor_1!(u, H::StraightLineHomotopy, x, t)
     return u
 end
 function ModelKit.taylor!(
-        u,
-        v::Val{K},
-        H::StraightLineHomotopy,
-        tx::TaylorVector,
-        t,
+        u, v::Val{K}, H::StraightLineHomotopy, tx::TaylorVector, t
     ) where {K}
     taylor!(H.dv_start, v, H.start, tx)
     taylor!(H.dv_target, v, H.target, tx)

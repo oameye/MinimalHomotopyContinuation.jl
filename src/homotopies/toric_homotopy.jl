@@ -6,10 +6,7 @@
 # This is only an internal homotopy.
 
 const StructVectorComplexF64 = StructArrays.StructArray{
-    Complex{Float64},
-    1,
-    NamedTuple{(:re, :im), Tuple{Vector{Float64}, Vector{Float64}}},
-    Int64,
+    Complex{Float64}, 1, NamedTuple{(:re, :im), Tuple{Vector{Float64}, Vector{Float64}}}, Int64,
 }
 
 Base.@kwdef struct ToricHomotopy{S <: AbstractSystem} <: AbstractHomotopy
@@ -44,8 +41,8 @@ function ToricHomotopy(system::AbstractSystem, system_coeffs::Vector{Vector{Comp
     )
     n = nvariables(system)
     taylor_coeffs = TaylorVector{5}(ComplexF64, m)
-    return ToricHomotopy(
-        system = system,
+    return ToricHomotopy(;
+        system,
         system_coeffs = reduce(vcat, system_coeffs),
         weights = zeros(m),
         t_weights = zeros(m),
@@ -55,7 +52,7 @@ function ToricHomotopy(system::AbstractSystem, system_coeffs::Vector{Vector{Comp
         x = zeros(ComplexF64, n),
         t_coeffs = Ref(complex(0.0, 0.0)),
         t_taylor_coeffs = Ref(complex(0.0, 0.0)),
-        taylor_coeffs = taylor_coeffs,
+        taylor_coeffs,
         tc3 = TaylorVector{4}(taylor_coeffs),
         tc2 = TaylorVector{3}(taylor_coeffs),
     )
@@ -121,10 +118,7 @@ function evaluate_weights!(u::Vector{Float64}, weights::Vector{Float64}, t::Floa
 end
 
 function evaluate_weights!(
-        u::Vector{Float64},
-        v::Vector{Float64},
-        weights::Vector{Float64},
-        t::ComplexF64,
+        u::Vector{Float64}, v::Vector{Float64}, weights::Vector{Float64}, t::ComplexF64
     )
     s = log(t)
     n = length(weights)
@@ -147,10 +141,7 @@ function coeffs!(H::ToricHomotopy, t)
     c = H.coeffs
     if !isreal(t) || real(t) < 0
         evaluate_weights!(
-            H.complex_t_weights.re,
-            H.complex_t_weights.im,
-            H.weights,
-            complex(t),
+            H.complex_t_weights.re, H.complex_t_weights.im, H.weights, complex(t)
         )
         @inbounds for i in 1:length(c)
             uᵢ = H.system_coeffs[i]

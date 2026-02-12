@@ -47,8 +47,9 @@ Expression(T) = convert(Expression, T)
 Expression(x::Base.TwicePrecision) = convert(Expression, BigFloat(x))
 Expression(x::AbstractChar) = convert(Expression, Int(x))
 
-free!(b::Expression) =
-    ccall((:basic_free_stack, libsymengine), Nothing, (Ref{Expression},), b)
+free!(b::Expression) = ccall(
+    (:basic_free_stack, libsymengine), Nothing, (Ref{Expression},), b
+)
 
 """
     ExpressionRef
@@ -167,21 +168,13 @@ end
 function _copy(x::Basic)
     y = Expression()
     ccall(
-        (:basic_assign, libsymengine),
-        Nothing,
-        (Ref{Expression}, Ref{ExpressionRef}),
-        y,
-        x,
+        (:basic_assign, libsymengine), Nothing, (Ref{Expression}, Ref{ExpressionRef}), y, x
     )
     return y
 end
 function set!(y::Basic, x::Basic)
     ccall(
-        (:basic_assign, libsymengine),
-        Nothing,
-        (Ref{Expression}, Ref{ExpressionRef}),
-        y,
-        x,
+        (:basic_assign, libsymengine), Nothing, (Ref{Expression}, Ref{ExpressionRef}), y, x
     )
     return y
 end
@@ -190,11 +183,7 @@ Base.copy(x::Variable) = Variable(_copy(x))
 
 function Base.:(==)(b1::Basic, b2::Basic)
     return ccall(
-        (:basic_eq, libsymengine),
-        Int,
-        (Ref{ExpressionRef}, Ref{ExpressionRef}),
-        b1,
-        b2,
+        (:basic_eq, libsymengine), Int, (Ref{ExpressionRef}, Ref{ExpressionRef}), b1, b2
     ) == 1
 end
 
@@ -235,8 +224,11 @@ macro init_constant(op, libnm)
         ccall($tup, Nothing, (Ref{Expression},), $op_name)
         finalizer(free!, $op_name)
         $(
-            op != :im ? :(SYMENGINE_CONSTANTS[$op_name] = Base.MathConstants.$op) :
+            if op != :im
+                :(SYMENGINE_CONSTANTS[$op_name] = Base.MathConstants.$op)
+            else
                 :(nothing)
+            end
         )
     end
     return c
@@ -299,7 +291,7 @@ end
 
 @inline function throw_if_error(error_code::Cuint, str = nothing)
     if error_code == 0
-        return
+        return nothing
     else
         throw(get_error(error_code, str))
     end
@@ -451,21 +443,19 @@ function Base.convert(::Type{Expression}, x::BigInt)
 end
 
 
-Base.convert(::Type{Expression}, x::Union{Float16, Float32}) =
-    convert(Expression, convert(Float64, x))
-Base.convert(::Type{Expression}, x::AbstractFloat) =
-    convert(Expression, convert(BigFloat, x))
+Base.convert(::Type{Expression}, x::Union{Float16, Float32}) = convert(
+    Expression, convert(Float64, x)
+)
+Base.convert(::Type{Expression}, x::AbstractFloat) = convert(
+    Expression, convert(BigFloat, x)
+)
 function Base.convert(::Type{Expression}, x::BigFloat)
     if (x.prec <= 53)
         return convert(Expression, Float64(x))
     else
         a = Expression()
         ccall(
-            (:real_mpfr_set, libsymengine),
-            Nothing,
-            (Ref{Expression}, Ref{BigFloat}),
-            a,
-            x,
+            (:real_mpfr_set, libsymengine), Nothing, (Ref{Expression}, Ref{BigFloat}), a, x
         )
         return a
     end
@@ -504,8 +494,9 @@ function free!(x::ExpressionSet)
     return nothing
 end
 
-Base.length(s::ExpressionSet) =
-    ccall((:setbasic_size, libsymengine), Int, (Ptr{Cvoid},), s.ptr)
+Base.length(s::ExpressionSet) = ccall(
+    (:setbasic_size, libsymengine), Int, (Ptr{Cvoid},), s.ptr
+)
 
 function Base.getindex(s::ExpressionSet, n::Int)
     result = Expression()
@@ -694,11 +685,7 @@ end
 function Base.convert(::Type{BigInt}, c::Basic)
     a = BigInt()
     ccall(
-        (:integer_get_mpz, libsymengine),
-        Nothing,
-        (Ref{BigInt}, Ref{ExpressionRef}),
-        a,
-        c,
+        (:integer_get_mpz, libsymengine), Nothing, (Ref{BigInt}, Ref{ExpressionRef}), a, c
     )
     return a
 end
@@ -866,9 +853,7 @@ function ExpressionMap(dict::Dict)
     return c
 end
 function ExpressionMap(
-        D::ExpressionMap,
-        (xs, ys)::Pair{<:AbstractArray{<:Basic}, <:AbstractArray},
-        args...,
+        D::ExpressionMap, (xs, ys)::Pair{<:AbstractArray{<:Basic}, <:AbstractArray}, args...
     )
     size(xs) == size(ys) ||
         throw(ArgumentError("Substitution arguments don't have the same size."))
@@ -878,14 +863,12 @@ function ExpressionMap(
     return ExpressionMap(D, args...)
 end
 function ExpressionMap(
-        D::ExpressionMap,
-        (xs, y)::Pair{<:AbstractArray{<:Basic}, Any},
-        args...,
+        D::ExpressionMap, (xs, y)::Pair{<:AbstractArray{<:Basic}, Any}, args...
     )
     throw(
         ArgumentError(
             "Substitution arguments don't have the same shape. " *
-            "When substituting arrays, both sides must be arrays of equal size.",
+                "When substituting arrays, both sides must be arrays of equal size.",
         ),
     )
 end

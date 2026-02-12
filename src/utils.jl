@@ -28,14 +28,6 @@ function Base.showerror(io::IO, E::FiniteException)
     )
 end
 
-@noinline function unsupported_kwargs(kwargs)
-    return if !(isempty(kwargs))
-        msg = join(["$k = $v" for (k, v) in pairs(kwargs)], ", ")
-        @warn "Ingored unsupported keyword arguments: $msg"
-    end
-end
-
-
 fast_abs(z::Complex) = sqrt(abs2(z))
 fast_abs(x::Real) = abs(x)
 
@@ -44,6 +36,35 @@ nanmin(a, b) = isnan(a) ? b : (isnan(b) ? a : min(a, b))
 nanmax(a, b) = isnan(a) ? b : (isnan(b) ? a : max(a, b))
 
 always_false(::Any) = false
+
+function _validate_affine_square_system(
+        F; check_square::Bool = true, homogeneous_system = nothing
+    )
+    f = homogeneous_system === nothing ? (F isa System ? F : System(F)) : homogeneous_system
+    if is_homogeneous(f)
+        throw(
+            ArgumentError(
+                String(
+                    "Homogeneous/projective systems are not supported, only affine systems."
+                ),
+            ),
+        )
+    end
+
+    if check_square
+        m, n = size(F)
+        if m < n
+            throw(FiniteException(n - m))
+        elseif m > n
+            throw(
+                ArgumentError(
+                    "Only square systems are supported in this minimal build. Got $m equations, expected $n.",
+                ),
+            )
+        end
+    end
+    return nothing
+end
 
 """
     all2(f, a, b)
@@ -78,7 +99,7 @@ function print_fieldnames(io::IO, obj)
     for name in fieldnames(typeof(obj))
         print_fieldname(io, obj, name)
     end
-    return
+    return nothing
 end
 function print_fieldname(io::IO, obj, name)
     return if getfield(obj, name) !== nothing
@@ -102,13 +123,16 @@ mutable struct SegmentStepper
     # proposed
     s′::Float64
 end
-SegmentStepper(start::Number, target::Number) =
-    SegmentStepper(ComplexF64(start), ComplexF64(target))
-SegmentStepper(start::ComplexF64, target::ComplexF64) =
-    init!(SegmentStepper(start, target, 0.0, true, 0.0, 0.0), start, target)
+SegmentStepper(start::Number, target::Number) = SegmentStepper(
+    ComplexF64(start), ComplexF64(target)
+)
+SegmentStepper(start::ComplexF64, target::ComplexF64) = init!(
+    SegmentStepper(start, target, 0.0, true, 0.0, 0.0), start, target
+)
 
-init!(S::SegmentStepper, start::Number, target::Number) =
-    init!(S, ComplexF64(start), ComplexF64(target))
+init!(S::SegmentStepper, start::Number, target::Number) = init!(
+    S, ComplexF64(start), ComplexF64(target)
+)
 function init!(S::SegmentStepper, start::ComplexF64, target::ComplexF64)
     S.start = start
     S.target = target
@@ -193,7 +217,7 @@ function Base.show(io::IO, val::SegmentStepper)
     for field in [:start, :target, :t, :Δt]
         print(io, "\n • ", field, " → ", getproperty(val, field))
     end
-    return
+    return nothing
 end
 
 """
@@ -237,12 +261,7 @@ end
 
 function set!(x::BigFloat, d::Float64, r::MPFRRoundingMode = MPFR.ROUNDING_MODE[])
     ccall(
-        (:mpfr_set_d, :libmpfr),
-        Int32,
-        (Ref{BigFloat}, Float64, MPFRRoundingMode),
-        x,
-        d,
-        r,
+        (:mpfr_set_d, :libmpfr), Int32, (Ref{BigFloat}, Float64, MPFRRoundingMode), x, d, r
     )
     return x
 end

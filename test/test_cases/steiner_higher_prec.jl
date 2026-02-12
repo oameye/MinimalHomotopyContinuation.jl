@@ -140,8 +140,7 @@
 
     @testset "Steiner - AD: $AD" for AD in 1:3
         tracker = Tracker(
-            ParameterHomotopy(F, p, q),
-            options = TrackerOptions(automatic_differentiation = AD),
+            ParameterHomotopy(F, p, q), options = TrackerOptions(automatic_differentiation = AD)
         )
         r_q = track(tracker, s_p, 1, 0)
         @test is_success(r_q)

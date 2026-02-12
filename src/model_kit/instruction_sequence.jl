@@ -19,7 +19,7 @@ end
 
 function sequence_to_expr(
         seq::InstructionSequence;
-        op_call = op_call,
+        op_call,
         instr_symbol = :τ,
         unique_variable_names = true,
         order = nothing,
@@ -70,11 +70,7 @@ function sequence_to_expr(
         elseif a == 4
             :(
                 $(r(i)) = $(op_call(op))(
-                    $(order_arg...),
-                    $(r(arg₁)),
-                    $(r(arg₂)),
-                    $(r(arg₃)),
-                    $(r(arg₄)),
+                    $(order_arg...), $(r(arg₁)), $(r(arg₂)), $(r(arg₃)), $(r(arg₄))
                 )
             )
         end
@@ -126,10 +122,10 @@ function instruction_sequence(F::Union{System, Homotopy}; output_dim::Integer = 
     params = Symbol.(parameters(F))
     continuation_parameter = F isa Homotopy ? Symbol(F.t) : nothing
     return instruction_sequence(
-        intermediate_representation(expressions(F); output_dim = output_dim);
+        intermediate_representation(expressions(F); output_dim);
         variables = vars,
         parameters = params,
-        continuation_parameter = continuation_parameter,
+        continuation_parameter,
     )
 end
 
@@ -162,7 +158,7 @@ function instruction_sequence(
     for v in parameters
         arg_index_map[v] = (tape_index += 1)
     end
-    parameters_range = range(nconstants + 1, length = nparams)
+    parameters_range = range(nconstants + 1; length = nparams)
 
     continuation_parameter_index = nothing
     if !isnothing(continuation_parameter)
@@ -174,7 +170,7 @@ function instruction_sequence(
     for v in variables
         arg_index_map[v] = (tape_index += 1)
     end
-    variables_range = range(tape_index - nvars + 1, length = nvars)
+    variables_range = range(tape_index - nvars + 1; length = nvars)
 
     input_block_size = tape_index
     initial_space = length(ir)
@@ -206,11 +202,13 @@ function instruction_sequence(
         Instruction(args, instr_op, target_index)
     end
     # optimize sequence
-    assignments_range =
-        range(input_block_size + initial_space + 1; length = length(ir.assignments))
+    assignments_range = range(
+        input_block_size + initial_space + 1; length = length(ir.assignments)
+    )
 
-    instructions, tape_space_needed, updated_assignments_range =
-        optimize(instructions, input_block_size, assignments_range)
+    instructions, tape_space_needed, updated_assignments_range = optimize(
+        instructions, input_block_size, assignments_range
+    )
 
     updated_assignments = map(ir.assignments, updated_assignments_range) do (k, _), idx
         (k, idx)
@@ -235,9 +233,7 @@ end
 
 function jacobian_instruction_sequence(F::System, ; kwargs...)
     JF = System(
-        [F.expressions; vec(jacobian(F))],
-        variables = variables(F),
-        parameters = parameters(F),
+        [F.expressions; vec(jacobian(F))]; variables = variables(F), parameters = parameters(F)
     )
     return instruction_sequence(JF; output_dim = length(F))
 end
@@ -259,8 +255,9 @@ Optimize the instruction order and needed space.
 """
 function optimize(instructions::Vector{Instruction}, input_block_size::Int, assignments)
     instructions = optimize_instruction_order(instructions)
-    instructions, space_needed, updated_assignments =
-        reduce_space(instructions, input_block_size, assignments)
+    instructions, space_needed, updated_assignments = reduce_space(
+        instructions, input_block_size, assignments
+    )
     return instructions, space_needed, updated_assignments
 end
 
@@ -331,8 +328,9 @@ end
 # Reduce tape space
 
 function reduce_space(instructions::Vector{Instruction}, input_block_size::Int, assignments)
-    index_map, space_needed, updated_assignments =
-        index_compactification_mapping(instructions, input_block_size, assignments)
+    index_map, space_needed, updated_assignments = index_compactification_mapping(
+        instructions, input_block_size, assignments
+    )
 
     instructions = map(instructions) do instr
         Instruction(
@@ -360,9 +358,7 @@ but the number of different instruction output indices is reduced. `ignored` is 
 of indices whose output index will not be changed
 """
 function index_compactification_mapping(
-        instructions::Vector{Instruction},
-        input_block_size::Int,
-        assignments,
+        instructions::Vector{Instruction}, input_block_size::Int, assignments
     )
     used_indices = Set{Int32}()
     unused_indices = Vector{Int32}()
@@ -417,8 +413,9 @@ function index_compactification_mapping(
 
     max_indices_used = length(unused_indices)
     # update assignments and also add to index map
-    updated_assignments =
-        range(input_block_size + max_indices_used + 1; length = length(assignments))
+    updated_assignments = range(
+        input_block_size + max_indices_used + 1; length = length(assignments)
+    )
     for (k, idx) in enumerate(assignments)
         index_map[idx] = input_block_size + max_indices_used + k
     end

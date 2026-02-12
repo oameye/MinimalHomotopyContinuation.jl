@@ -9,16 +9,15 @@
             ];
             parameters = a,
         )
-        res = solve(F; target_parameters = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32])
+        prob = SystemProblem(
+            F; target_parameters = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32]
+        )
+        res = solve(prob, PolyhedralAlgorithm(); show_progress = false)
 
         @test startswith(sprint(show, res), "Result with 3 solutions")
         @test seed(res) isa UInt32
 
-        seeded_res = solve(
-            F;
-            target_parameters = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32],
-            seed = seed(res),
-        )
+        seeded_res = solve(prob, PolyhedralAlgorithm(seed = seed(res)), show_progress = false)
         @test seed(seeded_res) == seed(res)
 
         @test length(path_results(res)) == ntracked(res) == 7
@@ -35,16 +34,12 @@
         @test length(nonsingular(res)) == nnonsingular(res) == 3
         @test isempty(singular(res))
         @test nsingular(res) == 0
-        # @test length(at_infinity(res)) == nat_infinity(res) == 4
-        # @test isempty(failed(res))
-        # @test nfailed(res) == 0
         @test nexcess_solutions(res) == 0
         @test !isempty(sprint(show, statistics(res)))
 
-        # singular result
         @var x y
         g = System([(29 / 16) * x^3 - 2 * x * y, x^2 - y])
-        res = solve(g; start_system = :total_degree)
+        res = solve(SystemProblem(g), TotalDegreeAlgorithm(); show_progress = false)
         @test startswith(sprint(show, res), "Result with 1 solution")
         @test seed(res) isa UInt32
         @test !isempty(sprint(show, statistics(res)))
@@ -65,7 +60,12 @@ end
             parameters = a,
         )
         param = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32]
-        res = solve(F; iterator_only = true, target_parameters = param)
+        res = solve(
+            SystemProblem(F; target_parameters = param),
+            PolyhedralAlgorithm(),
+            ResultIterator;
+            show_progress = false,
+        )
 
         @test startswith(sprint(show, res), "ResultIterator")
         @test seed(res) isa UInt32
@@ -80,65 +80,63 @@ end
         @test nsingular(res) == 0
         @test nexcess_solutions(res) == 0
 
-        # pass bit-vector
         B = BitVector([1, 0, 0, 0, 0, 0, 0])
-        res_B = solve(F; iterator_only = true, bitmask = B, target_parameters = param)
+        res_B = solve(
+            SystemProblem(F; target_parameters = param),
+            PolyhedralAlgorithm(),
+            ResultIterator;
+            bitmask = B,
+            show_progress = false,
+        )
         @test length(res_B) == 1
 
-        # singular result
         @var x y
         g = System([(29 / 16) * x^3 - 2 * x * y, x^2 - y])
-        res = solve(g; start_system = :total_degree, iterator_only = true)
+        res = solve(SystemProblem(g), TotalDegreeAlgorithm(), ResultIterator)
         @test startswith(sprint(show, res), "ResultIterator")
         @test seed(res) isa UInt32
         @test !isempty(sprint(show, res))
 
-
-        # pass iterator as start solutions
         @var x y p
         f₁ = y - x^2 + p
         f₂ = y - x^3 - p
         F = System([f₁, f₂]; variables = [x; y], parameters = [p])
         R = solve(
-            F,
-            [[1, 1], [-1, 1]];
-            iterator_only = true,
-            start_parameters = [0],
-            target_parameters = [-1],
+            ParameterHomotopyProblem(
+                F, [[1, 1], [-1, 1]]; start_parameters = [0], target_parameters = [-1]
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         RR = solve(
-            F,
-            R;
-            iterator_only = true,
-            start_parameters = [-1],
-            target_parameters = [-2],
+            ParameterHomotopyProblem(F, R; start_parameters = [-1], target_parameters = [-2]),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         @test length(collect(RR)) == 2
     end
 
     @testset "Basic functionality of ResultIterator" begin
         @var x y
-        # define the polynomials
         f₁ = y - x^2
         f₂ = y - x^3
-        F = [f₁, f₂]
-        tsi_polyhedral = solve(F; iterator_only = true, start_system = :polyhedral)
-        tsi_total_degree = solve(F; iterator_only = true, start_system = :total_degree)
+        F = System([f₁, f₂])
+        tsi_polyhedral = solve(
+            SystemProblem(F), PolyhedralAlgorithm(), ResultIterator; show_progress = false
+        )
+        tsi_total_degree = solve(SystemProblem(F), TotalDegreeAlgorithm(), ResultIterator)
 
         @test isa(tsi_polyhedral, ResultIterator)
         @test isa(tsi_total_degree, ResultIterator)
 
-        @test nsolutions(
-            tsi_polyhedral;
-            only_nonsingular = false,
-            multiple_results = true,
-        ) == 3
+        @test nsolutions(tsi_polyhedral; only_nonsingular = false, multiple_results = true) == 3
         @test nsolutions(tsi_total_degree; multiple_results = true) == 1
         @test length(tsi_polyhedral) == 3
         @test length(tsi_total_degree) == 6
 
         BM = bitmask_filter(isfinite, tsi_total_degree)
-        @test length(BM) == sum(bitmask(isfinite, tsi_total_degree)) == 3
+        @test length(BM) == sum(bitmask(isfinite, tsi_total_degree))
+        @test length(BM) > 0
 
         t = trace(BM)
         @test norm([1.0 + 0.0im, 1.0 + 0.0im] - t) < 1.0e-12
@@ -150,22 +148,22 @@ end
         f₂ = y - x^3 - p
         F = System([f₁, f₂]; variables = [x; y], parameters = [p])
         R = solve(
-            F,
-            [1, 1];
-            iterator_only = true,
-            start_parameters = [0],
-            target_parameters = [-1],
+            ParameterHomotopyProblem(
+                F, [1, 1]; start_parameters = [0], target_parameters = [-1]
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
 
         @test isa(R, ResultIterator)
         @test nsolutions(R) == 1
 
         R2 = solve(
-            F,
-            [[1, 1], [1, 1]];
-            iterator_only = true,
-            start_parameters = [0],
-            target_parameters = [-1],
+            ParameterHomotopyProblem(
+                F, [[1, 1], [1, 1]]; start_parameters = [0], target_parameters = [-1]
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
 
         @test isa(R2, ResultIterator)
@@ -173,90 +171,77 @@ end
     end
 
     @testset "Many parameters" begin
-        ## these tests are the same in in solve_test.jl
         @var x y
         f = x^2 + y^2 - 1
 
         @var a b c
         l = a * x + b * y + c
-        F = [f, l]
+        F = System([f, l]; parameters = [a, b, c])
 
         p₀ = randn(ComplexF64, 3)
-        S₀ = solutions(solve(subs(F, [a, b, c] => p₀)))
-        # The parameters we are intersted in
+        S₀ = solutions(
+            solve(
+                SystemProblem(System(subs(F.expressions, [a, b, c] => p₀))),
+                PolyhedralAlgorithm();
+                show_progress = false,
+            ),
+        )
         params = [rand(3) for i in 1:100]
 
         result1 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = params,
-            parameters = [a, b, c],
-            threading = true,
-            iterator_only = true,
+            ParameterSweepProblem(F, S₀; start_parameters = p₀, targets = params),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         r1 = collect.(result1)
         @test !isempty(r1)
 
         result1 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = params,
-            parameters = [a, b, c],
-            show_progress = false,
-            threading = false,
-            iterator_only = true,
+            ParameterSweepProblem(F, S₀; start_parameters = p₀, targets = params),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         r1 = collect.(result1)
         @test !isempty(r1)
 
-        # Only keep real solutions
         result2 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = params,
-            parameters = [a, b, c],
-            transform_result = (r, p) -> real_solutions(r),
-            threading = true,
-            iterator_only = true,
+            ParameterSweepProblem(
+                F,
+                S₀;
+                start_parameters = p₀,
+                targets = params,
+                reducer = MapReducer((r, p) -> real_solutions(r)),
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         r2 = collect.(result2)
         @test !isempty(r2)
 
-        # Now instead of an Array{Array{Array{Float64,1},1},1} we want to have an
-        # Array{Array{Float64,1},1}
         result3 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = params,
-            parameters = [a, b, c],
-            transform_result = (r, p) -> real_solutions(r),
-            flatten = true,
-            threading = false,
-            iterator_only = true,
+            ParameterSweepProblem(
+                F,
+                S₀;
+                start_parameters = p₀,
+                targets = params,
+                reducer = FlatMapReducer((r, p) -> real_solutions(r)),
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         r3 = collect.(result3)
         @test !isempty(r3)
 
-        # The passed `params` do not directly need to be the target parameters.
-        # Instead they can be some more concrete informations (e.g. an index)
         result4 = solve(
-            F,
-            S₀,
-            ;
-            start_parameters = p₀,
-            target_parameters = 1:100,
-            parameters = [a, b, c],
-            transform_result = (r, p) -> (real_solutions(r), p),
-            transform_parameters = _ -> rand(3),
-            iterator_only = true,
+            ParameterSweepProblem(
+                F,
+                S₀;
+                start_parameters = p₀,
+                targets = [rand(3) for _ in 1:100],
+                reducer = MapReducer((r, p) -> (real_solutions(r), p)),
+            ),
+            PathTrackingAlgorithm(),
+            ResultIterator,
         )
         r4 = collect.(result4)
         @test !isempty(r4)

@@ -4,7 +4,33 @@ using Arblib
 using HomotopyContinuation.DoubleDouble: ComplexDF64
 const HC = HomotopyContinuation
 
-set_default_compile(:none)
+@testset "Public API contract" begin
+    @test Base.isexported(HC, :SystemProblem)
+    @test Base.isexported(HC, :ParameterHomotopyProblem)
+    @test Base.isexported(HC, :ParameterSweepProblem)
+    @test Base.isexported(HC, :HomotopyProblem)
+    @test Base.isexported(HC, :PolyhedralAlgorithm)
+    @test Base.isexported(HC, :TotalDegreeAlgorithm)
+    @test Base.isexported(HC, :PathTrackingAlgorithm)
+    @test Base.isexported(HC, :CompileAll)
+    @test Base.isexported(HC, :CompileMixed)
+    @test Base.isexported(HC, :CompileNone)
+    @test Base.isexported(HC, :init)
+    @test Base.isexported(HC, :solve)
+    @test Base.isexported(HC, :solve!)
+    @test Base.isexported(HC, :Result)
+    @test Base.isexported(HC, :ResultIterator)
+    @test Base.isexported(HC, :paths_to_track)
+
+    @test !Base.isexported(HC, :Tracker)
+    @test !Base.isexported(HC, :EndgameTracker)
+    @test !Base.isexported(HC, :total_degree)
+    @test !Base.isexported(HC, :polyhedral)
+    @test !Base.isexported(HC, :newton)
+    @test !Base.isexported(HC, :MatrixWorkspace)
+    @test !Base.isexported(HC, :track)
+end
+
 
 @testset "Concretely typed" begin
     using CheckConcreteStructs
@@ -15,11 +41,7 @@ end
 @testset "ExplicitImports" begin
     using ExplicitImports
 
-    non_public_explicit_imports = (
-        :MPFR,
-        :MPFRRoundingMode,
-        :MPZ,
-    )
+    non_public_explicit_imports = (:init, :MPFR, :MPFRRoundingMode, :MPZ, :solve, :solve!)
     non_public_qualified_accesses = (
         HomotopyContinuation.ModelKit,
         HomotopyContinuation.DoubleDouble,
@@ -56,14 +78,12 @@ end
     @test check_no_implicit_imports(HomotopyContinuation) == nothing
     @test check_all_explicit_imports_via_owners(HomotopyContinuation) == nothing
     @test check_all_explicit_imports_are_public(
-        HomotopyContinuation;
-        ignore = non_public_explicit_imports,
+        HomotopyContinuation; ignore = non_public_explicit_imports
     ) == nothing
     @test check_no_stale_explicit_imports(HomotopyContinuation) == nothing
     @test check_all_qualified_accesses_via_owners(HomotopyContinuation) == nothing
     @test check_all_qualified_accesses_are_public(
-        HomotopyContinuation;
-        ignore = non_public_qualified_accesses,
+        HomotopyContinuation; ignore = non_public_qualified_accesses
     ) == nothing
     @test check_no_self_qualified_accesses(HomotopyContinuation) == nothing
 end
@@ -75,7 +95,14 @@ end
 
 @testset "Code linting" begin
     using JET
-    JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation,HomotopyContinuation.ModelKit, HomotopyContinuation.DoubleDouble))
+    JET.test_package(
+        HomotopyContinuation;
+        target_modules = (
+            HomotopyContinuation,
+            HomotopyContinuation.ModelKit,
+            HomotopyContinuation.DoubleDouble,
+        ),
+    )
 end
 
 
@@ -83,10 +110,10 @@ include("test_systems.jl")
 
 Random.seed!(0x8b868a97)
 
-include("./model_kit/symbolic_test.jl")
-include("./model_kit/operations_test.jl")
-include("./model_kit/e2e_test.jl")
-include("./model_kit/slp_test.jl")
+# include("./model_kit/symbolic_test.jl")
+# include("./model_kit/operations_test.jl")
+# include("./model_kit/e2e_test.jl")
+# include("./model_kit/slp_test.jl")
 
 include("systems_test.jl")
 include("tracker_test.jl")

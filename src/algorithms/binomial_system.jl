@@ -70,10 +70,7 @@ function fill_unit_roots_combinations!(S::ElasticArray, H, d̂)
 end
 
 function compute_angular_part!(
-        BSS::BinomialSystemSolver,
-        H::Matrix{Int64},
-        U::Matrix{Int64},
-        d̂::Int,
+        BSS::BinomialSystemSolver, H::Matrix{Int64}, U::Matrix{Int64}, d̂::Int
     )
     @unpack X, γ, b, μ, unit_roots_table, αs = BSS
     n = size(H, 1)
@@ -107,10 +104,7 @@ end
 
 
 function compute_angular_part!(
-        BSS::BinomialSystemSolver,
-        H::Matrix{BigInt},
-        U::Matrix{BigInt},
-        d̂::Int,
+        BSS::BinomialSystemSolver, H::Matrix{BigInt}, U::Matrix{BigInt}, d̂::Int
     )
     # @unpack X, γ, b, μ, unit_roots_table = BSS
     @unpack X, γ, unit_roots_table, b = BSS
@@ -439,17 +433,10 @@ function hnf!(A::AbstractMatrix{BigInt}, U::AbstractMatrix{BigInt})
 end
 
 cdiv_q!(x::BigInt, a::BigInt, b::BigInt) =
-    (
-    ccall((:__gmpz_cdiv_q, :libgmp), Cvoid, (MPZ.mpz_t, MPZ.mpz_t, MPZ.mpz_t), x, a, b);
-    x
-)
+    (ccall((:__gmpz_cdiv_q, :libgmp), Cvoid, (MPZ.mpz_t, MPZ.mpz_t, MPZ.mpz_t), x, a, b); x)
 
 function reduce_off_diagonal!(
-        A::AbstractMatrix{BigInt},
-        U::AbstractMatrix{BigInt},
-        k,
-        t1,
-        t2,
+        A::AbstractMatrix{BigInt}, U::AbstractMatrix{BigInt}, k, t1, t2
     )
     n = size(A, 1)
     @inbounds if A[k, k] < 0

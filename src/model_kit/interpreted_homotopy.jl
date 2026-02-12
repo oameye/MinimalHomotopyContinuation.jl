@@ -56,13 +56,7 @@ end
 function evaluate!(u, H::InterpretedHomotopy, x, t, p = nothing)
     return execute!(u, H.eval_ComplexF64, x, t, p)
 end
-function evaluate!(
-        u,
-        H::InterpretedHomotopy,
-        x::AbstractVector{ComplexDF64},
-        t,
-        p = nothing,
-    )
+function evaluate!(u, H::InterpretedHomotopy, x::AbstractVector{ComplexDF64}, t, p = nothing)
     return execute!(u, H.eval_ComplexDF64, x, t, p)
 end
 
@@ -92,25 +86,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{2, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_1 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -121,25 +99,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{3, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_2 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -150,25 +112,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{4, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_3 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -179,25 +125,9 @@ end
             if isnothing(I)
                 I′ = interpreter(TruncatedTaylorSeries{5, ComplexF64}, H.eval_ComplexF64)
                 H.taylor_ComplexF64.order_4 = I′
-                execute_taylor!(
-                    u,
-                    Order,
-                    I′,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I′, x, t, p; assign_highest_order_only)
             else
-                execute_taylor!(
-                    u,
-                    Order,
-                    I,
-                    x,
-                    t,
-                    p;
-                    assign_highest_order_only = assign_highest_order_only,
-                )
+                execute_taylor!(u, Order, I, x, t, p; assign_highest_order_only)
             end
             u
         end
@@ -247,11 +177,21 @@ function (H::InterpretedHomotopy)(x::AbstractArray{<:Union{Acb, AcbRef}}, t, p =
     evaluate!(u, H, x, t, p)
     return u
 end
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, t, p = nothing) =
-    InterpretedHomotopy(H)(x, t, p)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, t, p = nothing) = InterpretedHomotopy(H)(
+    x, t, p
+)
