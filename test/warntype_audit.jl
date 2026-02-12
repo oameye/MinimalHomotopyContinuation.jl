@@ -4,6 +4,7 @@ module WarntypeAudit
     using InteractiveUtils
     using Random
     using Printf
+    using LinearAlgebra
 
     const HC = HomotopyContinuation
 
@@ -175,12 +176,14 @@ module WarntypeAudit
     function build_context()
         Random.seed!(0x22223333)
 
-        @var x y a b
+        @var x y a b t
 
         base_system = System([x^2 + y^2 - 1, x - y])
         base_prob = SystemProblem(base_system)
         base_alg = TotalDegreeAlgorithm(; seed = UInt32(0x11223344))
+        poly_alg = PolyhedralAlgorithm(; seed = UInt32(0x11224455))
         path_cache = HC.init(base_prob, base_alg; show_progress = false, threading = false)
+        poly_cache = HC.init(base_prob, poly_alg; show_progress = false, threading = false)
         path_result = solve!(path_cache)
 
         tracker = path_cache.solver.trackers[1]
@@ -213,6 +216,21 @@ module WarntypeAudit
         sweep_cache_flat = HC.init(
             sweep_prob_flat, sweep_alg; show_progress = false, threading = false
         )
+        path_start = ComplexF64[1.0 + 0im, 1.0 + 0im]
+        param_prob = ParameterHomotopyProblem(
+            sweep_system,
+            [path_start];
+            start_parameters = [1.0, 0.0],
+            target_parameters = [2.0, 4.0],
+        )
+        param_cache = HC.init(
+            param_prob, sweep_alg; show_progress = false, threading = false
+        )
+        parameter_homotopy = ParameterHomotopy(sweep_system, [1.0, 0.0], [2.0, 4.0])
+        homotopy_prob = HomotopyProblem(parameter_homotopy, [path_start])
+        homotopy_cache = HC.init(
+            homotopy_prob, sweep_alg; show_progress = false, threading = false
+        )
 
         result_iter = solve(path_cache.solver, path_cache.starts, ResultIterator)
 
@@ -229,10 +247,17 @@ module WarntypeAudit
         bvec = ComplexF64[1.0 + 0im, 2.0 + 0im]
         xvec = zeros(ComplexF64, 2)
 
+        compiled_system = CompiledSystem(base_system)
+        mixed_system = MixedSystem(base_system)
         interp_system = InterpretedSystem(base_system)
+        symbolic_homotopy = Homotopy([x^2 + t * y - 1, y - t * x], [x, y], t)
+        interp_homotopy = InterpretedHomotopy(symbolic_homotopy)
+        compiled_homotopy = CompiledHomotopy(symbolic_homotopy)
+        mixed_homotopy = MixedHomotopy(symbolic_homotopy)
         eval_x = ComplexF64[0.25 + 0im, 0.75 + 0im]
         eval_r = zeros(ComplexF64, 2)
         eval_j = zeros(ComplexF64, 2, 2)
+        eval_t = 0.5 + 0im
 
         newton_result = HC.NewtonResult(
             HC.NewtonCode.success, ComplexF64[1.0 + 0im], 1.0, 1.0, 1, 0.1
@@ -244,8 +269,10 @@ module WarntypeAudit
         return (
             base_prob = base_prob,
             base_alg = base_alg,
+            poly_alg = poly_alg,
             base_system = base_system,
             path_cache = path_cache,
+            poly_cache = poly_cache,
             path_result = path_result,
             tracker = tracker,
             starts = starts,
@@ -256,16 +283,27 @@ module WarntypeAudit
             sweep_prob_flat = sweep_prob_flat,
             sweep_cache_map = sweep_cache_map,
             sweep_cache_flat = sweep_cache_flat,
+            param_prob = param_prob,
+            param_cache = param_cache,
+            homotopy_prob = homotopy_prob,
+            homotopy_cache = homotopy_cache,
             result_iter = result_iter,
             stepper = stepper,
             weighted_norm = weighted_norm,
             workspace = workspace,
             bvec = bvec,
             xvec = xvec,
+            compiled_system = compiled_system,
+            mixed_system = mixed_system,
             interp_system = interp_system,
+            symbolic_homotopy = symbolic_homotopy,
+            interp_homotopy = interp_homotopy,
+            compiled_homotopy = compiled_homotopy,
+            mixed_homotopy = mixed_homotopy,
             eval_x = eval_x,
             eval_r = eval_r,
             eval_j = eval_j,
+            eval_t = eval_t,
             newton_result = newton_result,
             corrector_result = corrector_result,
         )
@@ -465,6 +503,127 @@ module WarntypeAudit
                     f = HC.init,
                     args = (ctx.base_prob, ctx.base_alg),
                     kwargs = (; show_progress = false, threading = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.poly",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.base_prob, ctx.poly_alg),
+                    kwargs = (; show_progress = false, threading = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.parameter_homotopy",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.param_prob, ctx.sweep_alg),
+                    kwargs = (; show_progress = false, threading = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.homotopy",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.homotopy_prob, ctx.sweep_alg),
+                    kwargs = (; show_progress = false, threading = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.sweep",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.sweep_prob_map, ctx.sweep_alg),
+                    kwargs = (; show_progress = false, threading = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.iter.total_degree",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.base_prob, ctx.base_alg, ResultIterator),
+                    kwargs = (; show_progress = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.iter.poly",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.base_prob, ctx.poly_alg, ResultIterator),
+                    kwargs = (; show_progress = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.iter.parameter_homotopy",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.param_prob, ctx.sweep_alg, ResultIterator),
+                    kwargs = (; show_progress = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.iter.homotopy",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.homotopy_prob, ctx.sweep_alg, ResultIterator),
+                    kwargs = (; show_progress = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.init.iter.sweep",
+                "HomotopyContinuation",
+                "init",
+                true,
+                ctx -> (
+                    f = HC.init,
+                    args = (ctx.sweep_prob_map, ctx.sweep_alg, ResultIterator),
+                    kwargs = (; show_progress = false),
+                ),
+            ),
+            FixtureSpec(
+                "solve.start_parameters!",
+                "HomotopyContinuation",
+                "start_parameters!",
+                false,
+                ctx -> (
+                    f = HC.start_parameters!,
+                    args = (ctx.param_cache.solver, [1.0, 0.0]),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "solve.target_parameters!",
+                "HomotopyContinuation",
+                "target_parameters!",
+                false,
+                ctx -> (
+                    f = HC.target_parameters!,
+                    args = (ctx.param_cache.solver, [2.0, 4.0]),
+                    kwargs = (;),
                 ),
             ),
             FixtureSpec(
@@ -691,6 +850,280 @@ module WarntypeAudit
                 ),
             ),
             FixtureSpec(
+                "modelkit.evaluate!.compiled_system",
+                "HomotopyContinuation.ModelKit",
+                "evaluate!",
+                true,
+                ctx -> (
+                    f = (evaluate!),
+                    args = (ctx.eval_r, ctx.compiled_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate_and_jacobian!.compiled_system",
+                "HomotopyContinuation.ModelKit",
+                "evaluate_and_jacobian!",
+                true,
+                ctx -> (
+                    f = (evaluate_and_jacobian!),
+                    args = (ctx.eval_r, ctx.eval_j, ctx.compiled_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.jacobian!.compiled_system",
+                "HomotopyContinuation.ModelKit",
+                "jacobian!",
+                true,
+                ctx -> (
+                    f = (jacobian!),
+                    args = (ctx.eval_j, ctx.compiled_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate!.mixed_system",
+                "HomotopyContinuation.ModelKit",
+                "evaluate!",
+                true,
+                ctx -> (
+                    f = (evaluate!),
+                    args = (ctx.eval_r, ctx.mixed_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate_and_jacobian!.mixed_system",
+                "HomotopyContinuation.ModelKit",
+                "evaluate_and_jacobian!",
+                true,
+                ctx -> (
+                    f = (evaluate_and_jacobian!),
+                    args = (ctx.eval_r, ctx.eval_j, ctx.mixed_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate!.interpreted_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate!",
+                true,
+                ctx -> (
+                    f = (evaluate!),
+                    args = (ctx.eval_r, ctx.interp_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate_and_jacobian!.interpreted_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate_and_jacobian!",
+                true,
+                ctx -> (
+                    f = (evaluate_and_jacobian!),
+                    args = (
+                        ctx.eval_r,
+                        ctx.eval_j,
+                        ctx.interp_homotopy,
+                        ctx.eval_x,
+                        ctx.eval_t,
+                    ),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.jacobian!.interpreted_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "jacobian!",
+                true,
+                ctx -> (
+                    f = (jacobian!),
+                    args = (ctx.eval_j, ctx.interp_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate!.compiled_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate!",
+                true,
+                ctx -> (
+                    f = (evaluate!),
+                    args = (ctx.eval_r, ctx.compiled_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate_and_jacobian!.compiled_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate_and_jacobian!",
+                true,
+                ctx -> (
+                    f = (evaluate_and_jacobian!),
+                    args = (
+                        ctx.eval_r,
+                        ctx.eval_j,
+                        ctx.compiled_homotopy,
+                        ctx.eval_x,
+                        ctx.eval_t,
+                    ),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.jacobian!.compiled_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "jacobian!",
+                true,
+                ctx -> (
+                    f = (jacobian!),
+                    args = (ctx.eval_j, ctx.compiled_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate!.mixed_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate!",
+                true,
+                ctx -> (
+                    f = (evaluate!),
+                    args = (ctx.eval_r, ctx.mixed_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate_and_jacobian!.mixed_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate_and_jacobian!",
+                true,
+                ctx -> (
+                    f = (evaluate_and_jacobian!),
+                    args = (
+                        ctx.eval_r,
+                        ctx.eval_j,
+                        ctx.mixed_homotopy,
+                        ctx.eval_x,
+                        ctx.eval_t,
+                    ),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate.system",
+                "HomotopyContinuation.ModelKit",
+                "evaluate",
+                false,
+                ctx -> (
+                    f = HC.ModelKit.evaluate,
+                    args = (ctx.base_system, ctx.eval_x),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.evaluate.homotopy",
+                "HomotopyContinuation.ModelKit",
+                "evaluate",
+                false,
+                ctx -> (
+                    f = HC.ModelKit.evaluate,
+                    args = (ctx.symbolic_homotopy, ctx.eval_x, ctx.eval_t),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "modelkit.variables.system",
+                "HomotopyContinuation.ModelKit",
+                "variables",
+                false,
+                ctx -> (f = variables, args = (ctx.base_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.variables.interpreted_system",
+                "HomotopyContinuation.ModelKit",
+                "variables",
+                false,
+                ctx -> (f = variables, args = (ctx.interp_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.variables.compiled_system",
+                "HomotopyContinuation.ModelKit",
+                "variables",
+                false,
+                ctx -> (f = variables, args = (ctx.compiled_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.variables.homotopy",
+                "HomotopyContinuation.ModelKit",
+                "variables",
+                false,
+                ctx -> (f = variables, args = (ctx.symbolic_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.variables.interpreted_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "variables",
+                false,
+                ctx -> (f = variables, args = (ctx.interp_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.system",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.base_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.interpreted_system",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.interp_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.compiled_system",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.compiled_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.homotopy",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.symbolic_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.interpreted_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.interp_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nvariables.compiled_homotopy",
+                "HomotopyContinuation.ModelKit",
+                "nvariables",
+                false,
+                ctx -> (f = nvariables, args = (ctx.compiled_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nparameters.system",
+                "HomotopyContinuation.ModelKit",
+                "nparameters",
+                false,
+                ctx -> (f = nparameters, args = (ctx.sweep_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "modelkit.nparameters.homotopy",
+                "HomotopyContinuation.ModelKit",
+                "nparameters",
+                false,
+                ctx -> (f = nparameters, args = (ctx.symbolic_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
                 "modelkit.is_homogeneous",
                 "HomotopyContinuation.ModelKit",
                 "is_homogeneous",
@@ -703,6 +1136,89 @@ module WarntypeAudit
                 "fixed",
                 false,
                 ctx -> (f = fixed, args = (ctx.base_system,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "systems.fixed.compile_all",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (f = fixed, args = (ctx.base_system, CompileAll()), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "systems.fixed.compile_none",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (f = fixed, args = (ctx.base_system, CompileNone()), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "systems.fixed.compile_mixed",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (f = fixed, args = (ctx.base_system, CompileMixed()), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "systems.fixed.abstract",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (
+                    f = fixed,
+                    args = (ctx.interp_system,),
+                    kwargs = (; compile_mode = CompileAll()),
+                ),
+            ),
+            FixtureSpec(
+                "homotopies.fixed",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (f = fixed, args = (ctx.symbolic_homotopy,), kwargs = (;)),
+            ),
+            FixtureSpec(
+                "homotopies.fixed.compile_all",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (
+                    f = fixed,
+                    args = (ctx.symbolic_homotopy, CompileAll()),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "homotopies.fixed.compile_none",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (
+                    f = fixed,
+                    args = (ctx.symbolic_homotopy, CompileNone()),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "homotopies.fixed.compile_mixed",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (
+                    f = fixed,
+                    args = (ctx.symbolic_homotopy, CompileMixed()),
+                    kwargs = (;),
+                ),
+            ),
+            FixtureSpec(
+                "homotopies.fixed.abstract",
+                "HomotopyContinuation",
+                "fixed",
+                false,
+                ctx -> (
+                    f = fixed,
+                    args = (ctx.interp_homotopy,),
+                    kwargs = (; compile_mode = CompileAll()),
+                ),
             ),
         ]
     end
@@ -817,6 +1333,8 @@ module WarntypeAudit
         return sprint(show, Base.unwrap_unionall(method.sig))
     end
 
+    _argument_type(arg) = arg isa Type ? Type{arg} : typeof(arg)
+
     function _record_for_error(spec::FixtureSpec, err)
         return AuditRecord(
             :blocked,
@@ -849,8 +1367,9 @@ module WarntypeAudit
             args = payload.args
             kwargs = payload.kwargs
 
+            argtypes = Tuple{map(_argument_type, args)...}
             m = try
-                which(f, Tuple{map(typeof, args)...})
+                which(f, argtypes)
             catch
                 nothing
             end
@@ -881,7 +1400,6 @@ module WarntypeAudit
                 # Compile and run once with deterministic fixture.
                 Base.invokelatest(f, args...; kwargs...)
 
-                argtypes = Tuple{map(typeof, args)...}
                 typed = code_typed(f, argtypes; optimize = true)
                 isempty(typed) && error("empty code_typed output")
                 ci, rettype = typed[1]
