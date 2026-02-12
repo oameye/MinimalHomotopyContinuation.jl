@@ -41,6 +41,12 @@ Base.IteratorSize(::Type{<:PolyhedralStartSolutionsIterator}) = Base.SizeUnknown
 Base.IteratorEltype(::Type{<:PolyhedralStartSolutionsIterator}) = Base.HasEltype()
 Base.eltype(iter::PolyhedralStartSolutionsIterator) = Tuple{MixedCell, Vector{ComplexF64}}
 
+struct PolyhedralStartState{CellT, InnerStateT}
+    cell::CellT
+    inner_state::InnerStateT
+    column::Int
+end
+
 function compute_mixed_cells!(iter::PolyhedralStartSolutionsIterator)
     first_cell = iterate(iter.mixed_cells)
     if isnothing(first_cell)
@@ -75,18 +81,20 @@ function Base.iterate(iter::PolyhedralStartSolutionsIterator)
 
     # return the value _and_ the combined state:
     # (cell, inner_state, column_index)
-    return (cell, x), (cell, inner_state, 1)
+    return (cell, x), PolyhedralStartState(cell, inner_state, 1)
 end
 
-function Base.iterate(iter::PolyhedralStartSolutionsIterator, state::Tuple{Any, Any, Int})
-    cell, inner_state, j = state
+function Base.iterate(iter::PolyhedralStartSolutionsIterator, state::PolyhedralStartState)
+    cell = state.cell
+    inner_state = state.inner_state
+    j = state.column
     ncol = size(iter.BSS.X, 2)
 
     if j < ncol
         # we still have more columns to emit for the current cell
         new_j = j + 1
         x = [iter.BSS.X[i, new_j] for i in 1:length(iter.support)]
-        return (cell, x), (cell, inner_state, new_j)
+        return (cell, x), PolyhedralStartState(cell, inner_state, new_j)
     else
         # we finished the last column for `cell`, advance to the next cell
         next_cell = iterate(iter.mixed_cells, inner_state)
@@ -96,7 +104,7 @@ function Base.iterate(iter::PolyhedralStartSolutionsIterator, state::Tuple{Any, 
         solve(iter.BSS, iter.support, iter.start_coefficients, cell2)
         x = [iter.BSS.X[i, 1] for i in 1:length(iter.support)]
 
-        return (cell2, x), (cell2, new_inner_state, 1)
+        return (cell2, x), PolyhedralStartState(cell2, new_inner_state, 1)
     end
 end
 

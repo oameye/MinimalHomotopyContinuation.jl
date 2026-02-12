@@ -1,7 +1,8 @@
 const PathProblems = Union{SystemProblem, ParameterHomotopyProblem, HomotopyProblem}
 
 function _cache_from_startsolutions(
-        startsolutions::Tuple;
+        startsolutions::Tuple,
+        ::PathProblems;
         stop_early_cb,
         show_progress::Bool,
         threading::Bool,
@@ -16,10 +17,12 @@ end
 function _cache_from_startsolutions(
         startsolutions::Tuple,
         prob::ParameterSweepProblem;
+        stop_early_cb,
         show_progress::Bool,
         threading::Bool,
         catch_interrupt::Bool,
     )
+    _ = stop_early_cb
     solver, starts = startsolutions
     return SweepSolveCache(
         solver,
@@ -32,9 +35,20 @@ function _cache_from_startsolutions(
     )
 end
 
-_iter_cache_from_startsolutions(startsolutions::Tuple; bitmask = nothing) = begin
+function _cache_from_startsolutions(startsolutions::Tuple, prob::AbstractHCProblem; kwargs...)
+    _ = startsolutions
+    _ = kwargs
+    throw(ArgumentError("Unsupported cache construction for problem type $(typeof(prob))."))
+end
+
+function _iter_cache_from_startsolutions(
+        startsolutions::Tuple,
+        ::PathProblems,
+        ::AbstractHCAlgorithm;
+        bitmask = nothing,
+    )
     solver, starts = startsolutions
-    PathIteratorSolveCache(solver, starts, bitmask)
+    return PathIteratorSolveCache(solver, starts, bitmask)
 end
 
 function _iter_cache_from_startsolutions(
@@ -48,8 +62,24 @@ function _iter_cache_from_startsolutions(
     return SweepIteratorSolveCache(solvers, starts, bitmask)
 end
 
+function _iter_cache_from_startsolutions(
+        startsolutions::Tuple,
+        prob::AbstractHCProblem,
+        alg::AbstractHCAlgorithm;
+        bitmask = nothing,
+    )
+    _ = startsolutions
+    _ = alg
+    _ = bitmask
+    throw(
+        ArgumentError(
+            "Unsupported iterator cache construction for problem type $(typeof(prob)).",
+        ),
+    )
+end
+
 function init(
-        prob::PathProblems,
+        prob::AbstractHCProblem,
         alg::AbstractHCAlgorithm;
         stop_early_cb::F = always_false,
         show_progress::Bool = true,
@@ -58,7 +88,12 @@ function init(
     ) where {F}
     startsolutions = _solver_startsolutions(prob, alg; show_progress)
     return _cache_from_startsolutions(
-        startsolutions; stop_early_cb, show_progress, threading, catch_interrupt
+        startsolutions,
+        prob;
+        stop_early_cb,
+        show_progress,
+        threading,
+        catch_interrupt,
     )
 end
 
@@ -81,34 +116,8 @@ function _cache_solve_kwargs(cache::SweepSolveCache)
 end
 
 function init(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    _ = stop_early_cb
-    startsolutions = _solver_startsolutions(prob, alg; show_progress)
-    return _cache_from_startsolutions(
-        startsolutions, prob; show_progress, threading, catch_interrupt
-    )
-end
-
-function init(
-        prob::PathProblems,
+        prob::AbstractHCProblem,
         alg::AbstractHCAlgorithm,
-        ::Type{ResultIterator};
-        show_progress::Bool = true,
-        bitmask = nothing,
-    )
-    startsolutions = _solver_startsolutions(prob, alg; show_progress)
-    return _iter_cache_from_startsolutions(startsolutions; bitmask)
-end
-
-function init(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm,
         ::Type{ResultIterator};
         show_progress::Bool = true,
         bitmask = nothing,

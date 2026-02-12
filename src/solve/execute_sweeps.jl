@@ -43,22 +43,21 @@ end
 
 update_many_progress!(::Nothing, results, k, paths_per_param) = nothing
 
-function _init_reduced_results(reducer::AbstractSweepReducer, value)
-    return if reducer isa FlatMapReducer
-        value isa AbstractArray ||
-            throw(ArgumentError("FlatMapReducer must return an iterable collection."))
-        collect(value)
-    else
-        [value]
-    end
+function _init_reduced_results(::FlatMapReducer, value)
+    value isa AbstractArray ||
+        throw(ArgumentError("FlatMapReducer must return an iterable collection."))
+    return collect(value)
 end
 
-function _append_reduced_result!(results, reducer::AbstractSweepReducer, value)
-    if reducer isa FlatMapReducer
-        append!(results, value)
-    else
-        push!(results, value)
-    end
+_init_reduced_results(::AbstractSweepReducer, value) = [value]
+
+function _append_reduced_result!(results, ::FlatMapReducer, value)
+    append!(results, value)
+    return results
+end
+
+function _append_reduced_result!(results, ::AbstractSweepReducer, value)
+    push!(results, value)
     return results
 end
 

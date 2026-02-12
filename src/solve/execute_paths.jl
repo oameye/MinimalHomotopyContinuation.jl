@@ -181,23 +181,13 @@ function threaded_solve(
 
 end
 
-function start_parameters!(solver::Solver, p)
+function _apply_to_trackers!(f, solver::Solver, args...)
     for tracker in solver.trackers
-        start_parameters!(tracker, p)
+        f(tracker, args...)
     end
     return solver
 end
 
-function target_parameters!(solver::Solver, p)
-    for tracker in solver.trackers
-        target_parameters!(tracker, p)
-    end
-    return solver
-end
-
-function parameters!(solver::Solver, p, q)
-    for tracker in solver.trackers
-        parameters!(tracker, p, q)
-    end
-    return solver
-end
+start_parameters!(solver::Solver, p) = _apply_to_trackers!(start_parameters!, solver, p)
+target_parameters!(solver::Solver, p) = _apply_to_trackers!(target_parameters!, solver, p)
+parameters!(solver::Solver, p, q) = _apply_to_trackers!(parameters!, solver, p, q)

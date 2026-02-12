@@ -31,23 +31,15 @@ struct ParameterSweepProblem{SystemT, StartsT, PStartT, TargetsT, ReducerT} <: A
     reducer::ReducerT
 end
 
-function ParameterSweepProblem(
-        F::Union{System, AbstractSystem},
-        start_solutions;
-        start_parameters,
-        targets,
-        reducer::AbstractSweepReducer = IdentityReducer(),
-    )
-    return ParameterSweepProblem(F, start_solutions, start_parameters, targets, reducer)
-end
+ParameterSweepProblem(
+    F::Union{System, AbstractSystem},
+    start_solutions;
+    start_parameters,
+    targets,
+    reducer::AbstractSweepReducer = IdentityReducer(),
+) = ParameterSweepProblem(F, start_solutions, start_parameters, targets, reducer)
 
 struct HomotopyProblem{HomotopyT, StartsT} <: AbstractHCProblem
     homotopy::HomotopyT
     start_solutions::StartsT
 end
-
-HomotopyProblem(H::Union{Homotopy, AbstractHomotopy}, starts) = HomotopyProblem{
-    typeof(H), typeof(starts),
-}(
-    H, starts
-)
