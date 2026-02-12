@@ -62,6 +62,24 @@ function init(
     )
 end
 
+function _cache_solve_kwargs(cache::PathSolveCache)
+    return (
+        stop_early_cb = cache.stop_early_cb,
+        show_progress = cache.show_progress,
+        threading = cache.threading,
+        catch_interrupt = cache.catch_interrupt,
+    )
+end
+
+function _cache_solve_kwargs(cache::SweepSolveCache)
+    return (
+        reducer = cache.reducer,
+        show_progress = cache.show_progress,
+        threading = cache.threading,
+        catch_interrupt = cache.catch_interrupt,
+    )
+end
+
 function init(
         prob::ParameterSweepProblem,
         alg::PathTrackingAlgorithm;
@@ -77,7 +95,7 @@ function init(
     )
 end
 
-function init(
+function init(about:blank#blocked
         prob::PathProblems,
         alg::AbstractHCAlgorithm,
         ::Type{ResultIterator};
@@ -99,39 +117,17 @@ function init(
     return _iter_cache_from_startsolutions(startsolutions, prob, alg; bitmask)
 end
 
-function solve(
-        prob::AbstractHCProblem,
-        alg::AbstractHCAlgorithm;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    return solve!(init(prob, alg; stop_early_cb, show_progress, threading, catch_interrupt))
-end
+solve(prob::AbstractHCProblem, alg::AbstractHCAlgorithm; kwargs...) = solve!(
+    init(prob, alg; kwargs...)
+)
 
-function solve!(cache::PathSolveCache)
-    return solve(
-        cache.solver,
-        cache.starts;
-        stop_early_cb = cache.stop_early_cb,
-        show_progress = cache.show_progress,
-        threading = cache.threading,
-        catch_interrupt = cache.catch_interrupt,
-    )
-end
+solve!(cache::PathSolveCache) = solve(
+    cache.solver, cache.starts; _cache_solve_kwargs(cache)...
+)
 
-function solve!(cache::SweepSolveCache)
-    return solve(
-        cache.solver,
-        cache.starts,
-        cache.targets;
-        reducer = cache.reducer,
-        show_progress = cache.show_progress,
-        threading = cache.threading,
-        catch_interrupt = cache.catch_interrupt,
-    )
-end
+solve!(cache::SweepSolveCache) = solve(
+    cache.solver, cache.starts, cache.targets; _cache_solve_kwargs(cache)...
+)
 
 solve!(cache::PathIteratorSolveCache) = solve(
     cache.solver, cache.starts, ResultIterator; bitmask = cache.bitmask
@@ -143,22 +139,10 @@ function solve!(cache::SweepIteratorSolveCache)
     end
 end
 
-function solve(
-        prob::PathProblems,
-        alg::AbstractHCAlgorithm,
-        ::Type{ResultIterator};
-        show_progress::Bool = true,
-        bitmask = nothing,
-    )
-    return solve!(init(prob, alg, ResultIterator; show_progress, bitmask))
-end
+solve(prob::PathProblems, alg::AbstractHCAlgorithm, ::Type{ResultIterator}; kwargs...) = solve!(
+    init(prob, alg, ResultIterator; kwargs...)
+)
 
-function solve(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm,
-        ::Type{ResultIterator};
-        show_progress::Bool = true,
-        bitmask = nothing,
-    )
-    return solve!(init(prob, alg, ResultIterator; show_progress, bitmask))
-end
+solve(prob::ParameterSweepProblem, alg::PathTrackingAlgorithm, ::Type{ResultIterator}; kwargs...) = solve!(
+    init(prob, alg, ResultIterator; kwargs...)
+)

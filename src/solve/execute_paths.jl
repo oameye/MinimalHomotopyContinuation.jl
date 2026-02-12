@@ -1,25 +1,11 @@
-function solve(
-        S::Solver,
-        R::Result;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    sol = solutions(R; only_nonsingular = true)
-    return solve(S, sol; stop_early_cb, show_progress, threading, catch_interrupt)
-end
+_normalize_starts(R::Result) = solutions(R; only_nonsingular = true)
+_normalize_starts(s::AbstractVector{<:Number}) = [s]
+_normalize_starts(starts::AbstractArray) = starts
+_normalize_starts(starts) = collect(starts)
 
-function solve(
-        S::Solver,
-        s::AbstractVector{<:Number};
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-    return solve(S, [s]; stop_early_cb, show_progress, threading, catch_interrupt)
-end
+solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) = ResultIterator(
+    starts, S; bitmask
+)
 
 function solve(
         S::Solver,
@@ -29,31 +15,11 @@ function solve(
         threading::Bool = Threads.nthreads() > 1,
         catch_interrupt::Bool = true,
     ) where {F}
-    sol = collect(starts)
-    return solve(S, sol; stop_early_cb, show_progress, threading, catch_interrupt)
-end
-
-solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) = ResultIterator(
-    starts, S; bitmask
-)
-
-function solve(
-        S::Solver,
-        starts::AbstractArray;
-        stop_early_cb::F = always_false,
-        show_progress::Bool = true,
-        threading::Bool = Threads.nthreads() > 1,
-        catch_interrupt::Bool = true,
-    ) where {F}
-
-    n = length(starts)
+    starts_buffer = _normalize_starts(starts)
+    n = length(starts_buffer)
     progress = show_progress ? make_progress(n; delay = 0.3) : nothing
     init!(S.stats)
-    return if threading
-        threaded_solve(S, starts, progress, stop_early_cb; catch_interrupt)
-    else
-        serial_solve(S, starts, progress, stop_early_cb; catch_interrupt)
-    end
+    return _run_paths(S, starts_buffer, progress, stop_early_cb; threading, catch_interrupt)
 end
 
 track(solver::Solver, s; path_number::Union{Nothing, Int} = nothing) =
@@ -92,6 +58,21 @@ end
 end
 
 update_progress!(::Nothing, stats, ntracked) = nothing
+
+function _run_paths(
+        solver::Solver,
+        starts::AbstractArray,
+        progress = nothing,
+        stop_early_cb::F = always_false;
+        threading::Bool,
+        catch_interrupt::Bool,
+    ) where {F}
+    return if threading
+        threaded_solve(solver, starts, progress, stop_early_cb; catch_interrupt)
+    else
+        serial_solve(solver, starts, progress, stop_early_cb; catch_interrupt)
+    end
+end
 
 function serial_solve(
         solver::Solver,

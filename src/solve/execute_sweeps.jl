@@ -64,13 +64,10 @@ function many_solve(
     first_target_it === nothing && throw(ArgumentError("`targets` must be non-empty."))
     q = first(first_target_it)
     state = last(first_target_it)
+    run_kwargs = (; threading, catch_interrupt = false)
 
     target_parameters!(solver, q)
-    if threading
-        res = threaded_solve(solver, starts_buffer; catch_interrupt = false)
-    else
-        res = serial_solve(solver, starts_buffer; catch_interrupt = false)
-    end
+    res = _run_paths(solver, starts_buffer; run_kwargs...)
 
     first_result = reducer_apply(reducer, res, q)
     results = if reducer isa FlatMapReducer
@@ -88,11 +85,7 @@ function many_solve(
     try
         for q in Iterators.rest(many_target_parameters, state)
             target_parameters!(solver, q)
-            if threading
-                res = threaded_solve(solver, starts_buffer; catch_interrupt = false)
-            else
-                res = serial_solve(solver, starts_buffer; catch_interrupt = false)
-            end
+            res = _run_paths(solver, starts_buffer; run_kwargs...)
 
             value = reducer_apply(reducer, res, q)
             if reducer isa FlatMapReducer
