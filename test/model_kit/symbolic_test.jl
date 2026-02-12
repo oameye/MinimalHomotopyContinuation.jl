@@ -1,10 +1,10 @@
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using Test
 using Random, LinearAlgebra
 
-using HomotopyContinuation.DoubleDouble: ComplexDF64
+using MinimalHomotopyContinuation.DoubleDouble: ComplexDF64
 
-const HC = HomotopyContinuation
+const HC = MinimalHomotopyContinuation
 Random.seed!(0x8b868a97)
 
 
@@ -137,7 +137,7 @@ Random.seed!(0x8b868a97)
 
         X = Dict([a0₀, b₀] .=> rand.())
 
-        @test HomotopyContinuation.evaluate(constraints, X) isa Vector{Float64}
+        @test MinimalHomotopyContinuation.evaluate(constraints, X) isa Vector{Float64}
     end
 
     @testset "evaluate - Issue #511" begin

@@ -1,25 +1,17 @@
-using Documenter, HomotopyContinuation
+using Documenter, MinimalHomotopyContinuation
 
 makedocs(;
-    sitename = "HomotopyContinuation.jl",
+    sitename = "MinimalHomotopyContinuation.jl",
     pages = [
         "Introduction" => "index.md",
-        "Problem formulation" => [
-            "ModelKit" => "model_kit.md",
-            "Systems" => "systems.md",
-            "Homotopies" => "homotopies.md",
-        ],
-        "Solving Systems" => [
-            "Solve (finitely many solutions)" => "solve.md",
-            "Results" => "result.md",
-            "Examples" => "solve_examples.md",
-        ],
+        "API" => "API.md",
+        "Example" => "solve_example.md",
     ],
     format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
     strict = false,
 )
 
 deploydocs(;
-    repo = "github.com/JuliaHomotopyContinuation/HomotopyContinuation.jl.git",
+    repo = "github.com/JuliaHomotopyContinuation/MinimalHomotopyContinuation.jl.git",
     push_preview = false,
 )

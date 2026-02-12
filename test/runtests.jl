@@ -1,8 +1,8 @@
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using LinearAlgebra, Test, Parameters, Random
 using Arblib
-using HomotopyContinuation.DoubleDouble: ComplexDF64
-const HC = HomotopyContinuation
+using MinimalHomotopyContinuation.DoubleDouble: ComplexDF64
+const HC = MinimalHomotopyContinuation
 
 Random.seed!(0x8b868a97)
 

@@ -1,1 +1,1 @@
-This is a fork of HomotopyContinuation, with the goals to make the package more typestable and reduce inference (TTFX). The eventually goal would be for the package to become HomotopyContinuation v3.
+This is a fork of MinimalHomotopyContinuation, with the goals to make the package more typestable and reduce inference (TTFX). The eventually goal would be for the package to become MinimalHomotopyContinuation v3.

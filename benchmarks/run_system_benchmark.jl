@@ -1,5 +1,5 @@
 import BenchmarkTools
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using LinearAlgebra
 using PrettyTables
 

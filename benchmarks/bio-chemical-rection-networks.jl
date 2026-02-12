@@ -1,4 +1,4 @@
-using HomotopyContinuation, DynamicPolynomials, LinearAlgebra
+using MinimalHomotopyContinuation, DynamicPolynomials, LinearAlgebra
 
 # These tests I got send by Torkel Loman to test the BioDiffEq integration.
 # These compare a direct solve of a specific instance with the approach of first solving

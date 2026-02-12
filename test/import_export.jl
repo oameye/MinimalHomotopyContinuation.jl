@@ -1,8 +1,8 @@
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using LinearAlgebra, Test, Parameters, Random
 using Arblib
-using HomotopyContinuation.DoubleDouble: ComplexDF64
-const HC = HomotopyContinuation
+using MinimalHomotopyContinuation.DoubleDouble: ComplexDF64
+const HC = MinimalHomotopyContinuation
 
 @testset "Public API contract" begin
     @test Base.isexported(HC, :SystemProblem)
@@ -22,6 +22,7 @@ const HC = HomotopyContinuation
     @test Base.isexported(HC, :ResultIterator)
     @test Base.isexported(HC, :paths_to_track)
 
+    # should not be exported
     @test !Base.isexported(HC, :Tracker)
     @test !Base.isexported(HC, :EndgameTracker)
     @test !Base.isexported(HC, :total_degree)
@@ -37,8 +38,8 @@ end
 
     non_public_explicit_imports = (:init, :MPFR, :MPFRRoundingMode, :MPZ, :solve, :solve!)
     non_public_qualified_accesses = (
-        HomotopyContinuation.ModelKit,
-        HomotopyContinuation.DoubleDouble,
+        MinimalHomotopyContinuation.ModelKit,
+        MinimalHomotopyContinuation.DoubleDouble,
         :FastMath,
         :HasEltype,
         :HasLength,
@@ -69,15 +70,15 @@ end
         :tty_width,
     )
 
-    @test check_no_implicit_imports(HomotopyContinuation) == nothing
-    @test check_all_explicit_imports_via_owners(HomotopyContinuation) == nothing
+    @test check_no_implicit_imports(MinimalHomotopyContinuation) == nothing
+    @test check_all_explicit_imports_via_owners(MinimalHomotopyContinuation) == nothing
     @test check_all_explicit_imports_are_public(
-        HomotopyContinuation; ignore = non_public_explicit_imports
+        MinimalHomotopyContinuation; ignore = non_public_explicit_imports
     ) == nothing
-    @test check_no_stale_explicit_imports(HomotopyContinuation) == nothing
-    @test check_all_qualified_accesses_via_owners(HomotopyContinuation) == nothing
+    @test check_no_stale_explicit_imports(MinimalHomotopyContinuation) == nothing
+    @test check_all_qualified_accesses_via_owners(MinimalHomotopyContinuation) == nothing
     @test check_all_qualified_accesses_are_public(
-        HomotopyContinuation; ignore = non_public_qualified_accesses
+        MinimalHomotopyContinuation; ignore = non_public_qualified_accesses
     ) == nothing
-    @test check_no_self_qualified_accesses(HomotopyContinuation) == nothing
+    @test check_no_self_qualified_accesses(MinimalHomotopyContinuation) == nothing
 end

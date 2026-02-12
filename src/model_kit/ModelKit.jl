@@ -50,7 +50,7 @@ export @var,
     vectors
 
 using ..DoubleDouble: ComplexDF64
-import ..is_real    # required to ensure that ModelKit and HomotopyContinuation define methods of the same `is_real` function
+import ..is_real    # required to ensure that ModelKit and MinimalHomotopyContinuation define methods of the same `is_real` function
 
 import Arblib: Arblib, Acb, AcbRef, AcbRefVector
 import SimpleGraphs

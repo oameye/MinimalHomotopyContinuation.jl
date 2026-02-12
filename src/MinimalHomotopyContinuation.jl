@@ -1,4 +1,4 @@
-module HomotopyContinuation
+module MinimalHomotopyContinuation
 
 # TODO:
 # - use use the interface of [EnumX.jl](https://github.com/fredrikekre/EnumX.jl)
@@ -26,7 +26,7 @@ import Base: push!
 
 const LA = LinearAlgebra
 
-# To ensure that ModelKit and HomotopyContinuation define methods of the same `is_real` function:
+# To ensure that ModelKit and MinimalHomotopyContinuation define methods of the same `is_real` function:
 function is_real end
 
 include("DoubleDouble.jl")

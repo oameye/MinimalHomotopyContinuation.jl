@@ -1,5 +1,5 @@
 using BenchmarkTools
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using Statistics
 
 function _median_ns(b::BenchmarkTools.Benchmark)

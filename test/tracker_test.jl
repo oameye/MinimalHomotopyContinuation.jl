@@ -1,10 +1,10 @@
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using Test
 using Random, LinearAlgebra
 
-using HomotopyContinuation.DoubleDouble: ComplexDF64
+using MinimalHomotopyContinuation.DoubleDouble: ComplexDF64
 
-const HC = HomotopyContinuation
+const HC = MinimalHomotopyContinuation
 Random.seed!(0x8b868a97)
 
 const Tracker = HC.Tracker
@@ -126,7 +126,7 @@ const is_invalid_startvalue = HC.is_invalid_startvalue
     end
 
     @testset "invalid_startvalue_singular_jacobian" begin
-        # https://github.com/JuliaHomotopyContinuation/HomotopyContinuation.jl/issues/454
+        # https://github.com/JuliaHomotopyContinuation/MinimalHomotopyContinuation.jl/issues/454
         p0 = [
             0 0
             1 0

@@ -43,7 +43,7 @@ export Result,
     nreal,
     ntracked
 
-export ResultIterator, bitmask, bitmask_filter, solver, start_solutions, trace
+export ResultIterator, bitmask, bitmask_filter, solver, start_solutions
 
 export PathResult,
     PathResultCode,

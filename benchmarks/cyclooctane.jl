@@ -1,4 +1,4 @@
-using HomotopyContinuation, LinearAlgebra, DynamicPolynomials
+using MinimalHomotopyContinuation, LinearAlgebra, DynamicPolynomials
 
 # See https://www.juliahomotopycontinuation.org/examples/cyclooctane/
 c² = 2

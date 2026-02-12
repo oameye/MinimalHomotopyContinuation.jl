@@ -1,10 +1,10 @@
-using HomotopyContinuation
+using MinimalHomotopyContinuation
 using Test
 using Random, LinearAlgebra
 
-using HomotopyContinuation.DoubleDouble: ComplexDF64
+using MinimalHomotopyContinuation.DoubleDouble: ComplexDF64
 
-const HC = HomotopyContinuation
+const HC = MinimalHomotopyContinuation
 Random.seed!(0x8b868a97)
 
 @testset "test operations against taylor operations (N=$N, K=$K)" for (K, N) in [

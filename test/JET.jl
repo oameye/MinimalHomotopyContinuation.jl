@@ -1,23 +1,23 @@
-using HomotopyContinuation, Test
+using MinimalHomotopyContinuation, Test
 
 @testset "Code linting" begin
     using JET
     JET.test_package(
-        HomotopyContinuation;
+        MinimalHomotopyContinuation;
         target_modules = (
-            HomotopyContinuation,
-            HomotopyContinuation.ModelKit,
-            HomotopyContinuation.DoubleDouble,
+            MinimalHomotopyContinuation,
+            MinimalHomotopyContinuation.ModelKit,
+            MinimalHomotopyContinuation.DoubleDouble,
         ),
     )
 
-    rep = JET.report_package(HomotopyContinuation)
+    rep = JET.report_package(MinimalHomotopyContinuation)
     reports = JET.get_reports(rep)
     @test isempty(reports)
 end
 
 @testset "Concretely typed" begin
     using CheckConcreteStructs
-    @test all_concrete(HomotopyContinuation)
+    @test all_concrete(MinimalHomotopyContinuation)
 
 end
