@@ -9,17 +9,15 @@
             ];
             parameters = a,
         )
-        prob = SystemProblem(F; target_parameters = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32])
+        prob = SystemProblem(
+            F; target_parameters = [0.257, -0.139, -1.73, -0.199, 1.79, -1.32]
+        )
         res = solve(prob, PolyhedralAlgorithm(); show_progress = false)
 
         @test startswith(sprint(show, res), "Result with 3 solutions")
         @test seed(res) isa UInt32
 
-        seeded_res = solve(
-            prob,
-            PolyhedralAlgorithm(seed = seed(res)),
-            show_progress = false,
-        )
+        seeded_res = solve(prob, PolyhedralAlgorithm(seed = seed(res)), show_progress = false)
         @test seed(seeded_res) == seed(res)
 
         @test length(path_results(res)) == ntracked(res) == 7
@@ -105,21 +103,13 @@ end
         F = System([f₁, f₂]; variables = [x; y], parameters = [p])
         R = solve(
             ParameterHomotopyProblem(
-                F,
-                [[1, 1], [-1, 1]];
-                start_parameters = [0],
-                target_parameters = [-1],
+                F, [[1, 1], [-1, 1]]; start_parameters = [0], target_parameters = [-1]
             ),
             PathTrackingAlgorithm(),
             ResultIterator,
         )
         RR = solve(
-            ParameterHomotopyProblem(
-                F,
-                R;
-                start_parameters = [-1],
-                target_parameters = [-2],
-            ),
+            ParameterHomotopyProblem(F, R; start_parameters = [-1], target_parameters = [-2]),
             PathTrackingAlgorithm(),
             ResultIterator,
         )
@@ -132,25 +122,14 @@ end
         f₂ = y - x^3
         F = [f₁, f₂]
         tsi_polyhedral = solve(
-            SystemProblem(F),
-            PolyhedralAlgorithm(),
-            ResultIterator;
-            show_progress = false,
+            SystemProblem(F), PolyhedralAlgorithm(), ResultIterator; show_progress = false
         )
-        tsi_total_degree = solve(
-            SystemProblem(F),
-            TotalDegreeAlgorithm(),
-            ResultIterator,
-        )
+        tsi_total_degree = solve(SystemProblem(F), TotalDegreeAlgorithm(), ResultIterator)
 
         @test isa(tsi_polyhedral, ResultIterator)
         @test isa(tsi_total_degree, ResultIterator)
 
-        @test nsolutions(
-            tsi_polyhedral;
-            only_nonsingular = false,
-            multiple_results = true,
-        ) == 3
+        @test nsolutions(tsi_polyhedral; only_nonsingular = false, multiple_results = true) == 3
         @test nsolutions(tsi_total_degree; multiple_results = true) == 1
         @test length(tsi_polyhedral) == 3
         @test length(tsi_total_degree) == 6
@@ -170,10 +149,7 @@ end
         F = System([f₁, f₂]; variables = [x; y], parameters = [p])
         R = solve(
             ParameterHomotopyProblem(
-                F,
-                [1, 1];
-                start_parameters = [0],
-                target_parameters = [-1],
+                F, [1, 1]; start_parameters = [0], target_parameters = [-1]
             ),
             PathTrackingAlgorithm(),
             ResultIterator,
@@ -184,10 +160,7 @@ end
 
         R2 = solve(
             ParameterHomotopyProblem(
-                F,
-                [[1, 1], [1, 1]];
-                start_parameters = [0],
-                target_parameters = [-1],
+                F, [[1, 1], [1, 1]]; start_parameters = [0], target_parameters = [-1]
             ),
             PathTrackingAlgorithm(),
             ResultIterator,
@@ -207,17 +180,17 @@ end
 
         p₀ = randn(ComplexF64, 3)
         S₀ = solutions(
-            solve(SystemProblem(subs(F, [a, b, c] => p₀)), PolyhedralAlgorithm(); show_progress = false),
+            solve(
+                SystemProblem(subs(F, [a, b, c] => p₀)),
+                PolyhedralAlgorithm();
+                show_progress = false,
+            ),
         )
         params = [rand(3) for i in 1:100]
 
         result1 = solve(
             ParameterSweepProblem(
-                F,
-                S₀;
-                start_parameters = p₀,
-                targets = params,
-                parameters = [a, b, c],
+                F, S₀; start_parameters = p₀, targets = params, parameters = [a, b, c]
             ),
             PathTrackingAlgorithm(),
             ResultIterator,
@@ -227,11 +200,7 @@ end
 
         result1 = solve(
             ParameterSweepProblem(
-                F,
-                S₀;
-                start_parameters = p₀,
-                targets = params,
-                parameters = [a, b, c],
+                F, S₀; start_parameters = p₀, targets = params, parameters = [a, b, c]
             ),
             PathTrackingAlgorithm(),
             ResultIterator,

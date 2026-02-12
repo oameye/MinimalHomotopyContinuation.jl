@@ -23,12 +23,16 @@ function Base.show(io::IO, H::MixedHomotopy)
 end
 
 (H::MixedHomotopy)(x, t, p = nothing) = H.interpreted(x, t, p)
-ModelKit.evaluate!(u, H::MixedHomotopy, x::AbstractVector, t, p = nothing) =
-    evaluate!(u, H.compiled, x, t, p)
-ModelKit.evaluate_and_jacobian!(u, U, H::MixedHomotopy, x, t, p = nothing) =
-    evaluate_and_jacobian!(u, U, H.compiled, x, t, p)
-ModelKit.taylor!(u, v::Val, H::MixedHomotopy, tx, t, p = nothing, ::Bool = false) =
-    taylor!(u, v, H.interpreted, tx, t, p)
+ModelKit.evaluate!(u, H::MixedHomotopy, x::AbstractVector, t, p = nothing) = evaluate!(
+    u, H.compiled, x, t, p
+)
+ModelKit.evaluate_and_jacobian!(u, U, H::MixedHomotopy, x, t, p = nothing) = evaluate_and_jacobian!(
+    u, U, H.compiled, x, t, p
+)
+ModelKit.taylor!(u, v::Val, H::MixedHomotopy, tx, t, p = nothing, (::Bool) = false) = taylor!(
+    u, v, H.interpreted, tx, t, p
+)
 
-ModelKit.taylor!(u, v::Val, H::MixedHomotopy, tx, t, ::Bool) =
-    taylor!(u, v, H.interpreted, tx, t, nothing)
+ModelKit.taylor!(u, v::Val, H::MixedHomotopy, tx, t, ::Bool) = taylor!(
+    u, v, H.interpreted, tx, t, nothing
+)

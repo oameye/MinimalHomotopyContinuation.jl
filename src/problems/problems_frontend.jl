@@ -5,7 +5,7 @@ function SystemProblem(
         variable_ordering = variables,
         target_parameters = nothing,
     )
-    sys = System(F, variables = variable_ordering, parameters = parameters)
+    sys = System(F; variables = variable_ordering, parameters = parameters)
     return SystemProblem(sys; target_parameters = target_parameters)
 end
 
@@ -18,11 +18,10 @@ function SystemProblem(
     )
     if isnothing(target_parameters) && isempty(parameters)
         sys, target_parameters = ModelKit.system_with_coefficents_as_params(
-            F;
-            variables = variable_ordering,
+            F; variables = variable_ordering
         )
     else
-        sys = System(F, variables = variable_ordering, parameters = parameters)
+        sys = System(F; variables = variable_ordering, parameters = parameters)
     end
     return SystemProblem(sys; target_parameters = target_parameters)
 end
@@ -36,7 +35,7 @@ function ParameterHomotopyProblem(
         start_parameters,
         target_parameters,
     )
-    sys = System(F, variables = variable_ordering, parameters = parameters)
+    sys = System(F; variables = variable_ordering, parameters = parameters)
     return ParameterHomotopyProblem(
         sys,
         start_solutions;
@@ -54,7 +53,7 @@ function ParameterHomotopyProblem(
         start_parameters,
         target_parameters,
     )
-    sys = System(F, variables = variable_ordering, parameters = parameters)
+    sys = System(F; variables = variable_ordering, parameters = parameters)
     return ParameterHomotopyProblem(
         sys,
         start_solutions;
@@ -73,7 +72,7 @@ function ParameterSweepProblem(
         targets,
         reducer::AbstractSweepReducer = IdentityReducer(),
     )
-    sys = System(F, variables = variable_ordering, parameters = parameters)
+    sys = System(F; variables = variable_ordering, parameters = parameters)
     return ParameterSweepProblem(
         sys,
         start_solutions;
@@ -93,7 +92,7 @@ function ParameterSweepProblem(
         targets,
         reducer::AbstractSweepReducer = IdentityReducer(),
     )
-    sys = System(F, variables = variable_ordering, parameters = parameters)
+    sys = System(F; variables = variable_ordering, parameters = parameters)
     return ParameterSweepProblem(
         sys,
         start_solutions;

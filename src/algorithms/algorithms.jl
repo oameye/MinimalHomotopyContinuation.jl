@@ -31,8 +31,7 @@ struct PolyhedralAlgorithm{CompileModeT <: AbstractCompileMode} <: AbstractHCAlg
     only_non_zero::Bool
 end
 
-function PolyhedralAlgorithm(
-        ;
+function PolyhedralAlgorithm(;
         compile_mode::CompileModeT = DEFAULT_COMPILE_MODE,
         seed::UInt32 = rand(UInt32),
         tracker_options::TrackerOptions = TrackerOptions(),
@@ -49,8 +48,7 @@ struct TotalDegreeAlgorithm{CompileModeT <: AbstractCompileMode} <: AbstractHCAl
     gamma::ComplexF64
 end
 
-function TotalDegreeAlgorithm(
-        ;
+function TotalDegreeAlgorithm(;
         compile_mode::CompileModeT = DEFAULT_COMPILE_MODE,
         seed::UInt32 = rand(UInt32),
         tracker_options::TrackerOptions = TrackerOptions(),
@@ -65,8 +63,7 @@ struct PathTrackingAlgorithm{CompileModeT <: AbstractCompileMode} <: AbstractHCA
     options::AlgorithmOptions{CompileModeT}
 end
 
-function PathTrackingAlgorithm(
-        ;
+function PathTrackingAlgorithm(;
         compile_mode::CompileModeT = DEFAULT_COMPILE_MODE,
         seed::UInt32 = rand(UInt32),
         tracker_options::TrackerOptions = TrackerOptions(),
@@ -77,8 +74,10 @@ function PathTrackingAlgorithm(
 end
 
 @inline function _algorithm_getproperty(alg, sym::Symbol)
-    if sym === :compile_mode || sym === :seed || sym === :tracker_options ||
-       sym === :endgame_options
+    if sym === :compile_mode ||
+            sym === :seed ||
+            sym === :tracker_options ||
+            sym === :endgame_options
         return getfield(getfield(alg, :options), sym)
     end
     return getfield(alg, sym)

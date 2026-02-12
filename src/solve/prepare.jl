@@ -28,16 +28,16 @@ function parameter_homotopy(
         target_parameters = p₀,
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
-    H = ParameterHomotopy(fixed(F; compile_mode = compile_mode), start_parameters, target_parameters)
+    H = ParameterHomotopy(
+        fixed(F; compile_mode = compile_mode), start_parameters, target_parameters
+    )
     _validate_affine_square_system(F)
 
     return H
 end
 
 function _system_solver_startsolutions(
-        prob::SystemProblem,
-        alg::PolyhedralAlgorithm;
-        show_progress::Bool = true,
+        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
     )
     tracker, starts = polyhedral(
         prob.system;
@@ -71,8 +71,7 @@ function _system_solver_startsolutions(prob::SystemProblem, alg::TotalDegreeAlgo
 end
 
 function _parameter_solver_startsolutions(
-        prob::ParameterHomotopyProblem,
-        alg::PathTrackingAlgorithm,
+        prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm
     )
     tracker = parameter_homotopy_tracker(
         prob.system;
@@ -92,17 +91,14 @@ function _first_target(targets)
 end
 
 function _sweep_solver_startsolutions(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm,
+        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm
     )
     first_target = _first_target(prob.targets)
     return _sweep_solver(prob, alg, first_target), prob.start_solutions
 end
 
 function _sweep_solver(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm,
-        target_parameters,
+        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm, target_parameters
     )
     tracker = parameter_homotopy_tracker(
         prob.system;
@@ -115,10 +111,7 @@ function _sweep_solver(
     return Solver(tracker, alg; seed = alg.seed)
 end
 
-function _homotopy_solver_startsolutions(
-        prob::HomotopyProblem,
-        alg::PathTrackingAlgorithm,
-    )
+function _homotopy_solver_startsolutions(prob::HomotopyProblem, alg::PathTrackingAlgorithm)
     tracker = EndgameTracker(
         fixed(prob.homotopy; compile_mode = alg.compile_mode);
         tracker_options = alg.tracker_options,

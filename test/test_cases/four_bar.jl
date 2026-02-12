@@ -89,8 +89,7 @@
 
     @testset "Fourbar - AD: $AD" for AD in 0:3
         tracker = Tracker(
-            ParameterHomotopy(F, p, q),
-            options = TrackerOptions(automatic_differentiation = AD),
+            ParameterHomotopy(F, p, q), options = TrackerOptions(automatic_differentiation = AD)
         )
         res = track(tracker, s, 1, 0)
         @test is_success(res)

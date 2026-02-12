@@ -18,8 +18,7 @@ function Base.show(io::IO, x::Result)
         )
     end
     s.excess_solution > 0 && println(
-        io,
-        "• $(s.excess_solution) excess $(plural("solution", s.excess_solution))",
+        io, "• $(s.excess_solution) excess $(plural("solution", s.excess_solution))"
     )
     println(io, "• random_seed: ", sprint(show, seed(x)))
     if !(algorithm(x) isa UnknownAlgorithm)

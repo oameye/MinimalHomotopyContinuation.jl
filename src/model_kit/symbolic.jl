@@ -1,7 +1,8 @@
 ## Variable construction
 
-Variable(name::Union{Symbol, AbstractString}, indices::Int...) =
-    Variable("$(name)$(join(map_subscripts.(indices), "₋"))")
+Variable(name::Union{Symbol, AbstractString}, indices::Int...) = Variable(
+    "$(name)$(join(map_subscripts.(indices), "₋"))"
+)
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉']
 const SUBSCRIPT_MAP = Dict([first(string(i)) => SUBSCRIPTS[i + 1] for i in 0:9])
@@ -24,8 +25,9 @@ function sort_key(v::Variable)
     return var_base, reverse(indices)
 end
 Base.isless(a::Variable, b::Variable) = isless(sort_key(a), sort_key(b))
-Base.sort!(vs::AbstractVector{Variable}; kwargs...) =
-    permute!(vs, sortperm(sort_key.(vs); kwargs...))
+Base.sort!(vs::AbstractVector{Variable}; kwargs...) = permute!(
+    vs, sortperm(sort_key.(vs); kwargs...)
+)
 
 Base.Symbol(v::Variable) = name(v)
 
@@ -62,7 +64,7 @@ julia> y
 macro var(args...)
     vars, exprs = buildvars(args; unique = false)
     return :(
-        $(foldl((x, y) -> :($x; $y), exprs, init = :()));
+        $(foldl((x, y) -> :($x; $y), exprs; init = :()));
         $(Expr(:tuple, esc.(vars)...))
     )
 end
@@ -91,7 +93,7 @@ b#592
 macro unique_var(args...)
     vars, exprs = buildvars(args; unique = true)
     return :(
-        $(foldl((x, y) -> :($x; $y), exprs, init = :()));
+        $(foldl((x, y) -> :($x; $y), exprs; init = :()));
         $(Expr(:tuple, esc.(vars)...))
     )
 end
@@ -275,8 +277,9 @@ const _MP_SUBS_PAIR = Union{
 subs(ex::Basic, args...) = subs(ex, ExpressionMap(args...))
 subs(exs::AbstractArray{<:Basic}, args...) = subs.(exs, Ref(ExpressionMap(args...)))
 subs(ex::Basic, args::_MP_SUBS_PAIR...) = subs(ex, ExpressionMap(args...))
-subs(exs::AbstractArray{<:Basic}, args::_MP_SUBS_PAIR...) =
-    subs.(exs, Ref(ExpressionMap(args...)))
+subs(exs::AbstractArray{<:Basic}, args::_MP_SUBS_PAIR...) = subs.(
+    exs, Ref(ExpressionMap(args...))
+)
 
 """
     evaluate(expr::Expression, subs...)
@@ -373,10 +376,10 @@ function monomials(
         vars::AbstractVector{<:Union{Variable, Expression}},
         d::Integer;
         affine::Bool = true,
-        homogeneous::Bool = !affine,
+        homogeneous::Bool = (!affine),
     )
     n = length(vars)
-    exps = monomials_exponents(n, d; affine = !homogeneous)
+    exps = monomials_exponents(n, d; affine = (!homogeneous))
     return map(exps) do exp
         prod(i -> vars[i]^exp[i], 1:n)
     end
@@ -391,7 +394,7 @@ function monomials_exponents(n, d; affine::Bool)
         collect(e)
     end
 
-    sort!(E, lt = td_order)
+    sort!(E; lt = td_order)
     return E
 end
 
@@ -401,8 +404,7 @@ function td_order(x, y)
     return sx == sy ? x > y : sx > sy
 end
 function monomials(
-        vars::AbstractVector{<:Union{Variable, Expression}},
-        D::AbstractVector{<:Integer},
+        vars::AbstractVector{<:Union{Variable, Expression}}, D::AbstractVector{<:Integer}
     )
     D = sort(D; rev = true)
     M = monomials(vars, D[1]; affine = false)
@@ -445,7 +447,7 @@ function dense_poly(
         homogeneous::Bool = false,
         coeff_name::Symbol = gensym(:c),
     )
-    M = monomials(vars, d; affine = !homogeneous)
+    M = monomials(vars, d; affine = (!homogeneous))
     c = Variable.(coeff_name, 1:length(M))
     return sum(c .* M), c
 end
@@ -475,7 +477,7 @@ function coeffs_as_dense_poly(
         d::Integer;
         homogeneous::Bool = false,
     )
-    exps = monomials_exponents(length(vars), d; affine = !homogeneous)
+    exps = monomials_exponents(length(vars), d; affine = (!homogeneous))
     D = to_dict(expand(f), vars)
     return to_smallest_eltype(
         map(exps) do exp
@@ -484,7 +486,7 @@ function coeffs_as_dense_poly(
             else
                 false
             end
-        end
+        end,
     )
 end
 
@@ -507,7 +509,7 @@ function rand_poly(vars::AbstractVector, d::Integer; kwargs...)
     return rand_poly(ComplexF64, vars, d; kwargs...)
 end
 function rand_poly(T, vars::AbstractVector, d::Integer; homogeneous::Bool = false)
-    M = monomials(vars, d; affine = !homogeneous)
+    M = monomials(vars, d; affine = (!homogeneous))
     return sum(randn(T, length(M)) .* M)
 end
 
@@ -685,9 +687,7 @@ julia> poly_from_exponents_coefficients(M, c, vars)
 """
 
 function poly_from_exponents_coefficients(
-        M::Matrix{T},
-        c::Vector{S},
-        vars::AbstractVector{Variable},
+        M::Matrix{T}, c::Vector{S}, vars::AbstractVector{Variable}
     ) where {T, S <: Number}
     m, n = size(M)
     if length(c) != n
@@ -741,9 +741,7 @@ Compute the degree of the expression `f`  in `vars`.
 Unless `expanded` is `true` the expression is first expanded.
 """
 function degree(
-        f::Expression,
-        vars::AbstractVector{Variable} = variables(f);
-        expanded::Bool = false,
+        f::Expression, vars::AbstractVector{Variable} = variables(f); expanded::Bool = false
     )
     if !expanded
         f = expand(f)
@@ -784,8 +782,9 @@ function LinearAlgebra.det(M::AbstractMatrix{<:Union{Variable, Expression}})
         return M[1, 1]
     end
 end
-LinearAlgebra.det(M::LinearAlgebra.Symmetric{<:Union{Variable, Expression}}) =
-    LinearAlgebra.det(Matrix(M))
+LinearAlgebra.det(M::LinearAlgebra.Symmetric{<:Union{Variable, Expression}}) = LinearAlgebra.det(
+    Matrix(M)
+)
 
 function is_homogeneous(f::Expression, vars::Vector{Variable}; expanded::Bool = false)
     if !expanded
@@ -850,9 +849,7 @@ function horner(coeffs::AbstractVector, var::Variable)
 end
 
 function multivariate_horner(
-        M::AbstractMatrix,
-        coeffs::AbstractVector,
-        vars::AbstractVector{Variable},
+        M::AbstractMatrix, coeffs::AbstractVector, vars::AbstractVector{Variable}
     )
     n, m = size(M)
     if m == 1
@@ -1025,17 +1022,10 @@ struct System
     _jacobian::Ref{Union{Nothing, Matrix{Expression}}}
 
     function System(
-            exprs::Vector{Expression},
-            vars::Vector{Variable},
-            params::Vector{Variable},
+            exprs::Vector{Expression}, vars::Vector{Variable}, params::Vector{Variable}
         )
         check_vars_params(exprs, vars, params)
-        return new(
-            exprs,
-            vars,
-            params,
-            Ref{Union{Nothing, Matrix{Expression}}}(nothing),
-        )
+        return new(exprs, vars, params, Ref{Union{Nothing, Matrix{Expression}}}(nothing))
     end
 end
 
@@ -1068,9 +1058,7 @@ function System(
     return System(convert(Vector{Expression}, exprs), variables, parameters)
 end
 function System(
-        exprs::AbstractVector,
-        variables::Vector{Variable},
-        parameters::Vector{Variable},
+        exprs::AbstractVector, variables::Vector{Variable}, parameters::Vector{Variable}
     )
     return System(convert(Vector{Expression}, exprs), variables, parameters)
 end
@@ -1097,7 +1085,7 @@ function System(
             c * prod(w^MP.degree(t, v) for (v, w) in zip(variables_parameters, vars_params))
         end
     end
-    return System(G, variables = vars, parameters = params)
+    return System(G; variables = vars, parameters = params)
 end
 
 System(F::System) = F
@@ -1122,8 +1110,9 @@ function System(
     )
 end
 
-Base.hash(S::System, u::UInt64) =
-    hash(S.expressions, hash(S.variables, hash(S.parameters, u)))
+Base.hash(S::System, u::UInt64) = hash(
+    S.expressions, hash(S.variables, hash(S.parameters, u))
+)
 
 function Base.show(io::IO, F::System)
     return if !get(io, :compact, false)
@@ -1220,10 +1209,12 @@ jacobian(F, [2, 3])
  441  294
 ```
 """
-jacobian(F::System, x::AbstractVector, p::Nothing = nothing) =
-    evaluate(jacobian(F), F.variables => x)
-jacobian(F::System, x::AbstractVector, p::AbstractVector) =
-    evaluate(jacobian(F), F.variables => x, F.parameters => p)
+jacobian(F::System, x::AbstractVector, p::Nothing = nothing) = evaluate(
+    jacobian(F), F.variables => x
+)
+jacobian(F::System, x::AbstractVector, p::AbstractVector) = evaluate(
+    jacobian(F), F.variables => x, F.parameters => p
+)
 
 function Base.:(==)(F::System, G::System)
     return F.expressions == G.expressions &&
@@ -1356,18 +1347,13 @@ System of length 4
 ```
 """
 function optimize(F::System)
-    return System(
-        horner.(F.expressions, Ref(F.variables)),
-        F.variables,
-        F.parameters,
-    )
+    return System(horner.(F.expressions, Ref(F.variables)), F.variables, F.parameters)
 end
 
 
 ## Conversion from MultivariatePolynomials
 function system_with_coefficents_as_params(
-        F::AbstractVector{<:MP.AbstractPolynomial};
-        variables = MP.variables(F),
+        F::AbstractVector{<:MP.AbstractPolynomial}; variables = MP.variables(F)
     )
     vars = map(variables) do v
         name, ind = MP.name_base_indices(v)
@@ -1386,7 +1372,7 @@ function system_with_coefficents_as_params(
             c * prod(w^MP.degree(t, v) for (v, w) in zip(variables, vars))
         end
     end
-    sys = System(G, variables = vars, parameters = params)
+    sys = System(G; variables = vars, parameters = params)
     return sys, target_params
 end
 
@@ -1490,8 +1476,9 @@ function Base.show(io::IO, H::Homotopy)
     end
 end
 
-evaluate(H::Homotopy, x::AbstractVector, t) =
-    evaluate(H.expressions, H.variables => x, H.t => t)
+evaluate(H::Homotopy, x::AbstractVector, t) = evaluate(
+    H.expressions, H.variables => x, H.t => t
+)
 function evaluate(H::Homotopy, x::AbstractVector, t, p::AbstractVector)
     return evaluate(H.expressions, H.variables => x, H.t => t, H.parameters => p)
 end
@@ -1565,5 +1552,7 @@ end
 
 
 function optimize(H::Homotopy)
-    return Homotopy(horner.(H.expressions, Ref(H.variables)), H.variables, H.t, H.parameters)
+    return Homotopy(
+        horner.(H.expressions, Ref(H.variables)), H.variables, H.t, H.parameters
+    )
 end

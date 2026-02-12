@@ -82,8 +82,9 @@ _point_norm(metric, x) = metric(x, zero(x))
 
 function assign_multiplicities!(path_results::Vector{<:PathResult}, I::MultiplicityInfo)
     for (k, clusters) in I.multiplicities, cluster in clusters, vᵢ in cluster
-        path_results[vᵢ].multiplicity =
-            max(k, something(path_results[vᵢ].winding_number, 1))
+        path_results[vᵢ].multiplicity = max(
+            k, something(path_results[vᵢ].winding_number, 1)
+        )
     end
     return path_results
 end
@@ -111,11 +112,7 @@ function Result(
     multiplicity_info = MultiplicityInfo(filter(is_singular, path_results))
     assign_multiplicities!(path_results, multiplicity_info)
     return Result{PathResultT, typeof(algorithm)}(
-        path_results,
-        tracked_paths,
-        seed,
-        algorithm,
-        multiplicity_info,
+        path_results, tracked_paths, seed, algorithm, multiplicity_info
     )
 end
 
@@ -126,8 +123,9 @@ Base.getindex(r::Result, I) = getindex(r.path_results, I)
 Base.iterate(r::Result) = iterate(r.path_results)
 Base.iterate(r::Result, state) = iterate(r.path_results, state)
 Base.lastindex(r::Result) = lastindex(r.path_results)
-Base.eltype(::Type{Result{PathResultT, AlgT}}) where {PathResultT <: PathResult, AlgT <: AbstractHCAlgorithm} =
-    PathResultT
+Base.eltype(
+    ::Type{Result{PathResultT, AlgT}}
+) where {PathResultT <: PathResult, AlgT <: AbstractHCAlgorithm} = PathResultT
 Base.eltype(::Type{Result}) = PathResult
 Base.keys(r::Result) = 1:length(r.path_results)
 Base.values(r::Result) = r.path_results
@@ -138,8 +136,9 @@ algorithm(R::Result) = R.algorithm
 path_results(R::Result) = R.path_results
 path_results(R::AbstractVector{<:PathResult}) = R
 
-multiple_indicator(::AbstractResult) =
-    error("[`multiple_indicator`] Not defined for abstract results yet")
+multiple_indicator(::AbstractResult) = error(
+    "[`multiple_indicator`] Not defined for abstract results yet"
+)
 multiple_indicator(R::Result) = R.multiplicity_info.multiple_indicator
 is_multiple_result(r::PathResult, R::AbstractResult) =
     path_number(r) ∈ multiple_indicator(R)

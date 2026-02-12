@@ -7,12 +7,7 @@ function _path_cache(
     )
     solver, starts = startsolutions
     return PathSolveCache(
-        solver,
-        starts,
-        stop_early_cb,
-        show_progress,
-        threading,
-        catch_interrupt,
+        solver, starts, stop_early_cb, show_progress, threading, catch_interrupt
     )
 end
 
@@ -41,9 +36,7 @@ function _sweep_cache(
 end
 
 function _sweep_iter_cache(
-        prob::ParameterSweepProblem,
-        alg::PathTrackingAlgorithm;
-        bitmask = nothing,
+        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm; bitmask = nothing
     )
     _, starts = _sweep_solver_startsolutions(prob, alg)
     solvers = map(p -> _sweep_solver(prob, alg, p), prob.targets)
@@ -51,25 +44,23 @@ function _sweep_iter_cache(
 end
 
 function _system_startsolutions(
-        prob::SystemProblem,
-        alg::PolyhedralAlgorithm;
-        show_progress::Bool = true,
+        prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
     )
     return _system_solver_startsolutions(prob, alg; show_progress)
 end
 
 function _system_startsolutions(
-        prob::SystemProblem,
-        alg::TotalDegreeAlgorithm;
-        show_progress::Bool = true,
+        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
     )
     return _system_solver_startsolutions(prob, alg)
 end
 
-_path_startsolutions(prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm) =
-    _parameter_solver_startsolutions(prob, alg)
-_path_startsolutions(prob::HomotopyProblem, alg::PathTrackingAlgorithm) =
-    _homotopy_solver_startsolutions(prob, alg)
+_path_startsolutions(prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm) = _parameter_solver_startsolutions(
+    prob, alg
+)
+_path_startsolutions(prob::HomotopyProblem, alg::PathTrackingAlgorithm) = _homotopy_solver_startsolutions(
+    prob, alg
+)
 
 function _solve_from_init(prob, alg; kwargs...)
     return solve!(init(prob, alg; kwargs...))
@@ -110,7 +101,7 @@ function init(
         catch_interrupt::Bool = true,
     ) where {F}
     sol = _path_startsolutions(prob, alg)
-    return _path_cache( sol; stop_early_cb, show_progress, threading, catch_interrupt)
+    return _path_cache(sol; stop_early_cb, show_progress, threading, catch_interrupt)
 end
 
 function init(
@@ -151,7 +142,7 @@ function solve(
         catch_interrupt::Bool = true,
     ) where {F}
     return _solve_from_init(
-        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt,
+        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt
     )
 end
 
@@ -164,7 +155,7 @@ function solve(
         catch_interrupt::Bool = true,
     ) where {F}
     return _solve_from_init(
-        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt,
+        prob, alg; stop_early_cb, show_progress, threading, catch_interrupt
     )
 end
 
@@ -201,8 +192,9 @@ function solve!(cache::SweepSolveCache)
     )
 end
 
-solve!(cache::PathIteratorSolveCache) =
-    solve(cache.solver, cache.starts, ResultIterator; bitmask = cache.bitmask)
+solve!(cache::PathIteratorSolveCache) = solve(
+    cache.solver, cache.starts, ResultIterator; bitmask = cache.bitmask
+)
 
 function solve!(cache::SweepIteratorSolveCache)
     return map(cache.solvers) do solverᵢ

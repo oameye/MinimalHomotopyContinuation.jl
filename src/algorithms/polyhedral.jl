@@ -31,12 +31,11 @@ function PolyhedralStartSolutionsIterator(
     )
 end
 
-Base.show(io::IO, C::PolyhedralStartSolutionsIterator) =
-    print(io, "PolyhedralStartSolutionsIterator()")
+Base.show(io::IO, C::PolyhedralStartSolutionsIterator) = print(
+    io, "PolyhedralStartSolutionsIterator()"
+)
 Base.show(
-    io::IO,
-    ::MIME"application/prs.juno.inline",
-    x::PolyhedralStartSolutionsIterator,
+    io::IO, ::MIME"application/prs.juno.inline", x::PolyhedralStartSolutionsIterator
 ) = x
 Base.IteratorSize(::Type{<:PolyhedralStartSolutionsIterator}) = Base.SizeUnknown()
 Base.IteratorEltype(::Type{<:PolyhedralStartSolutionsIterator}) = Base.HasEltype()
@@ -45,7 +44,9 @@ Base.eltype(iter::PolyhedralStartSolutionsIterator) = Tuple{MixedCell, Vector{Co
 function compute_mixed_cells!(iter::PolyhedralStartSolutionsIterator)
     first_cell = iterate(iter.mixed_cells)
     if isnothing(first_cell)
-        res = MixedSubdivisions.fine_mixed_cells(iter.support; show_progress = iter.show_progress)
+        res = MixedSubdivisions.fine_mixed_cells(
+            iter.support; show_progress = iter.show_progress
+        )
         if isnothing(res) || isempty(res[1])
             throw(OverflowError("Cannot compute a start system."))
         end
@@ -253,10 +254,7 @@ function has_zero_col(A)
 end
 
 paths_to_track(f::AbstractSystem, alg::PolyhedralAlgorithm) = paths_to_track(System(f), alg)
-function paths_to_track(
-        f::System,
-        alg::PolyhedralAlgorithm,
-    )
+function paths_to_track(f::System, alg::PolyhedralAlgorithm)
     only_non_zero = alg.only_non_zero
     _validate_affine_square_system(f)
     supp, _ = support_coefficients(f)
@@ -268,8 +266,9 @@ function paths_to_track(
         MixedSubdivisions.mixed_volume(supp′)
     end
 end
-MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) =
-    paths_to_track(f, PolyhedralAlgorithm(only_torus = true))
+MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) = paths_to_track(
+    f, PolyhedralAlgorithm(only_torus = true)
+)
 
 function polyhedral(
         support::AbstractVector{<:AbstractMatrix},
@@ -282,7 +281,9 @@ function polyhedral(
         show_progress::Bool = true,
         rng::Random.AbstractRNG = Random.default_rng(),
     )
-    start_coeffs = map(c -> rand_approx_unit(length(c); rng = rng) .* LA.norm(c, Inf), target_coeffs)
+    start_coeffs = map(
+        c -> rand_approx_unit(length(c); rng = rng) .* LA.norm(c, Inf), target_coeffs
+    )
     return polyhedral(
         support,
         start_coeffs,
@@ -303,8 +304,9 @@ end
 This samples uniformly from the rectangle ``[0.9,1.1] × [0,2π]`` and transforms the sampled
 values with the map ``(r, φ) ↦ r * e^{i φ}``.
 """
-rand_approx_unit(n; rng::Random.AbstractRNG = Random.default_rng()) =
-    map(_ -> (0.9 + 0.2 * rand(rng)) * cis2pi(rand(rng)), 1:n)
+rand_approx_unit(n; rng::Random.AbstractRNG = Random.default_rng()) = map(
+    _ -> (0.9 + 0.2 * rand(rng)) * cis2pi(rand(rng)), 1:n
+)
 
 cis2pi(x) = complex(cospi(2x), sinpi(2x))
 
@@ -323,7 +325,7 @@ function polyhedral(
     size.(support, 2) == length.(start_coeffs) == length.(target_coeffs) ||
         throw(ArgumentError("Number of terms do not coincide."))
     if only_non_zero
-        min_vecs = minimum.(support, dims = 2)
+        min_vecs = minimum.(support; dims = 2)
         support = map((A, v) -> A .- v, support, min_vecs)
     elseif !all(has_zero_col, support)
         # Add 0 to each support
@@ -355,8 +357,9 @@ function polyhedral(
         q = reduce(append!, target_coeffs; init = ComplexF64[])
         CoefficientHomotopy(F, p, q)
     end
-    generic_tracker =
-        EndgameTracker(Tracker(H₂; options = tracker_options), options = endgame_options)
+    generic_tracker = EndgameTracker(
+        Tracker(H₂; options = tracker_options); options = endgame_options
+    )
 
     S = PolyhedralStartSolutionsIterator(support, start_coeffs; show_progress)
     tracker = PolyhedralTracker(toric_tracker, generic_tracker, S.support, S.lifting)
@@ -386,8 +389,9 @@ function track(
     #              problem towards 0 again (where we have more accuracy available.)
     #              And then track to 1
     # 2) Perform coefficient homotopy with possible endgame
-    min_weight, max_weight =
-        update_weights!(H, PT.support, PT.lifting, cell, min_weight = 1.0)
+    min_weight, max_weight = update_weights!(
+        H, PT.support, PT.lifting, cell; min_weight = 1.0
+    )
 
     if debug
         println("Min-Max weight: ", min_weight, ", ", max_weight)
@@ -419,8 +423,9 @@ function track(
 
         @unpack μ, ω = PT.toric_tracker.state
         if is_success(retcode)
-            min_weight, max_weight =
-                update_weights!(H, PT.support, PT.lifting, cell, max_weight = 10.0)
+            min_weight, max_weight = update_weights!(
+                H, PT.support, PT.lifting, cell; max_weight = 10.0
+            )
             t_restart = t₀^(1 / min_weight)
             # set min_step_size to 0.0 to not accidentally loose a solution
             min_step_size = PT.toric_tracker.options.min_step_size
@@ -443,7 +448,7 @@ function track(
     end
     if !is_success(retcode)
         state = PT.toric_tracker.state
-        return PathResult(
+        return PathResult(;
             return_code = PathResultCode.polyhedral_failed,
             solution = copy(state.x),
             start_solution = start_solution,

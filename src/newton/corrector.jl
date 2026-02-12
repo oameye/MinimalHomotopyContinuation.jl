@@ -113,13 +113,7 @@ function newton!(
         if isnan(norm_Δxᵢ)
             @label return_singular
             return NewtonCorrectorResult(
-                NEWT_SINGULARITY,
-                norm(Δxᵢ),
-                i + 1,
-                ω,
-                θ,
-                μ_low,
-                norm_Δx₀,
+                NEWT_SINGULARITY, norm(Δxᵢ), i + 1, ω, θ, μ_low, norm_Δx₀
             )
         end
 
@@ -131,13 +125,7 @@ function newton!(
         if i >= 1 && θ > ā || (i == 0 && !first_correction && 0.125 * norm_Δx₀ * ω > h_a)
             @label return_terminated
             return NewtonCorrectorResult(
-                NEWT_TERMINATED,
-                norm(Δxᵢ),
-                i + 1,
-                ω,
-                θ,
-                μ_low,
-                norm_Δx₀,
+                NEWT_TERMINATED, norm(Δxᵢ), i + 1, ω, θ, μ_low, norm_Δx₀
             )
         elseif ω * norm_Δxᵢ^2 < 2 * μ * sqrt(1 - 2 * h_a)
             evaluate_and_jacobian!(r, matrix(J), H, xᵢ, t)
@@ -161,13 +149,7 @@ function newton!(
             elseif norm_Δxᵢ₊₁ > √norm_Δxᵢ
                 θ = norm_Δxᵢ₊₁ / norm_Δxᵢ
                 return NewtonCorrectorResult(
-                    NEWT_TERMINATED,
-                    norm_Δxᵢ₊₁,
-                    i + 2,
-                    ω,
-                    θ,
-                    μ_low,
-                    norm_Δx₀,
+                    NEWT_TERMINATED, norm_Δxᵢ₊₁, i + 2, ω, θ, μ_low, norm_Δx₀
                 )
             end
 

@@ -38,7 +38,7 @@
                     else
                         m
                     end
-                end
+                end,
             )
         end
         evaluate!(u, F, x, p)
@@ -116,7 +116,7 @@
                     else
                         m
                     end
-                end
+                end,
             )
         end
         evaluate!(u, F, acb_x, acb_p)
@@ -162,7 +162,7 @@
                     else
                         m
                     end
-                end
+                end,
             )
             (1 - t) .* j + t^2 .* j
         end
@@ -200,8 +200,7 @@
     end
 
     @testset "$mode taylor order $K [ComplexF64]" for mode in [
-                InterpretedHomotopy,
-                CompiledHomotopy,
+                InterpretedHomotopy, CompiledHomotopy,
             ],
             K in 1:3
 

@@ -27,10 +27,7 @@ function IRStatement(op::OpType, target::Union{Symbol, IRStatementRef}, a::IRSta
     return IRStatement(op, target, (a, nothing, nothing, nothing))
 end
 function IRStatement(
-        op::OpType,
-        target::Union{Symbol, IRStatementRef},
-        a::IRStatementArg,
-        b::IRStatementArg,
+        op::OpType, target::Union{Symbol, IRStatementRef}, a::IRStatementArg, b::IRStatementArg
     )
     arity(op) == 2 || error("IRStatement has arity $(arity(op)) but called with 2 args")
     return IRStatement(op, target, (a, b, nothing, nothing))
@@ -61,8 +58,9 @@ Base.getindex(I::IRStatement, i) = I.args[i]
 
 ##  IntermediateRepresentation
 
-IntermediateRepresentation(output_dim) =
-    IntermediateRepresentation(IRStatement[], IRStatementRef[], output_dim)
+IntermediateRepresentation(output_dim) = IntermediateRepresentation(
+    IRStatement[], IRStatementRef[], output_dim
+)
 Base.length(v::IntermediateRepresentation) = length(v.statements)
 function Base.iterate(I::IntermediateRepresentation, state = nothing)
     return isnothing(state) ? iterate(I.statements) : iterate(I.statements, state)
@@ -81,7 +79,7 @@ function Base.show(io::IO, ir::IntermediateRepresentation)
             )",
         )
     end
-    return
+    return nothing
 end
 
 function Base.push!(ir::IntermediateRepresentation, x::IRStatement)
@@ -101,8 +99,9 @@ end
 
 ## Convert to IntermediateRepresentation
 
-intermediate_representation(ex::Expression; kwargs...) =
-    intermediate_representation([ex]; kwargs...)
+intermediate_representation(ex::Expression; kwargs...) = intermediate_representation(
+    [ex]; kwargs...
+)
 function intermediate_representation(
         exprs::Vector{Expression};
         output_dim = length(exprs),
@@ -174,10 +173,7 @@ function mul!(ir::IntermediateRepresentation, @nospecialize(a), @nospecialize(b)
 end
 
 function muladd!(
-        ir::IntermediateRepresentation,
-        @nospecialize(a),
-        @nospecialize(b),
-        @nospecialize(c),
+        ir::IntermediateRepresentation, @nospecialize(a), @nospecialize(b), @nospecialize(c)
     )
     (a === nothing || b === nothing) && return c
     c === nothing && return mul!(ir, a, b)
@@ -186,10 +182,7 @@ function muladd!(
     return add_op!(ir, OP_MULADD, a, b, c)
 end
 function mulsub!(
-        ir::IntermediateRepresentation,
-        @nospecialize(a),
-        @nospecialize(b),
-        @nospecialize(c),
+        ir::IntermediateRepresentation, @nospecialize(a), @nospecialize(b), @nospecialize(c)
     )
     (a === nothing || b === nothing) && return neg!(ir, c)
     c === nothing && return mul!(ir, a, b)
@@ -198,10 +191,7 @@ function mulsub!(
     return add_op!(ir, OP_MULSUB, a, b, c)
 end
 function submul!(
-        ir::IntermediateRepresentation,
-        @nospecialize(a),
-        @nospecialize(b),
-        @nospecialize(c),
+        ir::IntermediateRepresentation, @nospecialize(a), @nospecialize(b), @nospecialize(c)
     )
     # c - a * b
     (a === nothing || b === nothing) && return c

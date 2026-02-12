@@ -1,6 +1,6 @@
 using Documenter, HomotopyContinuation
 
-makedocs(
+makedocs(;
     sitename = "HomotopyContinuation.jl",
     pages = [
         "Introduction" => "index.md",
@@ -15,11 +15,11 @@ makedocs(
             "Examples" => "solve_examples.md",
         ],
     ],
-    format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true"),
+    format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"),
     strict = false,
 )
 
-deploydocs(
+deploydocs(;
     repo = "github.com/JuliaHomotopyContinuation/HomotopyContinuation.jl.git",
     push_preview = false,
 )

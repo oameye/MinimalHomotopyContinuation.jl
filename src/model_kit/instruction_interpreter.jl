@@ -31,17 +31,16 @@ function show_instructions(io::IO, I::Interpreter)
     for instr in I.sequence
         println(io, instr)
     end
-    return
+    return nothing
 end
 
 
-interpreter(::Type{T}, F::Union{System, Homotopy}; kwargs...) where {T} =
-    interpreter(Vector{T}, F; kwargs...)
+interpreter(::Type{T}, F::Union{System, Homotopy}; kwargs...) where {T} = interpreter(
+    Vector{T}, F; kwargs...
+)
 
 function interpreter(
-        ::Type{V},
-        F::Union{System, Homotopy};
-        output_dim::Integer = length(F),
+        ::Type{V}, F::Union{System, Homotopy}; output_dim::Integer = length(F)
     ) where {V <: AbstractVector}
     vars = Symbol.(variables(F))
     params = Symbol.(parameters(F))
@@ -94,9 +93,7 @@ end
 
 function jacobian_interpreter(::Type{T}, F::System, ; kwargs...) where {T}
     JF = System(
-        [F.expressions; vec(jacobian(F))],
-        variables = variables(F),
-        parameters = parameters(F),
+        [F.expressions; vec(jacobian(F))]; variables = variables(F), parameters = parameters(F)
     )
     return interpreter(T, JF; output_dim = length(F))
 end
@@ -315,20 +312,23 @@ for has_parameters in [true, false],
             end
         end
         $(
-            has_continuation_parameter ?
+            if has_continuation_parameter
                 quote
                     if !isnothing(I.sequence.continuation_parameter_index)
                         I.tape[I.sequence.continuation_parameter_index] =
-                        continuation_parameter
+                            continuation_parameter
+                    end
                 end
-                end : :()
+            else
+                :()
+            end
         )
         @inbounds for (i, k) in enumerate(vars_range)
             I.tape[k] = x[i]
         end
         @inbounds execute_instructions!(I.tape, I.sequence.instructions)
         $(
-            has_second_output ?
+            if has_second_output
                 quote
                     n = I.sequence.output_dim
                     zero!(U)
@@ -337,24 +337,27 @@ for has_parameters in [true, false],
                         for (i, k) in I.sequence.assignments
                             if i > n
                                 U[idx[i - n]] = I.tape[k]
+                            end
                         end
-                    end
-                else
+                    else
                         zero!(u)
                         for (i, k) in I.sequence.assignments
                             if i <= n
                                 u[i] = I.tape[k]
-                        else
+                            else
                                 U[idx[i - n]] = I.tape[k]
+                            end
                         end
                     end
                 end
-                end : quote
+            else
+                quote
                     @inbounds zero!(u)
                     @inbounds for (i, k) in I.sequence.assignments
                         u[i] = I.tape[k]
+                    end
                 end
-                end
+            end
         )
 
         return u
@@ -389,8 +392,7 @@ function execute_taylor_instructions_inner!_impl(K)
         ]
         map(arity2) do op
             (
-                :(op == $(op)),
-                quote
+                :(op == $(op)), quote
                     if arg₁ > constants_params_end
                         if arg₂ > constants_params_end
                             t₁, t₂ = tape[arg₁], tape[arg₂]
@@ -505,13 +507,16 @@ for has_parameters in [true, false], has_continuation_parameter in [true, false]
             end
         end
         $(
-            has_continuation_parameter ?
+            if has_continuation_parameter
                 quote
                     if !isnothing(I.sequence.continuation_parameter_index)
                         I.tape[I.sequence.continuation_parameter_index] =
-                        continuation_parameter
+                            continuation_parameter
+                    end
                 end
-                end : :()
+            else
+                :()
+            end
         )
         @inbounds for (i, k) in enumerate(vars_range)
             I.tape[k] = x[i]

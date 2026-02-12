@@ -19,12 +19,7 @@ function total_degree(
         endgame_options = EndgameOptions(),
     )
     return total_degree_variables(
-        F;
-        target_parameters,
-        gamma,
-        tracker_options,
-        endgame_options,
-        compile_mode,
+        F; target_parameters, gamma, tracker_options, endgame_options, compile_mode
     )
 end
 
@@ -68,7 +63,7 @@ function total_degree_variables(
     G = fix_parameters(G, scaling)
 
     H = StraightLineHomotopy(G, F; γ = gamma)
-    T = EndgameTracker(H, tracker_options = tracker_options, options = endgame_options)
+    T = EndgameTracker(H; tracker_options = tracker_options, options = endgame_options)
     starts = total_degree_start_solutions(D)
 
     return T, starts
@@ -83,7 +78,9 @@ function TotalDegreeStartSolutionsIterator(degrees)
     return TotalDegreeStartSolutionsIterator(degrees, iterator)
 end
 function Base.show(io::IO, iter::TotalDegreeStartSolutionsIterator)
-    return print(io, "$(length(iter)) total degree start solutions for degrees $(iter.degrees)")
+    return print(
+        io, "$(length(iter)) total degree start solutions for degrees $(iter.degrees)"
+    )
 end
 
 function Base.iterate(iter::TotalDegreeStartSolutionsIterator)
@@ -131,9 +128,9 @@ julia> collect(iter)
  [-1.0 + 1.2246467991473532e-16im, -1.0 + 1.2246467991473532e-16im]
 ```
 """
-total_degree_start_solutions(
-    degrees::AbstractVector{<:Integer},
-) = TotalDegreeStartSolutionsIterator(degrees)
+total_degree_start_solutions(degrees::AbstractVector{<:Integer}) = TotalDegreeStartSolutionsIterator(
+    degrees
+)
 
 
 function paths_to_track(f::Union{System, AbstractSystem}, ::TotalDegreeAlgorithm)::Int

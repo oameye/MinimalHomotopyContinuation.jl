@@ -21,9 +21,9 @@ function test_system_jacobian(system, symbolic_system)
     H_x = differentiate(symbolic_system.expressions, symbolic_system.variables)
 
     @test u ≈ symbolic_system(x, p) rtol = 1.0e-12
-    return @test U ≈
-        evaluate(H_x, [symbolic_system.variables; symbolic_system.parameters] => [x; p]) rtol =
-        1.0e-12
+    return @test U ≈ evaluate(
+        H_x, [symbolic_system.variables; symbolic_system.parameters] => [x; p]
+    ) rtol = 1.0e-12
 end
 
 function test_system_taylor(system, symbolic_system)
@@ -47,7 +47,7 @@ function test_system_taylor(system, symbolic_system)
         @test v ≈ true_value rtol = 1.0e-12
 
     end
-    return
+    return nothing
 end
 
 function test_system(system, symbolic_system)

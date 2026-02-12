@@ -52,8 +52,9 @@ function solve(
     )
 end
 
-solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) =
-    ResultIterator(starts, S; bitmask = bitmask)
+solve(S::Solver, starts, ::Type{ResultIterator}; bitmask = nothing) = ResultIterator(
+    starts, S; bitmask = bitmask
+)
 
 function solve(
         S::Solver,
@@ -68,27 +69,23 @@ function solve(
     progress = show_progress ? make_progress(n; delay = 0.3) : nothing
     init!(S.stats)
     return if threading
-        threaded_solve(
-            S,
-            starts,
-            progress,
-            stop_early_cb;
-            catch_interrupt = catch_interrupt,
-        )
+        threaded_solve(S, starts, progress, stop_early_cb; catch_interrupt = catch_interrupt)
     else
         serial_solve(S, starts, progress, stop_early_cb; catch_interrupt)
     end
 end
 
 track(solver::Solver, s; path_number::Union{Nothing, Int} = nothing) =
-    isnothing(path_number) ? track(solver.trackers[1], s) :
+if isnothing(path_number)
+    track(solver.trackers[1], s)
+else
     track(solver.trackers[1], s; path_number = path_number)
+end
 
 function make_progress(n::Integer; delay::Float64 = 0.0)
     desc = "Tracking $n paths... "
     barlen = min(ProgressMeter.tty_width(desc, stdout, false), 40)
-    progress =
-        ProgressMeter.Progress(n; dt = 0.2, desc, barlen, output = stdout)
+    progress = ProgressMeter.Progress(n; dt = 0.2, desc, barlen, output = stdout)
     progress.tlast += delay
     return progress
 end

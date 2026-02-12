@@ -4,10 +4,7 @@
 Construct either a [`CompiledHomotopy`](@ref), an [`InterpretedHomotopy`](@ref) or a
 [`MixedHomotopy`](@ref) based on `compile_mode`.
 """
-function fixed(
-        H::Homotopy;
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-    )
+function fixed(H::Homotopy; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE)
     return fixed(H, compile_mode)
 end
 
@@ -25,5 +22,6 @@ get_solution(H::AbstractHomotopy, x::AbstractVector, t) = copy(x)
 start_parameters!(H::AbstractHomotopy, p) = H
 target_parameters!(H::AbstractHomotopy, p) = H
 
-ModelKit.taylor!(u, v::Val, H::AbstractHomotopy, tx, t, incremental::Bool) =
-    taylor!(u, v, H, tx, t)
+ModelKit.taylor!(u, v::Val, H::AbstractHomotopy, tx, t, incremental::Bool) = taylor!(
+    u, v, H, tx, t
+)

@@ -1,7 +1,5 @@
 @testset "test operations against taylor operations (N=$N, K=$K)" for (K, N) in [
-        (3, 4),
-        (3, 2),
-        (2, 1),
+        (3, 4), (3, 2), (2, 1),
     ]
     @var x[0:5] y[0:5] z[0:5] w[0:5]
 
@@ -23,8 +21,8 @@
             taylor_res = taylor_op_f(val, args...)
             expected_res = ModelKit.TruncatedTaylorSeries(
                 [
-                    normalized_taylor_term(op_f(ModelKit.expression.(args)...), k)
-                        for k in 0:K
+                    normalized_taylor_term(op_f(ModelKit.expression.(args)...), k) for
+                        k in 0:K
                 ]
             )
             (expand.(taylor_res), expand.(expected_res))

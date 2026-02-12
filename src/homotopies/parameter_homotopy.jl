@@ -18,9 +18,7 @@ struct ParameterHomotopy{T <: AbstractSystem} <: AbstractHomotopy
 end
 
 function ParameterHomotopy(
-        F;
-        start_parameters::AbstractVector,
-        target_parameters::AbstractVector,
+        F; start_parameters::AbstractVector, target_parameters::AbstractVector
     )
     return ParameterHomotopy(F, start_parameters, target_parameters)
 end

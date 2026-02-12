@@ -1,9 +1,9 @@
 module NewtonCode
-@enum codes begin
-    success
-    rejected
-    max_iters
-end
+    @enum codes begin
+        success
+        rejected
+        max_iters
+    end
 end
 
 """
@@ -186,21 +186,11 @@ function newton(
                 a *= a
             elseif i > min_contraction_iters || norm_Δxᵢ < max(atol, rtol * norm_x)
                 return NewtonResult(
-                    NewtonCode.success,
-                    x,
-                    norm_Δxᵢ,
-                    norm(r),
-                    i,
-                    norm_Δxᵢ / norm_Δxᵢ₋₁,
+                    NewtonCode.success, x, norm_Δxᵢ, norm(r), i, norm_Δxᵢ / norm_Δxᵢ₋₁
                 )
             else
                 return NewtonResult(
-                    NewtonCode.rejected,
-                    x,
-                    norm_Δxᵢ,
-                    norm(r),
-                    i,
-                    norm_Δxᵢ / norm_Δxᵢ₋₁,
+                    NewtonCode.rejected, x, norm_Δxᵢ, norm(r), i, norm_Δxᵢ / norm_Δxᵢ₋₁
                 )
             end
         elseif i == 1 && (
@@ -213,11 +203,6 @@ function newton(
         end
     end
     return NewtonResult(
-        NewtonCode.max_iters,
-        x,
-        norm_Δxᵢ,
-        norm(r),
-        max_iters,
-        norm_Δxᵢ / norm_Δxᵢ₋₁,
+        NewtonCode.max_iters, x, norm_Δxᵢ, norm(r), max_iters, norm_Δxᵢ / norm_Δxᵢ₋₁
     )
 end

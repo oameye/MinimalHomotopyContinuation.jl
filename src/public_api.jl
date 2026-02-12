@@ -15,10 +15,7 @@ export AbstractHCAlgorithm,
     FlatMapReducer
 
 export AbstractHCProblem,
-    SystemProblem,
-    ParameterHomotopyProblem,
-    ParameterSweepProblem,
-    HomotopyProblem
+    SystemProblem, ParameterHomotopyProblem, ParameterSweepProblem, HomotopyProblem
 
 export init, solve, solve!, paths_to_track
 
@@ -70,4 +67,3 @@ export PathResult,
     is_singular,
     is_nonsingular,
     is_real
-

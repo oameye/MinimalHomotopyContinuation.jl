@@ -56,13 +56,7 @@ end
 function evaluate!(u, H::InterpretedHomotopy, x, t, p = nothing)
     return execute!(u, H.eval_ComplexF64, x, t, p)
 end
-function evaluate!(
-        u,
-        H::InterpretedHomotopy,
-        x::AbstractVector{ComplexDF64},
-        t,
-        p = nothing,
-    )
+function evaluate!(u, H::InterpretedHomotopy, x::AbstractVector{ComplexDF64}, t, p = nothing)
     return execute!(u, H.eval_ComplexDF64, x, t, p)
 end
 
@@ -247,11 +241,21 @@ function (H::InterpretedHomotopy)(x::AbstractArray{<:Union{Acb, AcbRef}}, t, p =
     evaluate!(u, H, x, t, p)
     return u
 end
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) =
-    InterpretedHomotopy(H)(x, t, p)
-(H::Homotopy)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, t, p = nothing) =
-    InterpretedHomotopy(H)(x, t, p)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::Nothing = nothing) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractVector) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractVector{<:Union{Acb, AcbRef}}, t, p::AbstractArray) = InterpretedHomotopy(
+    H
+)(
+    x, t, p
+)
+(H::Homotopy)(x::AbstractMatrix{<:Union{Acb, AcbRef}}, t, p = nothing) = InterpretedHomotopy(H)(
+    x, t, p
+)

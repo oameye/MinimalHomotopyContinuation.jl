@@ -5,8 +5,11 @@ struct SystemProblem{SystemT, TargetT} <: AbstractHCProblem
     target_parameters::TargetT
 end
 
-SystemProblem(F::Union{System, AbstractSystem}; target_parameters = nothing) =
-    SystemProblem{typeof(F), typeof(target_parameters)}(F, target_parameters)
+SystemProblem(F::Union{System, AbstractSystem}; target_parameters = nothing) = SystemProblem{
+    typeof(F), typeof(target_parameters),
+}(
+    F, target_parameters
+)
 
 struct ParameterHomotopyProblem{SystemT, StartsT, PStartT, PTargetT} <: AbstractHCProblem
     system::SystemT
@@ -15,20 +18,10 @@ struct ParameterHomotopyProblem{SystemT, StartsT, PStartT, PTargetT} <: Abstract
     target_parameters::PTargetT
 end
 
-ParameterHomotopyProblem(
-    F::Union{System, AbstractSystem},
-    start_solutions;
-    start_parameters,
-    target_parameters,
-) =
-    ParameterHomotopyProblem{
-    typeof(F), typeof(start_solutions),
-    typeof(start_parameters), typeof(target_parameters),
+ParameterHomotopyProblem(F::Union{System, AbstractSystem}, start_solutions; start_parameters, target_parameters) = ParameterHomotopyProblem{
+    typeof(F), typeof(start_solutions), typeof(start_parameters), typeof(target_parameters),
 }(
-    F,
-    start_solutions,
-    start_parameters,
-    target_parameters,
+    F, start_solutions, start_parameters, target_parameters
 )
 
 struct ParameterSweepProblem{SystemT, StartsT, PStartT, TargetsT, ReducerT} <: AbstractHCProblem
@@ -53,11 +46,7 @@ function ParameterSweepProblem(
         typeof(targets),
         typeof(reducer),
     }(
-        F,
-        start_solutions,
-        start_parameters,
-        targets,
-        reducer,
+        F, start_solutions, start_parameters, targets, reducer
     )
 end
 
@@ -66,5 +55,8 @@ struct HomotopyProblem{HomotopyT, StartsT} <: AbstractHCProblem
     start_solutions::StartsT
 end
 
-HomotopyProblem(H::Union{Homotopy, AbstractHomotopy}, starts) =
-    HomotopyProblem{typeof(H), typeof(starts)}(H, starts)
+HomotopyProblem(H::Union{Homotopy, AbstractHomotopy}, starts) = HomotopyProblem{
+    typeof(H), typeof(starts),
+}(
+    H, starts
+)

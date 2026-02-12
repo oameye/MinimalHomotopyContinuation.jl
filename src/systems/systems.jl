@@ -6,10 +6,7 @@ export fixed
 Construct either a [`CompiledSystem`](@ref), an [`InterpretedSystem`](@ref) or a
 [`MixedSystem`](@ref) based on `compile_mode`.
 """
-function fixed(
-        F::System;
-        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-    )
+function fixed(F::System; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE)
     return fixed(F, compile_mode)
 end
 

@@ -41,14 +41,7 @@ end
 @testset "ExplicitImports" begin
     using ExplicitImports
 
-    non_public_explicit_imports = (
-        :init,
-        :MPFR,
-        :MPFRRoundingMode,
-        :MPZ,
-        :solve,
-        :solve!,
-    )
+    non_public_explicit_imports = (:init, :MPFR, :MPFRRoundingMode, :MPZ, :solve, :solve!)
     non_public_qualified_accesses = (
         HomotopyContinuation.ModelKit,
         HomotopyContinuation.DoubleDouble,
@@ -85,14 +78,12 @@ end
     @test check_no_implicit_imports(HomotopyContinuation) == nothing
     @test check_all_explicit_imports_via_owners(HomotopyContinuation) == nothing
     @test check_all_explicit_imports_are_public(
-        HomotopyContinuation;
-        ignore = non_public_explicit_imports,
+        HomotopyContinuation; ignore = non_public_explicit_imports
     ) == nothing
     @test check_no_stale_explicit_imports(HomotopyContinuation) == nothing
     @test check_all_qualified_accesses_via_owners(HomotopyContinuation) == nothing
     @test check_all_qualified_accesses_are_public(
-        HomotopyContinuation;
-        ignore = non_public_qualified_accesses,
+        HomotopyContinuation; ignore = non_public_qualified_accesses
     ) == nothing
     @test check_no_self_qualified_accesses(HomotopyContinuation) == nothing
 end
@@ -104,7 +95,14 @@ end
 
 @testset "Code linting" begin
     using JET
-    JET.test_package(HomotopyContinuation; target_modules = (HomotopyContinuation, HomotopyContinuation.ModelKit, HomotopyContinuation.DoubleDouble))
+    JET.test_package(
+        HomotopyContinuation;
+        target_modules = (
+            HomotopyContinuation,
+            HomotopyContinuation.ModelKit,
+            HomotopyContinuation.DoubleDouble,
+        ),
+    )
 end
 
 

@@ -11,15 +11,16 @@ Base.length(x::TruncatedTaylorSeries) = length(x.val)
 Base.iterate(x::TruncatedTaylorSeries{N, T}) where {N, T} = iterate(x.val)
 Base.iterate(x::TruncatedTaylorSeries{N, T}, s) where {N, T} = iterate(x.val, s)
 Base.getindex(x::TruncatedTaylorSeries{N, T}, k) where {N, T} = getindex(x.val, k + 1)
-Base.zero(::TruncatedTaylorSeries{N, T}) where {N, T} =
-    convert(TruncatedTaylorSeries{N, T}, zero(T))
-Base.zero(::Type{TruncatedTaylorSeries{N, T}}) where {N, T} =
-    convert(TruncatedTaylorSeries{N, T}, zero(T))
+Base.zero(::TruncatedTaylorSeries{N, T}) where {N, T} = convert(
+    TruncatedTaylorSeries{N, T}, zero(T)
+)
+Base.zero(::Type{TruncatedTaylorSeries{N, T}}) where {N, T} = convert(
+    TruncatedTaylorSeries{N, T}, zero(T)
+)
 Base.:(==)(tx::TruncatedTaylorSeries, ty::TruncatedTaylorSeries) = tx.val == ty.val
 
 function Base.convert(
-        ::Type{TruncatedTaylorSeries{N, T}},
-        x::TruncatedTaylorSeries{K1, T1},
+        ::Type{TruncatedTaylorSeries{N, T}}, x::TruncatedTaylorSeries{K1, T1}
     ) where {N, T, K1, T1}
     return TruncatedTaylorSeries(
         ntuple(Val(N)) do i
@@ -28,7 +29,7 @@ function Base.convert(
             else
                 zero(T)
             end
-        end
+        end,
     )
 end
 function Base.convert(::Type{TruncatedTaylorSeries{N, T}}, x::T1) where {N, T, T1 <: Number}
@@ -39,7 +40,7 @@ function Base.convert(::Type{TruncatedTaylorSeries{N, T}}, x::T1) where {N, T, T
             else
                 zero(T)
             end
-        end
+        end,
     )
 end
 function Base.convert(::Type{TruncatedTaylorSeries{N, T}}, x::Tuple) where {N, T}
@@ -71,13 +72,14 @@ end
 TaylorVector{N}(data::Matrix{T}) where {N, T} = TaylorVector{N, T}(data)
 TaylorVector{N}(TV::TaylorVector{M, T}) where {N, M, T} = TaylorVector{N, T}(TV.data)
 TaylorVector{N}(T, n::Integer) where {N} = TaylorVector{N}(zeros(T, N, n))
-TaylorVector{N, T}(::UndefInitializer, dims::Tuple{Int}) where {N, T} =
-    TaylorVector{N, T}(similar(Matrix{T}, N, dims[1]))
+TaylorVector{N, T}(::UndefInitializer, dims::Tuple{Int}) where {N, T} = TaylorVector{N, T}(
+    similar(Matrix{T}, N, dims[1])
+)
 
 
 function Base.show(io::IO, ::MIME"text/plain", X::TaylorVector)
     summary(io, X)
-    isempty(X) && return
+    isempty(X) && return nothing
     println(io, ":")
     return Base.print_array(io, map(i -> X[i], 1:length(X)))
 end
@@ -111,9 +113,7 @@ function Base.setindex!(TV::TaylorVector{N, T}, x, i::Integer) where {N, T}
     return setindex!(TV, convert(TruncatedTaylorSeries{N, T}, x), i)
 end
 @generated function Base.setindex!(
-        TV::TaylorVector{N, T},
-        x::TruncatedTaylorSeries{N, T},
-        i::Integer,
+        TV::TaylorVector{N, T}, x::TruncatedTaylorSeries{N, T}, i::Integer
     ) where {N, T}
     return quote
         Base.@_propagate_inbounds_meta
@@ -240,15 +240,18 @@ truncated_taylor_series(t::T) where {T <: TruncatedTaylorSeries} = t
 for op in instances(OpType)
     f = taylor_op_call(op)
     if arity(op) === 1
-        @eval @inline $(f)(::Val{K}, x::X) where {K, X} =
-            $f(Val(K), truncated_taylor_series(x))
+        @eval @inline $(f)(::Val{K}, x::X) where {K, X} = $f(
+            Val(K), truncated_taylor_series(x)
+        )
     elseif arity(op) == 2
         if op == OP_POW_INT
-            @eval $f(::Val{K}, x::X, r::Integer) where {K, X} =
-                $f(Val(K), truncated_taylor_series(x), r)
+            @eval $f(::Val{K}, x::X, r::Integer) where {K, X} = $f(
+                Val(K), truncated_taylor_series(x), r
+            )
         else
-            @eval $f(::Val{K}, x::X, y::Y) where {K, X, Y} =
-                $f(Val(K), truncated_taylor_series(x), truncated_taylor_series(y))
+            @eval $f(::Val{K}, x::X, y::Y) where {K, X, Y} = $f(
+                Val(K), truncated_taylor_series(x), truncated_taylor_series(y)
+            )
         end
     elseif arity(op) == 3
         @eval @inline $f(::Val{K}, x::X, y::Y, z::Z) where {K, X, Y, Z} = $f(
@@ -284,8 +287,9 @@ function taylor_sin_helper!(list::IntermediateRepresentation, D::DiffMap, k)
     k == 0 && return :s₀
     s_k = nothing
     for j in 1:k
-        s_k =
-            muladd!(list, mul!(list, j, D[:x, j]), taylor_cos_helper!(list, D, k - j), s_k)
+        s_k = muladd!(
+            list, mul!(list, j, D[:x, j]), taylor_cos_helper!(list, D, k - j), s_k
+        )
     end
     return div!(list, s_k, k)
 end
@@ -293,8 +297,9 @@ function taylor_cos_helper!(list::IntermediateRepresentation, D::DiffMap, k)
     k == 0 && return :c₀
     c_k = nothing
     for j in 1:k
-        c_k =
-            submul!(list, mul!(list, j, D[:x, j]), taylor_sin_helper!(list, D, k - j), c_k)
+        c_k = submul!(
+            list, mul!(list, j, D[:x, j]), taylor_sin_helper!(list, D, k - j), c_k
+        )
     end
     return div!(list, c_k, k)
 end
@@ -425,9 +430,7 @@ end
 #
 # OP_ADD # a + b
 @generated function taylor_op_add(
-        ::Val{K},
-        x::TruncatedTaylorSeries{M},
-        y::TruncatedTaylorSeries{N},
+        ::Val{K}, x::TruncatedTaylorSeries{M}, y::TruncatedTaylorSeries{N}
     ) where {K, M, N}
     return taylor_impl(K, M - 1, N - 1) do list, D
         [add!(list, D[:x, k], D[:y, k]) for k in 0:K]
@@ -435,9 +438,7 @@ end
 end
 # OP_DIV # a / b
 @generated function taylor_op_div(
-        ::Val{K},
-        x::TruncatedTaylorSeries{M},
-        y::TruncatedTaylorSeries{N},
+        ::Val{K}, x::TruncatedTaylorSeries{M}, y::TruncatedTaylorSeries{N}
     ) where {K, M, N}
     return taylor_impl(K, M - 1, N - 1) do list, D
         ids = []
@@ -453,9 +454,7 @@ end
 end
 # OP_MUL # a * b
 @generated function taylor_op_mul(
-        ::Val{K},
-        x::TruncatedTaylorSeries{M},
-        y::TruncatedTaylorSeries{N},
+        ::Val{K}, x::TruncatedTaylorSeries{M}, y::TruncatedTaylorSeries{N}
     ) where {K, M, N}
     return taylor_impl(K, M - 1, N - 1) do list, D
         map(0:K) do k
@@ -469,9 +468,7 @@ end
 end
 # OP_SUB # a - b
 @generated function taylor_op_sub(
-        ::Val{K},
-        x::TruncatedTaylorSeries{M},
-        y::TruncatedTaylorSeries{N},
+        ::Val{K}, x::TruncatedTaylorSeries{M}, y::TruncatedTaylorSeries{N}
     ) where {K, M, N}
     return taylor_impl(K, M - 1, N - 1) do list, D
         [sub!(list, D[:x, k], D[:y, k]) for k in 0:K]
@@ -517,9 +514,7 @@ function taylor_op_pow_int_impl(K, dx)
     end
 end
 @generated function taylor_op_pow_int(
-        ::Val{K},
-        x::TruncatedTaylorSeries{M, T},
-        r::I,
+        ::Val{K}, x::TruncatedTaylorSeries{M, T}, r::I
     ) where {K, M, T, I <: Integer}
     return taylor_op_pow_int_impl(K, M - 1)
 end

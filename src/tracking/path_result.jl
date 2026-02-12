@@ -1,22 +1,22 @@
 module PathResultCode
-@enum codes begin
-    tracking
-    success
-    at_infinity
-    at_zero
-    terminated_accuracy_limit
-    terminated_invalid_startvalue
-    terminated_invalid_startvalue_singular_jacobian
-    terminated_ill_conditioned
-    terminated_max_steps
-    terminated_max_extended_steps
-    terminated_max_winding_number
-    terminated_step_size_too_small
-    terminated_unknown
-    post_check_failed
-    excess_solution
-    polyhedral_failed
-end
+    @enum codes begin
+        tracking
+        success
+        at_infinity
+        at_zero
+        terminated_accuracy_limit
+        terminated_invalid_startvalue
+        terminated_invalid_startvalue_singular_jacobian
+        terminated_ill_conditioned
+        terminated_max_steps
+        terminated_max_extended_steps
+        terminated_max_winding_number
+        terminated_step_size_too_small
+        terminated_unknown
+        post_check_failed
+        excess_solution
+        polyhedral_failed
+    end
 end
 
 Base.Symbol(code::PathResultCode.codes) = Symbol(string(code))
@@ -114,7 +114,7 @@ function Base.show(io::IO, r::PathResult)
     for f in [:extended_precision, :path_number]
         print_fieldname(io, r, f)
     end
-    return
+    return nothing
 end
 
 
@@ -276,11 +276,7 @@ We consider a result as `real` if either:
 - the infinity-norm of the imaginary part of the solution is less than `atol`
 - the infinity-norm of the imaginary part of the solution is less than `rtol * norm(s, 1)`, where s is the solution in `PathResult`.
 """
-function is_real(
-        r::PathResult;
-        atol::Float64 = 1.0e-6,
-        rtol::Float64 = 0.0,
-    )
+function is_real(r::PathResult; atol::Float64 = 1.0e-6, rtol::Float64 = 0.0)
     m = maximum(abs ∘ imag, r.solution)
     m < atol && return true
     iszero(rtol) && return false

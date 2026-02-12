@@ -9,14 +9,13 @@ struct ResultIterator{Iter, SolverT <: AbstractSolver} <: AbstractResult
     bitmask::Union{BitVector, Nothing}
 end
 function ResultIterator(
-        starts::Iter,
-        S::SolverT;
-        bitmask = nothing,
+        starts::Iter, S::SolverT; bitmask = nothing
     ) where {Iter, SolverT <: AbstractSolver}
     return ResultIterator{Iter, SolverT}(starts, S, bitmask)
 end
-ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask = nothing) where {SolverT <: AbstractSolver} =
-    ResultIterator([starts], S; bitmask = bitmask)
+ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask = nothing) where {SolverT <: AbstractSolver} = ResultIterator(
+    [starts], S; bitmask = bitmask
+)
 
 seed(ri::ResultIterator) = ri.S.seed
 
@@ -110,7 +109,7 @@ function trace(iter::ResultIterator)
     return mapreduce(
         x -> isfinite(x) ? solution(x) : zeros(ComplexF64, length(s)),
         +,
-        iter,
+        iter;
         init = 0.0 .* s,
     )
 end

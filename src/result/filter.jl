@@ -13,11 +13,7 @@ Base.@kwdef struct ResultStatistics
 end
 Base.show(io::IO, stats::ResultStatistics) = print_fieldnames(io, stats)
 
-function ResultStatistics(
-        result::Result;
-        real_atol::Float64 = 1.0e-6,
-        real_rtol::Float64 = 0.0,
-    )
+function ResultStatistics(result::Result; real_atol::Float64 = 1.0e-6, real_rtol::Float64 = 0.0)
     failed = at_infinity = excess_solution = 0
     nonsingular = singular = real_nonsingular = real_singular = 0
     singular_with_multiplicity = real_singular_with_multiplicity = 0
@@ -43,7 +39,7 @@ function ResultStatistics(
             nonsingular += 1
         end
     end
-    return ResultStatistics(
+    return ResultStatistics(;
         nonsingular = nonsingular,
         singular = singular,
         singular_with_multiplicity = singular_with_multiplicity,
@@ -251,22 +247,15 @@ function nresults(
     )
 end
 
-solutions(result::AbstractResults; only_nonsingular = true, kwargs...) =
-    results(solution, result; only_nonsingular = only_nonsingular, kwargs...)
+solutions(result::AbstractResults; only_nonsingular = true, kwargs...) = results(
+    solution, result; only_nonsingular = only_nonsingular, kwargs...
+)
 
 function real_solutions(
-        result::AbstractResults;
-        atol::Float64 = 1.0e-6,
-        rtol::Float64 = 0.0,
-        kwargs...,
+        result::AbstractResults; atol::Float64 = 1.0e-6, rtol::Float64 = 0.0, kwargs...
     )
     return results(
-        real ∘ solution,
-        result;
-        only_real = true,
-        real_atol = atol,
-        real_rtol = rtol,
-        kwargs...,
+        real ∘ solution, result; only_real = true, real_atol = atol, real_rtol = rtol, kwargs...
     )
 end
 
@@ -282,8 +271,9 @@ failed(R::Results) = filter(is_failed, path_results(R))
 
 at_infinity(R::Results) = filter(is_at_infinity, path_results(R))
 
-nsolutions(R::AbstractResults; only_nonsingular = true, options...) =
-    nresults(R; only_nonsingular = only_nonsingular, options...)
+nsolutions(R::AbstractResults; only_nonsingular = true, options...) = nresults(
+    R; only_nonsingular = only_nonsingular, options...
+)
 
 nfinite(R::AbstractResults; kwargs...) = nresults(R; only_finite = true, kwargs...)
 
@@ -304,8 +294,9 @@ nfailed(R::AbstractResults) = count(is_failed, R)
 nnonsingular(R::AbstractResults) = count(is_nonsingular, R)
 
 nreal(R::Results; kwargs...) = nresults(R, only_real = true, kwargs...)
-nreal(R::AbstractResult; kwargs...) =
-    nresults(R, only_real = true, multiple_results = true, kwargs...)
+nreal(R::AbstractResult; kwargs...) = nresults(
+    R, only_real = true, multiple_results = true, kwargs...
+)
 
 ntracked(R::AbstractResult) = length(R)
 ntracked(R::Result) = R.tracked_paths

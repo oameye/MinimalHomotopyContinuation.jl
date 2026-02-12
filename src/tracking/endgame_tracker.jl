@@ -350,8 +350,9 @@ function step!(endgame_tracker::EndgameTracker, debug::Bool = false)
         if all(!isnan, state.solution) &&
                 !isnothing(state.winding_number) &&
                 state.accuracy < options.singular_min_accuracy
-            state.cond =
-                LA.cond(tracker, state.solution, 0.0, state.row_scaling, state.col_scaling)
+            state.cond = LA.cond(
+                tracker, state.solution, 0.0, state.row_scaling, state.col_scaling
+            )
             state.singular = true
             return (state.code = EndgameTrackerCode.success)
         end
@@ -415,12 +416,13 @@ function check_finite!(state, options)
     is_finite(
         state.val;
         finite_tol = options.val_finite_tol,
-        zero_is_finite = !options.zero_is_at_infinity,
+        zero_is_finite = (!options.zero_is_at_infinity),
         max_winding_number = options.max_winding_number,
     ) || return false
 
-    m, merr =
-        estimate_winding_number(state.val; max_winding_number = options.max_winding_number)
+    m, merr = estimate_winding_number(
+        state.val; max_winding_number = options.max_winding_number
+    )
     if merr < options.val_finite_tol
         if m == 1 && !first(state.jump_to_zero_failed)
             return false
@@ -440,7 +442,7 @@ function check_at_infinity!(state, tracker, options; debug::Bool = false)
         state.at_infinity_tols,
         state.val;
         finite_tol = options.val_finite_tol,
-        zero_is_finite = !options.zero_is_at_infinity,
+        zero_is_finite = (!options.zero_is_at_infinity),
     )
     κ = NaN
     t = real(tracker.state.t)
@@ -470,9 +472,7 @@ function check_at_infinity!(state, tracker, options; debug::Bool = false)
             else
                 if isnan(κ)
                     κ = LA.cond(
-                        tracker.state.jacobian,
-                        state.row_scaling,
-                        state.col_scaling,
+                        tracker.state.jacobian, state.row_scaling, state.col_scaling
                     )
                 end
                 vᵢ = state.val.val_x[i]
@@ -492,8 +492,10 @@ function check_at_infinity!(state, tracker, options; debug::Bool = false)
                     @show κ, cond_growth, δt, log(cond_growth / δt)
                 end
 
-                if coord_growth > clamp(0.25^(4vᵢ), 20, options.min_coord_growth) &&
-                        (cond_growth > options.min_cond_growth || κ > max(1.0e8, options.min_cond))
+                if coord_growth > clamp(0.25^(4vᵢ), 20, options.min_coord_growth) && (
+                        cond_growth > options.min_cond_growth ||
+                            κ > max(1.0e8, options.min_cond)
+                    )
                     if at_zero
                         state.code = EndgameTrackerCode.at_zero
                     else
@@ -581,8 +583,9 @@ function singular_endgame_step!(endgame_tracker::EndgameTracker, debug::Bool = f
     debug && println(state.val)
     # check that the valuation still is finite and that the winding number estimate
     # matches
-    m̂, m̂_err =
-        estimate_winding_number(state.val; max_winding_number = options.max_winding_number)
+    m̂, m̂_err = estimate_winding_number(
+        state.val; max_winding_number = options.max_winding_number
+    )
     if m̂ != state.winding_number || m̂_err > 0.1
         # if !check_finite!(state, options)
         debug && printstyled("SWITCH TO REGULAR"; color = :yellow, bold = true)
@@ -724,8 +727,9 @@ function tracking_stopped!(endgame_tracker::EndgameTracker)
             state.col_scaling,
             options.scaling_threshold,
         )
-        state.cond =
-            LA.cond(tracker, state.solution, 0.0, state.row_scaling, state.col_scaling)
+        state.cond = LA.cond(
+            tracker, state.solution, 0.0, state.row_scaling, state.col_scaling
+        )
         state.singular =
             state.cond > options.sing_cond || state.accuracy > options.sing_accuracy
         # if !isnothing(state.winding_number)
@@ -733,7 +737,6 @@ function tracking_stopped!(endgame_tracker::EndgameTracker)
         # end
     end
 end
-
 
 
 """
@@ -753,14 +756,14 @@ target_parameters!(T::EndgameTracker, p) = (target_parameters!(T.tracker, p); T)
 parameters!(T::EndgameTracker, p, q) = (parameters!(T.tracker, p, q); T)
 
 function solution(endgame_tracker::EndgameTracker)
-    return get_solution(endgame_tracker.tracker.homotopy, endgame_tracker.state.solution, 0.0)
+    return get_solution(
+        endgame_tracker.tracker.homotopy, endgame_tracker.state.solution, 0.0
+    )
 end
 
 
 function PathResult(
-        endgame_tracker::EndgameTracker,
-        start_solution = nothing,
-        path_number = nothing,
+        endgame_tracker::EndgameTracker, start_solution = nothing, path_number = nothing
     )
     @unpack tracker, state, options = endgame_tracker
     H = tracker.homotopy
@@ -777,7 +780,7 @@ function PathResult(
         residual = LA.norm(tracker.corrector.r, InfNorm())
     end
 
-    return PathResult(
+    return PathResult(;
         return_code = convert(PathResultCode.codes, state.code),
         solution = solution,
         t = t,
@@ -824,13 +827,7 @@ function track(
         debug::Bool = false,
     )
     track!(
-        endgame_tracker,
-        x,
-        t₁;
-        ω = ω,
-        μ = μ,
-        extended_precision = extended_precision,
-        debug = debug,
+        endgame_tracker, x, t₁; ω = ω, μ = μ, extended_precision = extended_precision, debug = debug
     )
     return PathResult(endgame_tracker, start_solution, path_number)
 end

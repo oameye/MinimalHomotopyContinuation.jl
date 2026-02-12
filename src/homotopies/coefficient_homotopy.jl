@@ -24,9 +24,7 @@ struct CoefficientHomotopy{T <: AbstractSystem} <: AbstractHomotopy
 end
 
 function CoefficientHomotopy(
-        F;
-        start_coefficients::AbstractVector,
-        target_coefficients::AbstractVector,
+        F; start_coefficients::AbstractVector, target_coefficients::AbstractVector
     )
     return CoefficientHomotopy(F, start_coefficients, target_coefficients)
 end
@@ -37,24 +35,20 @@ function CoefficientHomotopy(
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
     )
     @assert length(start_coeffs) == length(target_coeffs) == length(F.parameters)
-    return CoefficientHomotopy(fixed(F; compile_mode = compile_mode), start_coeffs, target_coeffs)
+    return CoefficientHomotopy(
+        fixed(F; compile_mode = compile_mode), start_coeffs, target_coeffs
+    )
 end
 function CoefficientHomotopy(
-        F::AbstractSystem,
-        start_coeffs::AbstractVector,
-        target_coeffs::AbstractVector,
+        F::AbstractSystem, start_coeffs::AbstractVector, target_coeffs::AbstractVector
     )
     return CoefficientHomotopy(
-        F,
-        Vector{ComplexF64}(start_coeffs),
-        Vector{ComplexF64}(target_coeffs),
+        F, Vector{ComplexF64}(start_coeffs), Vector{ComplexF64}(target_coeffs)
     )
 end
 
 function CoefficientHomotopy(
-        F::AbstractSystem,
-        start_coeffs::Vector{ComplexF64},
-        target_coeffs::Vector{ComplexF64},
+        F::AbstractSystem, start_coeffs::Vector{ComplexF64}, target_coeffs::Vector{ComplexF64}
     )
     m = length(target_coeffs)
     @assert length(start_coeffs) == m

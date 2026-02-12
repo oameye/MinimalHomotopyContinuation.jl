@@ -62,12 +62,15 @@ Base.size(MW::MatrixWorkspace) = size(MW.A)
 
 import Base: @propagate_inbounds
 @propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer) = getindex(MW.A, i)
-@propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer, j::Integer) =
-    getindex(MW.A, i, j)
-@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer) =
-    setindex!(MW.A, x, i)
-@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer, j::Integer) =
-    setindex!(MW.A, x, i, j)
+@propagate_inbounds Base.getindex(MW::MatrixWorkspace, i::Integer, j::Integer) = getindex(
+    MW.A, i, j
+)
+@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer) = setindex!(
+    MW.A, x, i
+)
+@propagate_inbounds Base.setindex!(MW::MatrixWorkspace, x, i::Integer, j::Integer) = setindex!(
+    MW.A, x, i, j
+)
 
 matrix(M::MatrixWorkspace) = M.A
 matrix(M::AbstractMatrix) = M
@@ -120,8 +123,7 @@ end
 #    the pivot vector anymore and also avoid the allocations
 #    coming from the LU wrapper
 function lu!(
-        A::AbstractMatrix{T},
-        ipiv::Union{Nothing, AbstractVector{<:Integer}} = nothing,
+        A::AbstractMatrix{T}, ipiv::Union{Nothing, AbstractVector{<:Integer}} = nothing
     ) where {T}
     m, n = size(A)
     minmn = min(m, n)
@@ -258,8 +260,9 @@ end
 ## ldiv ##
 ##########
 @inline _ipiv!(A::LA.LU, b::AbstractVector) = apply_ipiv!(b, 1:length(A.ipiv), A.ipiv)
-@inline _inverse_ipiv!(A::LA.LU, b::StridedVecOrMat) =
-    apply_ipiv!(b, length(A.ipiv):-1:1, A.ipiv)
+@inline _inverse_ipiv!(A::LA.LU, b::StridedVecOrMat) = apply_ipiv!(
+    b, length(A.ipiv):-1:1, A.ipiv
+)
 @inline function apply_ipiv!(b::AbstractVector, range::OrdinalRange, ipiv)
     @inbounds for i in range
         if i != ipiv[i]
@@ -284,11 +287,7 @@ end
     end
     return b
 end
-@inline function ldiv_unit_lower!(
-        A::AbstractMatrix,
-        b::AbstractVector,
-        x::AbstractVector = b,
-    )
+@inline function ldiv_unit_lower!(A::AbstractMatrix, b::AbstractVector, x::AbstractVector = b)
     n = size(A, 2)
     @inbounds for j in 1:n
         xj = x[j] = b[j]
@@ -816,11 +815,7 @@ end
 solve the linear system `matrix(J)x̂=b`.
 """
 function LA.ldiv!(
-        x̂::AbstractVector,
-        J::Jacobian,
-        b::AbstractVector,
-        norm = nothing;
-        row_scaling::Bool = true,
+        x̂::AbstractVector, J::Jacobian, b::AbstractVector, norm = nothing; row_scaling::Bool = true
     )
     # stats update
     J.factorizations[] += !workspace(J).factorized[]

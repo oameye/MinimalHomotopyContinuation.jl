@@ -11,7 +11,7 @@ compile_mode_symbol(::CompileMixed) = :mixed
 compile_mode_symbol(::CompileNone) = :none
 
 function Base.show(io::IO, mode::AbstractCompileMode)
-    print(io, Symbol(mode))
+    return print(io, Symbol(mode))
 end
 
 Base.Symbol(mode::AbstractCompileMode) = compile_mode_symbol(mode)

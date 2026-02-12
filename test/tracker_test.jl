@@ -51,8 +51,7 @@ const is_invalid_startvalue = HC.is_invalid_startvalue
 
         F = System([x - a], [x], [a])
         ct = Tracker(
-            ParameterHomotopy(F, [1], [2]),
-            options = TrackerOptions(max_step_size = 0.015625),
+            ParameterHomotopy(F, [1], [2]), options = TrackerOptions(max_step_size = 0.015625)
         )
         Xs = Vector{ComplexF64}[]
         for (x, t) in iterator(ct, [1.0], 1.0, 0.0)
@@ -112,10 +111,7 @@ const is_invalid_startvalue = HC.is_invalid_startvalue
             t,
         )
         for make in [CompiledHomotopy, InterpretedHomotopy]
-            tracker = Tracker(
-                make(H);
-                options = TrackerOptions(automatic_differentiation = 1),
-            )
+            tracker = Tracker(make(H); options = TrackerOptions(automatic_differentiation = 1))
             @test all(is_success, track.(tracker, S))
         end
     end
@@ -201,7 +197,8 @@ const is_invalid_startvalue = HC.is_invalid_startvalue
         tracker = Tracker(ParameterHomotopy(G, [b0], [b1]; compile_mode = CompileNone()))
         result = track(tracker, startsolutions0, 1, 0)
         @test is_invalid_startvalue(result)
-        @test result.return_code == TrackerCode.terminated_invalid_startvalue_singular_jacobian
+        @test result.return_code ==
+            TrackerCode.terminated_invalid_startvalue_singular_jacobian
     end
 
     include("test_cases/steiner_higher_prec.jl")

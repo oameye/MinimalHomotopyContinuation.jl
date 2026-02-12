@@ -32,9 +32,7 @@ struct Solver{T <: AbstractPathTracker, AlgT <: AbstractHCAlgorithm} <: Abstract
 end
 
 function Solver(
-        tracker::AbstractPathTracker,
-        algorithm::AlgT;
-        seed::UInt32 = rand(UInt32),
+        tracker::AbstractPathTracker, algorithm::AlgT; seed::UInt32 = rand(UInt32)
     ) where {AlgT <: AbstractHCAlgorithm}
     return Solver([tracker], seed, SolveStats(), algorithm)
 end

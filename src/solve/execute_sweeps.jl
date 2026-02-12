@@ -25,8 +25,7 @@ end
 function make_many_progress(n::Integer; delay::Float64 = 0.0)
     desc = "Solving for $n parameters... "
     barlen = min(ProgressMeter.tty_width(desc, stdout, false), 40)
-    progress =
-        ProgressMeter.Progress(n; dt = 0.3, desc = desc, barlen = barlen, output = stdout)
+    progress = ProgressMeter.Progress(n; dt = 0.3, desc = desc, barlen = barlen, output = stdout)
     progress.tlast += delay
     return progress
 end
