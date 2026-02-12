@@ -21,9 +21,8 @@ struct MatrixWorkspace{M <: AbstractMatrix{ComplexF64}} <: AbstractMatrix{Comple
     inf_norm_est_rwork::Vector{Float64}
 end
 
-MatrixWorkspace(m::Integer, n::Integer; kwargs...) =
-    MatrixWorkspace(zeros(ComplexF64, m, n); kwargs...)
-function MatrixWorkspace(Â::AbstractMatrix; optimize_data_structure = true)
+MatrixWorkspace(m::Integer, n::Integer) = MatrixWorkspace(zeros(ComplexF64, m, n))
+function MatrixWorkspace(Â::AbstractMatrix)
     m, n = size(Â)
     m ≥ n || throw(ArgumentError("Expected system with more rows than columns."))
 
@@ -40,45 +39,23 @@ function MatrixWorkspace(Â::AbstractMatrix; optimize_data_structure = true)
     δx = zeros(ComplexF64, n)
     inf_norm_est_work = Vector{ComplexF64}(undef, n)
     inf_norm_est_rwork = Vector{Float64}(undef, n)
-    # Keep A/lu types aligned in each branch to avoid inference unions.
-    if m > 25 && optimize_data_structure
-        A_sa = StructArrays.StructArray(A)
-        ipiv = zeros(Int, m)
-        lu = LinearAlgebra.LU{eltype(A_sa), typeof(A_sa), typeof(ipiv)}(copy(A_sa), ipiv, 0)
-        return MatrixWorkspace(
-            A_sa,
-            d,
-            factorized,
-            lu,
-            qr,
-            row_scaling,
-            scaled,
-            x̄,
-            r,
-            r̄,
-            δx,
-            inf_norm_est_work,
-            inf_norm_est_rwork,
-        )
-    else
-        ipiv = zeros(Int, m)
-        lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
-        return MatrixWorkspace(
-            A,
-            d,
-            factorized,
-            lu,
-            qr,
-            row_scaling,
-            scaled,
-            x̄,
-            r,
-            r̄,
-            δx,
-            inf_norm_est_work,
-            inf_norm_est_rwork,
-        )
-    end
+    ipiv = zeros(Int, m)
+    lu = LinearAlgebra.LU{eltype(A), typeof(A), typeof(ipiv)}(copy(A), ipiv, 0)
+    return MatrixWorkspace(
+        A,
+        d,
+        factorized,
+        lu,
+        qr,
+        row_scaling,
+        scaled,
+        x̄,
+        r,
+        r̄,
+        δx,
+        inf_norm_est_work,
+        inf_norm_est_rwork,
+    )
 end
 
 Base.size(MW::MatrixWorkspace) = size(MW.A)

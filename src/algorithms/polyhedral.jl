@@ -1,6 +1,3 @@
-export polyhedral, PolyhedralTracker, PolyhedralStartSolutionsIterator, mixed_volume
-
-
 """
     PolyhedralStartSolutionsIterator
 
@@ -140,8 +137,8 @@ of `F` using a polyhedral homotopy as proposed in [^HS95], then perform a
 coefficient-parameter homotopy towards `F`.
 This returns a path tracker ([`PolyhedralTracker`](@ref)) and an iterator to compute the start solutions.
 
-If `only_non_zero` is true, then the algorithm will set up a start system that tracks fewer paths compared to `only_non_zero = false`. 
-In this case the number of paths to track is equal to the mixed volume of the Newton polytopes of `F`. 
+If `only_non_zero` is true, then the algorithm will set up a start system that tracks fewer paths compared to `only_non_zero = false`.
+In this case the number of paths to track is equal to the mixed volume of the Newton polytopes of `F`.
 The computed solutions will include all solutions with non-zero coordinates.
 
 If `only_non_zero` is `false`, then all isolated solutions of `F` are computed.
@@ -192,14 +189,14 @@ function polyhedral(
     @var x[1:n]
     return polyhedral(
         System(F(x), x);
-        compile_mode = compile_mode,
-        target_parameters = target_parameters,
-        endgame_options = endgame_options,
-        tracker_options = tracker_options,
-        only_torus = only_torus,
-        only_non_zero = only_non_zero,
-        show_progress = show_progress,
-        rng = rng,
+        compile_mode,
+        target_parameters,
+        endgame_options,
+        tracker_options,
+        only_torus,
+        only_non_zero,
+        show_progress,
+        rng,
     )
 end
 function polyhedral(

@@ -112,12 +112,8 @@ function init(
         ::Type{ResultIterator};
         bitmask = nothing,
     )
-    solver, starts = _sweep_solver_startsolutions(prob, alg)
-    solvers = map(prob.targets) do p
-        solverᵢ = deepcopy(solver)
-        target_parameters!(solverᵢ, p)
-        solverᵢ
-    end
+    _, starts = _sweep_solver_startsolutions(prob, alg)
+    solvers = map(p -> _sweep_solver(prob, alg, p), prob.targets)
     return SweepIteratorSolveCache(solvers, starts, bitmask)
 end
 

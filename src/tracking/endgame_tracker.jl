@@ -1,5 +1,3 @@
-export EndgameTracker, EndgameOptions, track
-
 """
     AbstractPathTracker
 
@@ -243,15 +241,26 @@ struct EndgameTracker{H <: AbstractHomotopy, M <: AbstractMatrix{ComplexF64}} <:
     options::EndgameOptions
 end
 
-EndgameTracker(H::Homotopy; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE, kwargs...) =
-    EndgameTracker(fixed(H; compile_mode = compile_mode); kwargs...)
-function EndgameTracker(H::AbstractHomotopy; tracker_options = TrackerOptions(), kwargs...)
-    return EndgameTracker(Tracker(H; options = tracker_options); kwargs...)
+function EndgameTracker(
+        H::Homotopy;
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        tracker_options::TrackerOptions = TrackerOptions(),
+        options::EndgameOptions = EndgameOptions(),
+    )
+    return EndgameTracker(
+        fixed(H; compile_mode = compile_mode);
+        tracker_options = tracker_options,
+        options = options,
+    )
 end
-function EndgameTracker(tracker::Tracker; options = EndgameOptions())
-    if !(options isa EndgameOptions)
-        options = EndgameOptions(; options...)
-    end
+function EndgameTracker(
+        H::AbstractHomotopy;
+        tracker_options::TrackerOptions = TrackerOptions(),
+        options::EndgameOptions = EndgameOptions(),
+    )
+    return EndgameTracker(Tracker(H; options = tracker_options); options = options)
+end
+function EndgameTracker(tracker::Tracker; options::EndgameOptions = EndgameOptions())
     state = EndgameTrackerState(size(tracker.homotopy, 1), tracker.state.x)
     return EndgameTracker(tracker, state, options)
 end
@@ -725,108 +734,7 @@ function tracking_stopped!(endgame_tracker::EndgameTracker)
     end
 end
 
-#
-# """
-#     CauchyEndgameResult
-#
-# An enum indicating the result of the [`cauchy!`](@ref) computation.
-#
-# # Cases
-# * `CAUCHY_SUCCESS`: The endgame was successfull.
-# * `CAUCHY_TERMINATED_MAX_WINDING_NUMBER`: The endgame was terminated since the winding
-#   number is larger than the provided threshold.
-# * `CAUCHY_TERMINATED`: The endgame was terminated due to some other error in the path
-#   tracking.
-# """
-# @enum CauchyEndgameResult begin
-#     CAUCHY_SUCCESS
-#     CAUCHY_TERMINATED_MAX_WINDING_NUMBER
-#     CAUCHY_TERMINATED
-# end
-#
-# """
-#     cauchy!(state::EndgameTrackerState, tracker::Tracker, options::EndgameOptions)
-#
-# Try to predict the value of `x(0)` using the [`CauchyEndgame`](@ref).
-# For this we track the polygon defined by ``te^{i2πk/n}`` until we end again at ``x``.
-# Here ``n`` is the number of samples we take per loop, `samples_per_loop`.
-# The computation gives up if we have a winding number larger than `max_winding_number`.
-# It returns a tuple denoting the success ([`CauchyEndgameResult`](@ref)) the computed
-# winding number `m::Int` and th expected accuracy of the solution.
-#
-# [Cauchy's integral formula]: https://en.wikipedia.org/wiki/Cauchy%27s_integral_formula
-# """
-# function cauchy!(state::EndgameTrackerState, tracker::Tracker, options::EndgameOptions)
-#     @unpack last_point, prediction = state
-#
-#     # winding_number!(tracker.predictor, 1)
-#
-#     t = real(tracker.state.t)
-#     # Mathemtically, we only need `n₀ = ceil(Int, log(eps()) / log(t))` many sample points
-#     # to achieve the maximal accuracy since the error is ≈ t^n₀.
-#     # However, we have to be careful that we are not getting too close to the singularity
-#     # during tracking. E.g. with `n₀ = 3` we track fairly close to the origin for the
-#     # first first and third path. So we require at least 8 sample points.
-#     n₀ = max(ceil(Int, log(eps()) / log(t)), 8)
-#     @unpack x, μ, ω = tracker.state
-#
-#     # # always use extended precision for cauchy endgame
-#     prediction_acc = refine_current_solution!(tracker)
-#     # fix tracker to not flip between extended precision and and mach. precision
-#     tracker.state.keep_extended_prec = true
-#     # disallow hermite predictor
-#     tracker.predictor.use_hermite = false
-#     tracker.predictor.branch = 0
-#
-#     state.last_point .= tracker.state.x
-#     state.last_t = tracker.state.t
-#     prediction .= 0.0
-#     sample_point_acc = Inf
-#     m = 1
-#     Δθ = 2π / n₀
-#     result = CAUCHY_TERMINATED_MAX_WINDING_NUMBER
-#     while m ≤ options.max_winding_number
-#         θⱼ = 0.0
-#         tⱼ = complex(t, 0.0)
-#         for j = 1:n₀
-#             θⱼ += Δθ
-#             if j == n₀
-#                 # tracker.predictor.branch += 1
-#                 tⱼ = complex(t, 0.0)
-#             else
-#                 tⱼ = t * cis(θⱼ)
-#             end
-#             # @show tⱼ
-#             # @show t_to_s_plane(tⱼ, 3; branch = tracker.predictor.branch)
-#             res = track!(tracker, tⱼ; debug = true)
-#             sample_point_acc = tracker.state.accuracy
-#             prediction_acc = max(prediction_acc, sample_point_acc)
-#
-#             if !is_success(res)
-#                 result = CAUCHY_TERMINATED
-#                 @goto _return
-#             end
-#             prediction .+= x
-#         end
-#         # Check that loop is closed
-#         d = tracker.state.norm(last_point, x)
-#         if d < 100 * max(prediction_acc, sample_point_acc)
-#             n = n₀ * m
-#             prediction .= prediction ./ n
-#
-#             result = CAUCHY_SUCCESS
-#             break
-#         end
-#         m += 1
-#     end
-#
-#
-#     @label _return
-#
-#     init!(tracker, last_point, t, 0.0; ω = ω, μ = μ, keep_steps = true)
-#
-#     result, m, 100prediction_acc
-# end
+
 
 """
     start_parameters!(tracker::EndgameTracker, p)
@@ -910,11 +818,38 @@ function track(
         t₁::Real = 1.0;
         path_number::Union{Nothing, Int} = nothing,
         start_solution = x,
-        kwargs...,
+        ω::Float64 = NaN,
+        μ::Float64 = NaN,
+        extended_precision::Bool = false,
+        debug::Bool = false,
     )
-    track!(endgame_tracker, x, t₁; kwargs...)
+    track!(
+        endgame_tracker,
+        x,
+        t₁;
+        ω = ω,
+        μ = μ,
+        extended_precision = extended_precision,
+        debug = debug,
+    )
     return PathResult(endgame_tracker, start_solution, path_number)
 end
-function track(endgame_tracker::EndgameTracker, r::PathResult, t₁::Real; kwargs...)
-    return track(endgame_tracker, solution(r), t₁; ω = r.ω, μ = r.μ, kwargs...)
+function track(
+        endgame_tracker::EndgameTracker,
+        r::PathResult,
+        t₁::Real;
+        path_number::Union{Nothing, Int} = path_number(r),
+        debug::Bool = false,
+    )
+    return track(
+        endgame_tracker,
+        solution(r),
+        t₁;
+        ω = r.ω,
+        μ = r.μ,
+        extended_precision = r.extended_precision,
+        path_number = path_number,
+        start_solution = start_solution(r),
+        debug = debug,
+    )
 end

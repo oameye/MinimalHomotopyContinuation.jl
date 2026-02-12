@@ -1,3 +1,6 @@
+const total_degree = HC.total_degree
+const track = HC.track
+
 @testset "EndgameTracker" begin
     @testset "Tracking and PathResult" begin
         @var x y

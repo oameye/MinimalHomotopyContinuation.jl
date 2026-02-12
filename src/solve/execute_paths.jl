@@ -1,6 +1,38 @@
-solve(S::Solver, R::Result; kwargs...) =
-    solve(S, solutions(R; only_nonsingular = true); kwargs...)
-solve(S::Solver, s::AbstractVector{<:Number}; kwargs...) = solve(S, [s]; kwargs...)
+function solve(
+        S::Solver,
+        R::Result;
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+    ) where {F}
+    return solve(
+        S,
+        solutions(R; only_nonsingular = true);
+        stop_early_cb = stop_early_cb,
+        show_progress = show_progress,
+        threading = threading,
+        catch_interrupt = catch_interrupt,
+    )
+end
+
+function solve(
+        S::Solver,
+        s::AbstractVector{<:Number};
+        stop_early_cb::F = always_false,
+        show_progress::Bool = true,
+        threading::Bool = Threads.nthreads() > 1,
+        catch_interrupt::Bool = true,
+    ) where {F}
+    return solve(
+        S,
+        [s];
+        stop_early_cb = stop_early_cb,
+        show_progress = show_progress,
+        threading = threading,
+        catch_interrupt = catch_interrupt,
+    )
+end
 
 function solve(
         S::Solver,
@@ -48,8 +80,9 @@ function solve(
     end
 end
 
-(solver::Solver)(starts; kwargs...) = solve(solver, starts; kwargs...)
-track(solver::Solver, s; kwargs...) = track(solver.trackers[1], s; kwargs...)
+track(solver::Solver, s; path_number::Union{Nothing, Int} = nothing) =
+    isnothing(path_number) ? track(solver.trackers[1], s) :
+    track(solver.trackers[1], s; path_number = path_number)
 
 function make_progress(n::Integer; delay::Float64 = 0.0)
     desc = "Tracking $n paths... "

@@ -1,3 +1,14 @@
+const Tracker = HC.Tracker
+const TrackerOptions = HC.TrackerOptions
+const TrackerCode = HC.TrackerCode
+const track = HC.track
+const track! = HC.track!
+const iterator = HC.iterator
+const start_parameters! = HC.start_parameters!
+const target_parameters! = HC.target_parameters!
+const total_degree_start_solutions = HC.total_degree_start_solutions
+const is_invalid_startvalue = HC.is_invalid_startvalue
+
 @testset "Tracker" begin
     @testset "tracking $mode - AD: $AD" for mode in [InterpretedSystem, CompiledSystem],
             AD in 0:3
@@ -68,7 +79,7 @@
         G = System((0.2 + 0.4im) .* [x^2 - 1, y - 1], [x, y])
         H = StraightLineHomotopy(G, F)
         S = [[1, 1], [-1, 1]]
-        tracker = Tracker(H, options = (automatic_differentiation = 3,))
+        tracker = Tracker(H, options = TrackerOptions(automatic_differentiation = 3))
 
         @test is_success(track(tracker, S[1], 1, 0))
         @test is_success(track(tracker, S[2], 1, 0))
@@ -88,7 +99,7 @@
         for make in [CompiledHomotopy, InterpretedHomotopy]
             tracker = Tracker(
                 fix_parameters(make(H), [randn(ComplexF64)]);
-                options = (automatic_differentiation = 3,),
+                options = TrackerOptions(automatic_differentiation = 3),
             )
             @test all(is_success, track.(tracker, S))
         end
@@ -101,7 +112,10 @@
             t,
         )
         for make in [CompiledHomotopy, InterpretedHomotopy]
-            tracker = Tracker(make(H); options = (automatic_differentiation = 1,))
+            tracker = Tracker(
+                make(H);
+                options = TrackerOptions(automatic_differentiation = 1),
+            )
             @test all(is_success, track.(tracker, S))
         end
     end

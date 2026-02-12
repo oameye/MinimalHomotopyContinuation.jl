@@ -1,8 +1,5 @@
 export fixed
 
-include("systems/mixed_system.jl")
-include("systems/fixed_parameter_system.jl")
-
 """
     fixed(F::System; compile_mode::AbstractCompileMode = CompileMixed())
 

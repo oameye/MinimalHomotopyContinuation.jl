@@ -1,3 +1,8 @@
+const total_degree = HC.total_degree
+const polyhedral = HC.polyhedral
+const track = HC.track
+const mixed_volume = HC.MixedSubdivisions.mixed_volume
+
 @testset "solve" begin
 
     @testset "total degree (simple)" begin
@@ -451,6 +456,93 @@
         )
         r = HC.solve!(c)
         @test r isa Result
+    end
+
+    @testset "Inference" begin
+        @var x y
+        base_prob = SystemProblem(System([x^2 + y^2 - 1, x - y]))
+        base_alg = TotalDegreeAlgorithm(seed = UInt32(0x11223344))
+
+        cache = @inferred HC.PathSolveCache HC.init(
+            base_prob,
+            base_alg;
+            show_progress = false,
+            threading = false,
+        )
+        @test cache isa HC.PathSolveCache
+
+        res = @inferred solve(base_prob, base_alg; threading = false, show_progress = false)
+        @test res isa Result
+
+        npaths = @inferred paths_to_track(base_prob, base_alg)
+        @test npaths isa Int
+
+        @var a b
+        Fp = System([x^2 - a, x * y - a + b], [x, y], [a, b])
+        starts = [[1.0, 1.0], [-1.0, -1.0]]
+        targets = [[2.0, 4.0], [3.0, 5.0]]
+        sweep_alg = PathTrackingAlgorithm(seed = UInt32(0x55667788))
+
+        sweep_id = ParameterSweepProblem(
+            Fp,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets = targets,
+            reducer = IdentityReducer(),
+        )
+        r_id = @inferred solve(sweep_id, sweep_alg; threading = false, show_progress = false)
+        @test r_id isa Vector{<:Result}
+
+        sweep_map = ParameterSweepProblem(
+            Fp,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets = targets,
+            reducer = MapReducer((r, p) -> nsolutions(r)),
+        )
+        r_map = @inferred solve(sweep_map, sweep_alg; threading = false, show_progress = false)
+        @test r_map isa Vector{Int}
+
+        sweep_flat = ParameterSweepProblem(
+            Fp,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets = targets,
+            reducer = FlatMapReducer((r, p) -> real_solutions(r)),
+        )
+        r_flat =
+            @inferred solve(sweep_flat, sweep_alg; threading = false, show_progress = false)
+        @test r_flat isa Vector{Vector{Float64}}
+    end
+
+    @testset "Removed symbol-based APIs" begin
+        @var x y
+        f = System([x^2 + y^2 - 1, x - y])
+
+        @test_throws MethodError PolyhedralAlgorithm(compile_mode = :none)
+        @test_throws MethodError TotalDegreeAlgorithm(compile_mode = :none)
+        @test_throws MethodError PathTrackingAlgorithm(compile_mode = :none)
+
+        @test_throws TypeError HC.TrackerOptions(parameter_preset = :fast)
+
+        @test_throws MethodError paths_to_track(SystemProblem(f), PolyhedralAlgorithm(); start_system = :total_degree)
+        @test_throws MethodError paths_to_track(f; start_system = :polyhedral)
+
+        starts = [[1.0, 1.0]]
+        @test_throws MethodError ParameterSweepProblem(
+            f,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets = [[2.0, 4.0]],
+            transform_result = identity,
+        )
+        @test_throws MethodError ParameterSweepProblem(
+            f,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets = [[2.0, 4.0]],
+            flatten = true,
+        )
     end
 
 end

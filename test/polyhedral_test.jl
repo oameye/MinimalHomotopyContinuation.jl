@@ -1,3 +1,7 @@
+const polyhedral = HC.polyhedral
+const track = HC.track
+const TrackerOptions = HC.TrackerOptions
+
 @testset "Polyhedral" begin
     @testset "affine + torus solutions" begin
         @var x y
@@ -14,7 +18,7 @@
         tracker, starts = polyhedral(
             f;
             only_torus = true,
-            tracker_options = (automatic_differentiation = 3,),
+            tracker_options = TrackerOptions(automatic_differentiation = 3),
             show_progress = false,
         )
         @test length(collect(starts)) == 3

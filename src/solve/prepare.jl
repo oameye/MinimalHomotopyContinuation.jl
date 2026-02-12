@@ -113,15 +113,23 @@ function _sweep_solver_startsolutions(
         alg::PathTrackingAlgorithm,
     )
     first_target = _first_target(prob.targets)
+    return _sweep_solver(prob, alg, first_target), prob.start_solutions
+end
+
+function _sweep_solver(
+        prob::ParameterSweepProblem,
+        alg::PathTrackingAlgorithm,
+        target_parameters,
+    )
     tracker = parameter_homotopy_tracker(
         prob.system;
         start_parameters = prob.start_parameters,
-        target_parameters = first_target,
+        target_parameters = target_parameters,
         compile_mode = alg.compile_mode,
         tracker_options = alg.tracker_options,
         endgame_options = alg.endgame_options,
     )
-    return Solver(tracker, alg; seed = alg.seed), prob.start_solutions
+    return Solver(tracker, alg; seed = alg.seed)
 end
 
 function _homotopy_solver_startsolutions(

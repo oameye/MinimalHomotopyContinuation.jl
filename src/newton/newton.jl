@@ -1,4 +1,10 @@
-export newton, is_success, NewtonResult, NewtonCache
+module NewtonCode
+@enum codes begin
+    success
+    rejected
+    max_iters
+end
+end
 
 """
     NewtonResult
@@ -7,14 +13,15 @@ Result returned by [`newton`](@ref).
 
 ## Fields
 
-* `return_code::Symbol`: Can be `:success`, `:rejected` or `:max_iters`.
+* `return_code::NewtonCode.codes`: Can be `NewtonCode.success`, `NewtonCode.rejected` or
+  `NewtonCode.max_iters`.
 * `x::Vector{ComplexF64}`: The last value obtained.
 * `accuracy::Float64`: Estimate of the absolute distance of `x` to a true zero.
 * `iters::Int` Number of iterations performed.
 * `contraction_ratio::Float64`: The value `|xᵢ - xᵢ₋₁| / |xᵢ₋₁ - xᵢ₋₂| `.
 """
 struct NewtonResult
-    return_code::Symbol
+    return_code::NewtonCode.codes
     x::Vector{ComplexF64}
     accuracy::Float64
     residual::Float64
@@ -31,7 +38,7 @@ Base.show(io::IO, result::NewtonResult) = print_fieldnames(io, result)
 
 Returns `true` if the [`newton`](@ref) was successfull.
 """
-is_success(R::NewtonResult) = R.return_code == :success
+is_success(R::NewtonResult) = R.return_code == NewtonCode.success
 
 """
     solution(R::NewtonResult)
@@ -41,7 +48,7 @@ Return the solution stored in `R`.
 solution(R::NewtonResult) = R.x
 
 """
-    NewtonCache(F::AbstractSystem; optimize_data_structure = true)
+    NewtonCache(F::AbstractSystem)
 
 Pre-allocates the necessary memory for [`newton`](@ref).
 """
@@ -52,13 +59,13 @@ struct NewtonCache{M}
     J::M
     r::Vector{ComplexF64}
 end
-function NewtonCache(F::AbstractSystem; optimize_data_structure = true)
+function NewtonCache(F::AbstractSystem)
     m, n = size(F)
     x = zeros(ComplexF64, n)
     Δx = copy(x)
     x_ext = zeros(ComplexDF64, n)
     if m ≥ n
-        J = MatrixWorkspace(m, n, optimize_data_structure = optimize_data_structure)
+        J = MatrixWorkspace(m, n)
     else
         J = zeros(ComplexF64, m, n)
     end
@@ -102,8 +109,38 @@ This is useful if the method is called repeatedly.
 * `max_rel_norm_first_update::Float64 = max_abs_norm_first_update`: The initial guess `x₀`
   is rejected if `norm(x₁ - x₀) >  max_rel_norm_first_update * norm(x₀)`
 """
-newton(f::System, args...; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE, kwargs...) =
-    newton(fixed(f; compile_mode = compile_mode), args...; kwargs...)
+function newton(
+        f::System,
+        x₀::AbstractVector,
+        p = nothing,
+        norm::AbstractNorm = InfNorm();
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        cache::NewtonCache = NewtonCache(fixed(f; compile_mode = compile_mode)),
+        extended_precision::Bool = false,
+        atol::Float64 = 1.0e-8,
+        rtol::Float64 = atol,
+        max_iters::Int = 20,
+        contraction_factor::Float64 = 1.0,
+        min_contraction_iters::Int = typemax(Int),
+        max_abs_norm_first_update::Float64 = Inf,
+        max_rel_norm_first_update::Float64 = max_abs_norm_first_update,
+    )
+    return newton(
+        fixed(f; compile_mode = compile_mode),
+        x₀,
+        p,
+        norm,
+        cache;
+        extended_precision = extended_precision,
+        atol = atol,
+        rtol = rtol,
+        max_iters = max_iters,
+        contraction_factor = contraction_factor,
+        min_contraction_iters = min_contraction_iters,
+        max_abs_norm_first_update = max_abs_norm_first_update,
+        max_rel_norm_first_update = max_rel_norm_first_update,
+    )
+end
 function newton(
         F::AbstractSystem,
         x₀::AbstractVector,
@@ -149,7 +186,7 @@ function newton(
                 a *= a
             elseif i > min_contraction_iters || norm_Δxᵢ < max(atol, rtol * norm_x)
                 return NewtonResult(
-                    :success,
+                    NewtonCode.success,
                     x,
                     norm_Δxᵢ,
                     norm(r),
@@ -158,7 +195,7 @@ function newton(
                 )
             else
                 return NewtonResult(
-                    :rejected,
+                    NewtonCode.rejected,
                     x,
                     norm_Δxᵢ,
                     norm(r),
@@ -170,10 +207,17 @@ function newton(
                 norm_Δxᵢ > max_rel_norm_first_update * norm_x ||
                     norm_Δxᵢ > max_abs_norm_first_update
             )
-            return NewtonResult(:rejected, x, norm(r), norm_Δxᵢ, i, NaN)
+            return NewtonResult(NewtonCode.rejected, x, norm(r), norm_Δxᵢ, i, NaN)
         else
             norm_Δxᵢ₋₁ = norm_Δxᵢ
         end
     end
-    return NewtonResult(:max_iters, x, norm_Δxᵢ, norm(r), max_iters, norm_Δxᵢ / norm_Δxᵢ₋₁)
+    return NewtonResult(
+        NewtonCode.max_iters,
+        x,
+        norm_Δxᵢ,
+        norm(r),
+        max_iters,
+        norm_Δxᵢ / norm_Δxᵢ₋₁,
+    )
 end

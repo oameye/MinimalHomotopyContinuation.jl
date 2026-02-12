@@ -28,14 +28,6 @@ function Base.showerror(io::IO, E::FiniteException)
     )
 end
 
-@noinline function unsupported_kwargs(kwargs)
-    return if !(isempty(kwargs))
-        msg = join(["$k = $v" for (k, v) in pairs(kwargs)], ", ")
-        @warn "Ingored unsupported keyword arguments: $msg"
-    end
-end
-
-
 fast_abs(z::Complex) = sqrt(abs2(z))
 fast_abs(x::Real) = abs(x)
 

@@ -66,17 +66,16 @@ import MultivariatePolynomials:
     variables
 const MP = MultivariatePolynomials
 
-include("./model_kit/symengine.jl")
-include("./model_kit/symbolic.jl")
-include("./model_kit/operations.jl")
-include("./model_kit/intermediate_representation.jl")
-include("./model_kit/taylor.jl")
-include("./model_kit/acb.jl")
-include("./model_kit/instruction_sequence.jl")
-include("./model_kit/instruction_interpreter.jl")
-include("./model_kit/abstract_system_homotopy.jl")
-include("./model_kit/interpreted_system.jl")
-include("./model_kit/interpreted_homotopy.jl")
-include("./model_kit/compiled_system_homotopy.jl")
-
+include("symengine.jl")
+include("symbolic.jl")
+include("operations.jl")
+include("intermediate_representation.jl")
+include("taylor.jl")
+include("acb.jl")
+include("instruction_sequence.jl")
+include("instruction_interpreter.jl")
+include("abstract_system_homotopy.jl")
+include("interpreted_system.jl")
+include("interpreted_homotopy.jl")
+include("compiled_system_homotopy.jl")
 end # module

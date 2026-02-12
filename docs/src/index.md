@@ -24,24 +24,6 @@ Pages = [
     "solve.md",
     "result.md",
     "solve_examples.md",
-    "start_systems.md",
-]
-Depth = 2
-```
-
-**Trackers**
-```@contents
-Pages = [
-    "endgame_tracker.md",
-    "tracker.md",
-]
-Depth = 2
-```
-
-**Miscellaneous**
-```@contents
-Pages = [
-    "misc.md",
 ]
 Depth = 2
 ```

@@ -1,34 +1,3 @@
-export AbstractPathTracker,
-    Tracker,
-    TrackerResult,
-    TrackerOptions,
-    TrackerParameters,
-    AbstractTrackerParameterPreset,
-    DefaultTrackerParams,
-    FastTrackerParams,
-    ConservativeTrackerParams,
-    TrackerCode,
-    DEFAULT_TRACKER_PARAMETERS,
-    FAST_TRACKER_PARAMETERS,
-    CONSERVATIVE_TRACKER_PARAMETERS,
-    track,
-    init!,
-    track!,
-    step!,
-    start_parameters!,
-    target_parameters!,
-    status,
-    state,
-    is_success,
-    is_terminated,
-    is_invalid_startvalue,
-    is_tracking,
-    solution,
-    steps,
-    accepted_steps,
-    rejected_steps,
-    iterator
-
 ###
 ### Options and Parameters
 ###
@@ -458,19 +427,25 @@ struct Tracker{H <: AbstractHomotopy, M <: AbstractMatrix{ComplexF64}}
     options::TrackerOptions
 end
 
-Tracker(H::ModelKit.Homotopy; compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE, kwargs...) =
-    Tracker(fixed(H; compile_mode = compile_mode); kwargs...)
+function Tracker(
+        H::ModelKit.Homotopy;
+        compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
+        weighted_norm_options::WeightedNormOptions = WeightedNormOptions(),
+        options::TrackerOptions = TrackerOptions(),
+    )
+    return Tracker(
+        fixed(H; compile_mode = compile_mode);
+        weighted_norm_options = weighted_norm_options,
+        options = options,
+    )
+end
 function Tracker(
         H::AbstractHomotopy,
         x::AbstractVector = zeros(size(H, 2));
         weighted_norm_options::WeightedNormOptions = WeightedNormOptions(),
-        options = TrackerOptions(),
+        options::TrackerOptions = TrackerOptions(),
     )
-    if !isa(options, TrackerOptions)
-        options = TrackerOptions(; options...)
-    else
-        options = deepcopy(options)
-    end
+    options = deepcopy(options)
     norm = WeightedNorm(ones(size(H, 2)), InfNorm(), weighted_norm_options)
     state = TrackerState(H, x, norm)
     predictor = Predictor(H)
@@ -1008,8 +983,43 @@ Track the given solution `x` at `t₁` using `tracker` to a solution at `t₀`.
 
 Track the solution of the result `r` from `t₁` to `t₀`.
 """
-@inline function track(tracker::Tracker, x, t₁ = 1.0, t₀ = 0.0; kwargs...)
-    track!(tracker, x, t₁, t₀; kwargs...)
+@inline function track(
+        tracker::Tracker,
+        x::AbstractVector,
+        t₁ = 1.0,
+        t₀ = 0.0;
+        ω::Float64 = NaN,
+        μ::Float64 = NaN,
+        extended_precision::Bool = false,
+        τ::Float64 = Inf,
+        keep_steps::Bool = false,
+        max_initial_step_size::Float64 = Inf,
+        debug::Bool = false,
+    )
+    track!(
+        tracker,
+        x,
+        t₁,
+        t₀;
+        ω = ω,
+        μ = μ,
+        extended_precision = extended_precision,
+        τ = τ,
+        keep_steps = keep_steps,
+        max_initial_step_size = max_initial_step_size,
+        debug = debug,
+    )
+    return TrackerResult(tracker.homotopy, tracker.state)
+end
+
+@inline function track(
+        tracker::Tracker,
+        r::TrackerResult,
+        t₁ = 1.0,
+        t₀ = 0.0;
+        debug::Bool = false,
+    )
+    track!(tracker, r, t₁, t₀; debug = debug)
     return TrackerResult(tracker.homotopy, tracker.state)
 end
 
@@ -1060,8 +1070,30 @@ For example to check whether the tracker was successfull
 println("Success: ", is_success(status(tracker)))
 ```
 """
-function iterator(tracker::Tracker, x₁, t₁ = 1.0, t₀ = 0.0; kwargs...)
-    init!(tracker, x₁, t₁, t₀; kwargs...)
+function iterator(
+        tracker::Tracker,
+        x₁,
+        t₁ = 1.0,
+        t₀ = 0.0;
+        ω::Float64 = NaN,
+        μ::Float64 = NaN,
+        τ::Float64 = Inf,
+        keep_steps::Bool = false,
+        max_initial_step_size::Float64 = Inf,
+        extended_precision::Bool = false,
+    )
+    init!(
+        tracker,
+        x₁,
+        t₁,
+        t₀;
+        ω = ω,
+        μ = μ,
+        τ = τ,
+        keep_steps = keep_steps,
+        max_initial_step_size = max_initial_step_size,
+        extended_precision = extended_precision,
+    )
     return PathIterator(tracker, typeof(t₁ - t₀) <: Real)
 end
 

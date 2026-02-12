@@ -1,26 +1,3 @@
-export PathResult,
-    PathResultCode,
-    solution,
-    accuracy,
-    residual,
-    steps,
-    accepted_steps,
-    rejected_steps,
-    winding_number,
-    path_number,
-    start_solution,
-    multiplicity,
-    last_path_point,
-    valuation,
-    is_success,
-    is_at_infinity,
-    is_excess_solution,
-    is_failed,
-    is_finite,
-    is_singular,
-    is_nonsingular,
-    is_real
-
 module PathResultCode
 @enum codes begin
     tracking

@@ -1,5 +1,3 @@
-export AbstractCompileMode, CompileAll, CompileMixed, CompileNone, DEFAULT_COMPILE_MODE
-
 abstract type AbstractCompileMode end
 
 struct CompileAll <: AbstractCompileMode end

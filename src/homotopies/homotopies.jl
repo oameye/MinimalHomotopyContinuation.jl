@@ -1,13 +1,3 @@
-# internal only
-include("homotopies/toric_homotopy.jl")
-
-# public, these should be linked on the top
-include("homotopies/mixed_homotopy.jl")
-include("homotopies/parameter_homotopy.jl")
-include("homotopies/coefficient_homotopy.jl")
-include("homotopies/straight_line_homotopy.jl")
-include("homotopies/fixed_parameter_homotopy.jl")
-
 """
     fixed(H::Homotopy; compile_mode::AbstractCompileMode = CompileMixed())
 

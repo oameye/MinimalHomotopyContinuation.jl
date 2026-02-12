@@ -1,5 +1,3 @@
-export total_degree, total_degree_start_solutions
-
 """
     total_degree(
         F::System;

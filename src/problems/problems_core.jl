@@ -1,9 +1,3 @@
-export AbstractHCProblem,
-    SystemProblem,
-    ParameterHomotopyProblem,
-    ParameterSweepProblem,
-    HomotopyProblem
-
 abstract type AbstractHCProblem end
 
 struct SystemProblem{SystemT, TargetT} <: AbstractHCProblem
