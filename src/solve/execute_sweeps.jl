@@ -43,6 +43,25 @@ end
 
 update_many_progress!(::Nothing, results, k, paths_per_param) = nothing
 
+function _init_reduced_results(reducer::AbstractSweepReducer, value)
+    return if reducer isa FlatMapReducer
+        value isa AbstractArray ||
+            throw(ArgumentError("FlatMapReducer must return an iterable collection."))
+        collect(value)
+    else
+        [value]
+    end
+end
+
+function _append_reduced_result!(results, reducer::AbstractSweepReducer, value)
+    if reducer isa FlatMapReducer
+        append!(results, value)
+    else
+        push!(results, value)
+    end
+    return results
+end
+
 function many_solve(
         solver::Solver,
         starts,
@@ -59,42 +78,23 @@ function many_solve(
         @error "Solving for many parameters with polyhedral start system is not implemented and also not recommended. Instead, one should use a two-step approach: solve a system with generic parameters, and track its solutions to the desired parameters. See https://www.juliahomotopycontinuation.org/guides/many-systems/."
     end
     starts_buffer = starts isa AbstractArray ? starts : collect(starts)
-
-    first_target_it = iterate(many_target_parameters)
-    first_target_it === nothing && throw(ArgumentError("`targets` must be non-empty."))
-    q = first(first_target_it)
-    state = last(first_target_it)
     run_kwargs = (; threading, catch_interrupt = false)
-
-    target_parameters!(solver, q)
-    res = _run_paths(solver, starts_buffer; run_kwargs...)
-
-    first_result = reducer_apply(reducer, res, q)
-    results = if reducer isa FlatMapReducer
-        first_result isa AbstractArray ||
-            throw(ArgumentError("FlatMapReducer must return an iterable collection."))
-        collect(first_result)
-    else
-        [first_result]
-    end
-
-    k = 1
+    results = nothing
+    k = 0
     m = length(starts_buffer)
-    update_many_progress!(progress, results, k, m)
 
     try
-        for q in Iterators.rest(many_target_parameters, state)
+        for (kᵢ, q) in enumerate(many_target_parameters)
+            k = kᵢ
             target_parameters!(solver, q)
             res = _run_paths(solver, starts_buffer; run_kwargs...)
-
             value = reducer_apply(reducer, res, q)
-            if reducer isa FlatMapReducer
-                append!(results, value)
+            if results === nothing
+                results = _init_reduced_results(reducer, value)
             else
-                push!(results, value)
+                _append_reduced_result!(results, reducer, value)
             end
-            k += 1
-            update_many_progress!(progress, results, k, m)
+            update_many_progress!(progress, results, kᵢ, m)
         end
     catch e
         interrupted = isa(e, InterruptException) ||
@@ -103,6 +103,7 @@ function many_solve(
             rethrow(e)
         end
     end
+    results === nothing && throw(ArgumentError("`targets` must be non-empty."))
 
     return results
 end

@@ -53,46 +53,43 @@ end
 Base.IteratorEltype(::ResultIterator) = Base.HasEltype()
 Base.eltype(::ResultIterator) = PathResult
 
-
-function Base.iterate(ri::ResultIterator, state = nothing)
-    native_state = state === nothing ? 0 : state[1]
-    next_ss = state === nothing ? iterate(ri.starts) : iterate(ri.starts, state[2])
-    next_ss === nothing && return nothing
-
-    start_value, new_ss_state = next_ss
-    new_state = (native_state + 1, new_ss_state)
-
-    if ri.bitmask === nothing
-        return (track(ri.S.trackers[1], start_value), new_state)
+function _next_start_state(ri::ResultIterator, state)
+    native_index, next_ss = if state === nothing
+        0, iterate(ri.starts)
     else
-        while !ri.bitmask[new_state[1]] && next_ss !== nothing
-            next_ss = iterate(ri.starts, new_state[2])
-            next_ss === nothing && return nothing
-            start_value, new_ss_state = next_ss
-            new_state = (new_state[1] + 1, new_ss_state)
-        end
-
-        return (track(ri.S.trackers[1], start_value), new_state)
+        state[1], iterate(ri.starts, state[2])
     end
+
+    while next_ss !== nothing
+        start_value, ss_state = next_ss
+        native_index += 1
+        new_state = (native_index, ss_state)
+        if isnothing(ri.bitmask) || ri.bitmask[native_index]
+            return start_value, new_state
+        end
+        next_ss = iterate(ri.starts, ss_state)
+    end
+    return nothing
 end
 
 
-function Base.length(ri::ResultIterator)
-    if Base.IteratorSize(ri) == Base.SizeUnknown()
-        k = 0
-        for _ in ri.starts
-            k += 1
-        end
-        k
-    elseif Base.IteratorSize(ri) == Base.HasLength()
-        if ri.bitmask !== nothing
-            return (sum(ri.bitmask))
-        else
-            return (length(ri.starts))
-        end
-    elseif ri.starts isa Vector
-        return length(ri.starts)
+function Base.iterate(ri::ResultIterator, state = nothing)
+    next_item = _next_start_state(ri, state)
+    next_item === nothing && return nothing
+    start_value, new_state = next_item
+    return track(ri.S.trackers[1], start_value), new_state
+end
+
+function _iterator_length(iter)
+    return if Base.IteratorSize(iter) == Base.SizeUnknown()
+        count(_ -> true, iter)
+    else
+        length(iter)
     end
+end
+
+function Base.length(ri::ResultIterator)
+    return isnothing(ri.bitmask) ? _iterator_length(ri.starts) : sum(ri.bitmask)
 end
 
 function bitmask(f::Function, ri::ResultIterator)

@@ -61,53 +61,49 @@ const AbstractResults = Union{AbstractResult, AbstractVector{<:PathResult}}
 
 results(R::AbstractResults; kwargs...) = results(identity, R; kwargs...)
 
-_effective_multiple_results(::Result, multiple_results::Bool) = multiple_results
-_effective_multiple_results(::AbstractVector{<:PathResult}, multiple_results::Bool) =
-    multiple_results
-_effective_multiple_results(::AbstractResult, ::Bool) = true
+Base.@kwdef struct ResultFilterOptions
+    only_real::Bool = false
+    real_atol::Float64 = 1.0e-6
+    real_rtol::Float64 = 0.0
+    only_nonsingular::Bool = false
+    only_singular::Bool = false
+    only_finite::Bool = true
+    multiple_results::Bool = false
+end
+
+_result_filter_options(; kwargs...) = ResultFilterOptions(; kwargs...)
+
+function _with_multiple_results(opts::ResultFilterOptions, multiple_results::Bool)
+    return ResultFilterOptions(
+        only_real = opts.only_real,
+        real_atol = opts.real_atol,
+        real_rtol = opts.real_rtol,
+        only_nonsingular = opts.only_nonsingular,
+        only_singular = opts.only_singular,
+        only_finite = opts.only_finite,
+        multiple_results = multiple_results,
+    )
+end
+
+_effective_filter_options(::AbstractResult, opts::ResultFilterOptions) =
+    _with_multiple_results(opts, true)
+_effective_filter_options(::AbstractVector{<:PathResult}, opts::ResultFilterOptions) = opts
+_effective_filter_options(::Result, opts::ResultFilterOptions) = opts
 
 function _matches_result(
         r,
-        R;
-        only_real::Bool = false,
-        real_atol::Float64 = 1.0e-6,
-        real_rtol::Float64 = 0.0,
-        only_nonsingular::Bool = false,
-        only_singular::Bool = false,
-        only_finite::Bool = true,
-        multiple_results::Bool = false,
+        R,
+        opts::ResultFilterOptions,
     )
-    return (!only_real || is_real(r, real_atol, real_rtol)) &&
-        (!only_nonsingular || is_nonsingular(r)) &&
-        (!only_singular || is_singular(r)) &&
-        (!only_finite || is_finite(r)) &&
-        (multiple_results || !is_multiple_result(r, R))
+    return (!opts.only_real || is_real(r, opts.real_atol, opts.real_rtol)) &&
+        (!opts.only_nonsingular || is_nonsingular(r)) &&
+        (!opts.only_singular || is_singular(r)) &&
+        (!opts.only_finite || is_finite(r)) &&
+        (opts.multiple_results || !is_multiple_result(r, R))
 end
 
-function _filtered_results(
-        f::Function,
-        R;
-        only_real::Bool = false,
-        real_atol::Float64 = 1.0e-6,
-        real_rtol::Float64 = 0.0,
-        only_nonsingular::Bool = false,
-        only_singular::Bool = false,
-        only_finite::Bool = true,
-        multiple_results::Bool = false,
-    )
-    effective_multiple_results = _effective_multiple_results(R, multiple_results)
-    filter_function =
-        r -> _matches_result(
-        r,
-        R;
-        only_real,
-        real_atol,
-        real_rtol,
-        only_nonsingular,
-        only_singular,
-        only_finite,
-        multiple_results = effective_multiple_results,
-    )
+function _filtered_results(f::Function, R, opts::ResultFilterOptions)
+    filter_function = r -> _matches_result(r, R, opts)
     return Iterators.map(f, Iterators.filter(filter_function, R))
 end
 
@@ -115,56 +111,18 @@ _results_output(::Result, iter) = collect(iter)
 _results_output(::AbstractVector{<:PathResult}, iter) = collect(iter)
 _results_output(::AbstractResult, iter) = iter
 
-function _results_impl(
-        f::Function,
-        R;
-        only_real::Bool = false,
-        real_atol::Float64 = 1.0e-6,
-        real_rtol::Float64 = 0.0,
-        only_nonsingular::Bool = false,
-        only_singular::Bool = false,
-        only_finite::Bool = true,
-        multiple_results::Bool = false,
-    )
-    iter = _filtered_results(
-        f,
-        R;
-        only_real,
-        real_atol,
-        real_rtol,
-        only_nonsingular,
-        only_singular,
-        only_finite,
-        multiple_results,
-    )
+function _results_impl(f::Function, R; kwargs...)
+    opts = _effective_filter_options(R, _result_filter_options(; kwargs...))
+    iter = _filtered_results(f, R, opts)
     return _results_output(R, iter)
 end
 
 results(f::Function, R::AbstractResults; kwargs...) = _results_impl(f, R; kwargs...)
 
-function _count_results(
-        R;
-        only_real::Bool = false,
-        real_atol::Float64 = 1.0e-6,
-        real_rtol::Float64 = 0.0,
-        only_nonsingular::Bool = false,
-        only_singular::Bool = false,
-        only_finite::Bool = true,
-        multiple_results::Bool = false,
-    )
-    effective_multiple_results = _effective_multiple_results(R, multiple_results)
+function _count_results(R; kwargs...)
+    opts = _effective_filter_options(R, _result_filter_options(; kwargs...))
     return count(R) do r
-        _matches_result(
-            r,
-            R;
-            only_real,
-            real_atol,
-            real_rtol,
-            only_nonsingular,
-            only_singular,
-            only_finite,
-            multiple_results = effective_multiple_results,
-        )
+        _matches_result(r, R, opts)
     end
 end
 
