@@ -98,10 +98,7 @@ function init(
         show_progress::Bool = true,
         bitmask = nothing,
     )
-    return _path_iter_cache(
-        _system_startsolutions(prob, alg; show_progress);
-        bitmask = bitmask,
-    )
+    return _path_iter_cache(_system_startsolutions(prob, alg; show_progress); bitmask)
 end
 
 function init(

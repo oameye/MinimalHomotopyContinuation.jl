@@ -41,10 +41,7 @@ function total_degree_variables(
 
     @unique_var x[1:n] s[1:n]
     F₀ = System(F(x, target_parameters), x)
-    _validate_affine_square_system(
-        F;
-        homogeneous_system = F₀,
-    )
+    _validate_affine_square_system(F; homogeneous_system = F₀)
     support, coeffs = support_coefficients(F₀)
 
     D = zeros(Int, length(support))
