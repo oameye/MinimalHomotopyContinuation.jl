@@ -1,3 +1,12 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 @testset "test operations against taylor operations (N=$N, K=$K)" for (K, N) in [
         (3, 4), (3, 2), (2, 1),
     ]

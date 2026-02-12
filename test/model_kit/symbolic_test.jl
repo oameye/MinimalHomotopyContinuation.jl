@@ -1,3 +1,13 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
+
 @testset "ModelKit - Symbolic" begin
     @testset "SymEngine" begin
         @test Expression(MathConstants.catalan) isa Expression

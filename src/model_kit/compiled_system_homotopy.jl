@@ -187,23 +187,22 @@ function compiled_execute_impl(
             zero!(U)
             if isnothing(u)
                 $(
-                    map(seq.assignments) do (i, k)
-                        if i > seq.output_dim
-                            :(U[$(i - seq.output_dim)] = $(get_var_name(k)))
-                        end
-                    end...
+                    (
+                        :(U[$(i - seq.output_dim)] = $(get_var_name(k))) for
+                            (i, k) in seq.assignments if i > seq.output_dim
+                    )...
                 )
             else
                 zero!(u)
                 idx = CartesianIndices(($(seq.output_dim), size(U, 2)))
                 $(
-                    map(seq.assignments) do (i, k)
+                    (
                         if i <= seq.output_dim
-                            :(u[$(i)] = $(get_var_name(k)))
+                                :(u[$(i)] = $(get_var_name(k)))
                         else
-                            :(U[idx[$(i - seq.output_dim)]] = $(get_var_name(k)))
-                        end
-                    end...
+                                :(U[idx[$(i - seq.output_dim)]] = $(get_var_name(k)))
+                        end for (i, k) in seq.assignments
+                    )...
                 )
             end
         end

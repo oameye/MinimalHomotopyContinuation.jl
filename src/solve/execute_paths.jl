@@ -38,13 +38,14 @@ function make_progress(n::Integer; delay::Float64 = 0.0)
 end
 
 function update_progress!(progress, stats, ntracked)
-    t = time()
-    if ntracked == progress.n || t > progress.tlast + progress.dt
-        showvalues = make_showvalues(stats, ntracked)
-        ProgressMeter.update!(progress, ntracked; showvalues)
-    end
+    showvalues = make_showvalues(stats, ntracked)
+    Base.invokelatest(_update_progress!, progress, ntracked, showvalues)
     return nothing
 end
+
+_update_progress!(progress, ntracked, showvalues) = Base.invokelatest(
+    ProgressMeter.update!, progress, ntracked; showvalues
+)
 
 @noinline function make_showvalues(stats, ntracked)
     nsols = stats.regular[] + stats.singular[]
@@ -130,10 +131,11 @@ function threaded_solve(
     progress_lock = ReentrantLock()
 
     try
-        Base.@sync begin
-            for lt in solver.trackers
-                let tracker = lt
-                    Threads.@spawn begin
+        tasks = Task[]
+        for lt in solver.trackers
+            let tracker = lt
+                push!(
+                    tasks, Threads.@spawn begin
                         while true
                             idx = Threads.atomic_add!(next_k, 1)
                             k = idx
@@ -152,9 +154,10 @@ function threaded_solve(
                             end
                         end
                     end
-                end
+                )
             end
         end
+        foreach(wait, tasks)
     catch e
         if (
                 isa(e, InterruptException) ||

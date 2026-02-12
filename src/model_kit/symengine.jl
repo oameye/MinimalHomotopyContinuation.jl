@@ -843,7 +843,7 @@ function free!(x::ExpressionMap)
     end
 end
 
-ExpressionMap(args...) = ExpressionMap(ExpressionMap(), args...)
+ExpressionMap(args::Pair...) = ExpressionMap(ExpressionMap(), args...)
 ExpressionMap(D::ExpressionMap) = D
 function ExpressionMap(dict::Dict)
     c = ExpressionMap()
@@ -853,8 +853,10 @@ function ExpressionMap(dict::Dict)
     return c
 end
 function ExpressionMap(
-        D::ExpressionMap, (xs, ys)::Pair{<:AbstractArray{<:Basic}, <:AbstractArray}, args...
-    )
+        D::ExpressionMap, pair::Pair{Xs, Ys}, args...
+    ) where {Xs <: AbstractArray{<:Basic}, Ys <: AbstractArray}
+    xs = pair.first
+    ys = pair.second
     size(xs) == size(ys) ||
         throw(ArgumentError("Substitution arguments don't have the same size."))
     for (x, y) in zip(xs, ys)
@@ -863,8 +865,11 @@ function ExpressionMap(
     return ExpressionMap(D, args...)
 end
 function ExpressionMap(
-        D::ExpressionMap, (xs, y)::Pair{<:AbstractArray{<:Basic}, Any}, args...
-    )
+        D::ExpressionMap, pair::Pair{Xs, Y}, args...
+    ) where {Xs <: AbstractArray{<:Basic}, Y}
+    xs = pair.first
+    y = pair.second
+    y isa AbstractArray && return ExpressionMap(D, Pair(xs, y), args...)
     throw(
         ArgumentError(
             "Substitution arguments don't have the same shape. " *
@@ -872,8 +877,70 @@ function ExpressionMap(
         ),
     )
 end
-function ExpressionMap(D::ExpressionMap, (x, y), args...)
-    D[Expression(x)] = Expression(y)
+function ExpressionMap(
+        D::ExpressionMap, pair::Pair{<:Tuple{Vararg{<:MP.AbstractVariable}}, <:Tuple}, args...
+    )
+    xs = pair.first
+    ys = pair.second
+    length(xs) == length(ys) ||
+        throw(ArgumentError("Substitution arguments don't have the same size."))
+    for (x, y) in zip(xs, ys)
+        D[Expression(x)] = Expression(y)
+    end
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(
+        D::ExpressionMap,
+        pair::Pair{<:Tuple{Vararg{<:MP.AbstractVariable}}, <:AbstractVector},
+        args...,
+    )
+    xs = pair.first
+    ys = pair.second
+    length(xs) == length(ys) ||
+        throw(ArgumentError("Substitution arguments don't have the same size."))
+    for (x, y) in zip(xs, ys)
+        D[Expression(x)] = Expression(y)
+    end
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(
+        D::ExpressionMap,
+        pair::Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:Tuple},
+        args...,
+    )
+    xs = pair.first
+    ys = pair.second
+    length(xs) == length(ys) ||
+        throw(ArgumentError("Substitution arguments don't have the same size."))
+    for (x, y) in zip(xs, ys)
+        D[Expression(x)] = Expression(y)
+    end
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(
+        D::ExpressionMap,
+        pair::Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:AbstractVector},
+        args...,
+    )
+    xs = pair.first
+    ys = pair.second
+    length(xs) == length(ys) ||
+        throw(ArgumentError("Substitution arguments don't have the same size."))
+    for (x, y) in zip(xs, ys)
+        D[Expression(x)] = Expression(y)
+    end
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(D::ExpressionMap, pair::Pair{<:Basic, Any}, args...)
+    D[pair.first] = Expression(pair.second)
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(D::ExpressionMap, pair::Pair{<:MP.AbstractVariable, Any}, args...)
+    D[Expression(pair.first)] = Expression(pair.second)
+    return ExpressionMap(D, args...)
+end
+function ExpressionMap(D::ExpressionMap, pair::Pair, args...)
+    D[Expression(pair.first)] = Expression(pair.second)
     return ExpressionMap(D, args...)
 end
 

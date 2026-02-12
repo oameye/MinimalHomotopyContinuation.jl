@@ -533,11 +533,11 @@ Base.round(a::DoubleF64, r::RoundingMode{:NearestTiesUp}) = invoke(
 end
 
 @inline function Base.floor(::Type{I}, a::DoubleF64) where {I <: Integer}
-    hi = floor(I, a.hi)
+    hi = convert(I, floor(a.hi))
     lo = zero(I)
 
     if hi == a.hi
-        lo = floor(I, a.lo)
+        lo = convert(I, floor(a.lo))
     end
 
     return hi + lo
@@ -557,11 +557,11 @@ end
 end
 
 @inline function Base.ceil(::Type{I}, a::DoubleF64) where {I <: Integer}
-    hi = ceil(I, a.hi)
+    hi = convert(I, ceil(a.hi))
     lo = zero(I)
 
     if hi == a.hi
-        lo = ceil(I, a.lo)
+        lo = convert(I, ceil(a.lo))
     end
 
     return hi + lo

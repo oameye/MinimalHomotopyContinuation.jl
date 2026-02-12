@@ -1,3 +1,17 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
+const Tracker = HC.Tracker
+const TrackerOptions = HC.TrackerOptions
+const track = HC.track
+const ParameterHomotopy = HC.ParameterHomotopy
+
 @testset "Iterative Refinement for predictor (FourBar)" begin
     @var x a y b x_hat a_hat y_hat b_hat
     gamma = [Variable(Symbol(:gamma, i)) for i in 1:8]

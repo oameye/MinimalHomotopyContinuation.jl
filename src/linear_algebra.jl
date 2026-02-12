@@ -29,7 +29,7 @@ function MatrixWorkspace(Â::AbstractMatrix)
     A = Matrix{ComplexF64}(Â)
     d = ones(m)
     factorized = Ref(false)
-    qr = LA.qrfactUnblocked!(copy(A))
+    qr = LA.QR(copy(A), zeros(ComplexF64, min(m, n)))
     row_scaling = ones(m)
     scaled = Ref(false)
 
@@ -398,12 +398,20 @@ function LA.ldiv!(x::AbstractVector, WS::MatrixWorkspace, b::AbstractVector)
     return x
 end
 
-function LA.inv!(B::AbstractMatrix, M::MatrixWorkspace)
+function LA.inv!(B::StridedMatrix{ComplexF64}, M::MatrixWorkspace)
     M.factorized[] || factorize!(M)
-    B .= M.lu.factors
-    LA.inv!(M.lu)
-    @inbounds for i in eachindex(B)
-        M.lu.factors[i], B[i] = B[i], M.lu.factors[i]
+    n, m = size(M)
+    n == m || throw(ArgumentError("Expected a square matrix workspace."))
+    size(B) == (n, n) || throw(ArgumentError("Expected output matrix of size ($n,$n)."))
+    rhs = zeros(ComplexF64, n)
+    sol = similar(rhs)
+    @inbounds for i in 1:n
+        fill!(rhs, 0.0 + 0.0im)
+        rhs[i] = 1.0 + 0.0im
+        lu_ldiv!(sol, M.lu, rhs)
+        for j in 1:n
+            B[j, i] = sol[j]
+        end
     end
     return B
 end
@@ -416,7 +424,7 @@ end
 Compute optimal scaling factors `d` for the matrix `A` following Skeel [^S79]
 if `c` is approximately of the order of the solution of the linear system
 of interest.
-The scaling factors are rounded to powers `e` of the base radix 2. Row scaling is only applied to rows with `e - m ≥ scaling_threshold` (this is an inequality of norms at log-scale) to prevent zero rows from being scaled, where `2^m` is approximately the maximum norm of a row of `A`. 
+The scaling factors are rounded to powers `e` of the base radix 2. Row scaling is only applied to rows with `e - m ≥ scaling_threshold` (this is an inequality of norms at log-scale) to prevent zero rows from being scaled, where `2^m` is approximately the maximum norm of a row of `A`.
 
 [^S79]: Skeel, Robert D. "Scaling for numerical stability in Gaussian elimination." Journal of the ACM (JACM) 26.3 (1979): 494-526.
 """
@@ -524,7 +532,10 @@ function mixed_precision_iterative_refinement!(
     residual!(M.r̄, M.A, M.x̄, b)
     M.r .= M.r̄
     LA.ldiv!(M.δx, M, M.r)
-    x .-= M.δx
+    @boundscheck length(x) == length(M.δx) || throw(DimensionMismatch())
+    @inbounds for i in 1:length(x)
+        x[i] -= M.δx[i]
+    end
     return if norm isa Nothing
         x
     else
@@ -547,7 +558,10 @@ function fixed_precision_iterative_refinement!(
     )
     residual!(M.r, M.A, x, b)
     LA.ldiv!(M.δx, M, M.r)
-    x .-= M.δx
+    @boundscheck length(x) == length(M.δx) || throw(DimensionMismatch())
+    @inbounds for i in 1:length(x)
+        x[i] -= M.δx[i]
+    end
     return if norm isa Nothing
         x
     else
@@ -575,6 +589,8 @@ function inverse_inf_norm_est(
         d_l::Union{Nothing, Vector{<:Real}} = nothing,
         d_r::Union{Nothing, Vector{<:Real}} = nothing,
     )
+    m, n = size(WS)
+    m == n || return Inf
     WS.factorized[] || factorize!(WS)
     work, rwork = WS.inf_norm_est_work, WS.inf_norm_est_rwork
     return if !WS.scaled[]
@@ -582,6 +598,16 @@ function inverse_inf_norm_est(
     else
         inverse_inf_norm_est(WS.lu, d_l, d_r, WS.row_scaling, work, rwork)
     end
+end
+
+@inline function _norm_inf(x::AbstractVector{<:Real})
+    isempty(x) && return 0.0
+    m = abs(x[1])
+    @inbounds for i in 2:length(x)
+        xi = abs(x[i])
+        xi > m && (m = xi)
+    end
+    return m
 end
 function inverse_inf_norm_est(
         lu::LA.LU,
@@ -662,7 +688,7 @@ function inverse_inf_norm_est(
             x .= real.(z)
         end
         k += 1
-        if x[j] == LA.norm(x, Inf) || k > 2
+        if x[j] == _norm_inf(x) || k > 2
             break
         end
     end
@@ -892,8 +918,9 @@ function egcond(
     return egcond(workspace(J), d_l, d_r)
 end
 
-@static if VERSION ≥ v"1.7.0-"
-    qr_col_norm!(M) = LA.qr!(M, LA.ColumnNorm())
-else
-    qr_col_norm!(M) = LA.qr!(M, Val(true))
+function qr_col_norm!(M::Matrix{ComplexF64})::LA.QRPivoted
+    return LA.qr!(M, LA.ColumnNorm())
+end
+function qr_col_norm!(M::StridedMatrix{ComplexF64})::LA.QRPivoted
+    return Base.invokelatest(LA.qr!, M, LA.ColumnNorm())::LA.QRPivoted
 end

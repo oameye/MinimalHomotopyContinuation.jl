@@ -20,12 +20,18 @@ function MultiplicityInfo(pathresults::Vector{<:PathResult})
     multiplicities = compute_multiplicities(pathresults)
     for clusters in values(multiplicities), cluster in clusters
         for i in 2:length(cluster)
-            push!(multiple_indicator, path_number(pathresults[cluster[i]]))
+            pn = path_number(pathresults[cluster[i]])
+            isnothing(pn) || push!(multiple_indicator, pn)
         end
     end
     for k in keys(multiplicities)
         multiplicities[k] = map(multiplicities[k]) do cluster
-            map(i -> path_number(pathresults[i]), cluster)
+            cluster_path_numbers = Int[]
+            for i in cluster
+                pn = path_number(pathresults[i])
+                isnothing(pn) || push!(cluster_path_numbers, pn)
+            end
+            cluster_path_numbers
         end
     end
     return MultiplicityInfo(multiplicities, multiple_indicator)

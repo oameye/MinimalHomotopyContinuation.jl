@@ -74,14 +74,14 @@ Possible return codes are:
   modified which introduced artificial solutions and this solution is one of them.
 * various return codes indicating termination of the tracking
 """
-Base.@kwdef mutable struct PathResult{StartSolutionT}
+mutable struct PathResult{StartSolutionT}
     return_code::PathResultCode.codes
     solution::Vector{ComplexF64}
     t::Float64
     accuracy::Float64
     residual::Float64
     singular::Bool
-    multiplicity::Int = 1
+    multiplicity::Int
     condition_jacobian::Float64
     winding_number::Union{Nothing, Int}
     extended_precision::Bool
@@ -94,8 +94,117 @@ Base.@kwdef mutable struct PathResult{StartSolutionT}
     # performance stats
     accepted_steps::Int
     rejected_steps::Int
-    steps_eg::Int = 0
+    steps_eg::Int
     extended_precision_used::Bool
+
+    function PathResult{StartSolutionT}(
+            return_code::PathResultCode.codes,
+            solution::Vector{ComplexF64},
+            t::Float64,
+            accuracy::Float64,
+            residual::Float64,
+            singular::Bool,
+            multiplicity::Int,
+            condition_jacobian::Float64,
+            winding_number::Union{Nothing, Int},
+            extended_precision::Bool,
+            path_number::Union{Nothing, Int},
+            start_solution::StartSolutionT,
+            last_path_point::Tuple{Vector{ComplexF64}, Float64},
+            valuation::Union{Nothing, Vector{Float64}},
+            ω::Float64,
+            μ::Float64,
+            accepted_steps::Int,
+            rejected_steps::Int,
+            steps_eg::Int,
+            extended_precision_used::Bool,
+        ) where {StartSolutionT}
+        return new{StartSolutionT}(
+            return_code,
+            solution,
+            t,
+            accuracy,
+            residual,
+            singular,
+            multiplicity,
+            condition_jacobian,
+            winding_number,
+            extended_precision,
+            path_number,
+            start_solution,
+            last_path_point,
+            valuation,
+            ω,
+            μ,
+            accepted_steps,
+            rejected_steps,
+            steps_eg,
+            extended_precision_used,
+        )
+    end
+end
+
+function PathResult(;
+        return_code::PathResultCode.codes,
+        solution::AbstractVector{<:Complex},
+        t::Real,
+        accuracy::Real,
+        residual::Real,
+        singular::Bool,
+        condition_jacobian::Real,
+        winding_number::Union{Nothing, Integer},
+        extended_precision::Bool,
+        path_number::Union{Nothing, Integer},
+        start_solution = nothing,
+        last_path_point::Tuple{<:AbstractVector{<:Complex}, <:Real},
+        valuation::Union{Nothing, AbstractVector{<:Real}},
+        ω::Real,
+        μ::Real,
+        accepted_steps::Integer,
+        rejected_steps::Integer,
+        extended_precision_used::Bool,
+        multiplicity::Integer = 1,
+        steps_eg::Integer = 0,
+    )
+    solution_vec = if solution isa Vector{ComplexF64}
+        solution
+    else
+        Vector{ComplexF64}(solution)
+    end
+    point_vec = if last_path_point[1] isa Vector{ComplexF64}
+        last_path_point[1]
+    else
+        Vector{ComplexF64}(last_path_point[1])
+    end
+    val_vec = if isnothing(valuation)
+        nothing
+    elseif valuation isa Vector{Float64}
+        valuation
+    else
+        Float64.(valuation)
+    end
+    return PathResult{typeof(start_solution)}(
+        return_code,
+        solution_vec,
+        Float64(t),
+        Float64(accuracy),
+        Float64(residual),
+        singular,
+        Int(multiplicity),
+        Float64(condition_jacobian),
+        isnothing(winding_number) ? nothing : Int(winding_number),
+        extended_precision,
+        isnothing(path_number) ? nothing : Int(path_number),
+        start_solution,
+        (point_vec, Float64(last_path_point[2])),
+        val_vec,
+        Float64(ω),
+        Float64(μ),
+        Int(accepted_steps),
+        Int(rejected_steps),
+        Int(steps_eg),
+        extended_precision_used,
+    )
 end
 
 Base.show(io::IO, ::MIME"application/prs.juno.inline", r::PathResult) = r
@@ -280,7 +389,7 @@ function is_real(r::PathResult; atol::Float64 = 1.0e-6, rtol::Float64 = 0.0)
     m = maximum(abs ∘ imag, r.solution)
     m < atol && return true
     iszero(rtol) && return false
-    thresh = rtol * norm(r.solution, 1)
+    thresh = rtol * sum(abs, r.solution)
     return m < thresh
 end
 is_real(r::PathResult, atol::Float64) = is_real(r; atol)

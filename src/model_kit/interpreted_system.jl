@@ -62,17 +62,38 @@ function Base.show(io::IO, F::InterpretedSystem)
 end
 
 (F::InterpretedSystem)(x, p = nothing) = F.system(x, p)
-function evaluate!(u, F::InterpretedSystem, x, p = nothing)
+function evaluate!(
+        u::AbstractVector{ComplexF64},
+        F::InterpretedSystem,
+        x::AbstractVector{ComplexF64},
+        p = nothing,
+    )
     return execute!(u, F.eval_ComplexF64, x, p)
 end
 function evaluate!(u, F::InterpretedSystem, x::AbstractVector{ComplexDF64}, p = nothing)
     return execute!(u, F.eval_ComplexDF64, x, p)
 end
+function evaluate!(u, F::InterpretedSystem, x, p = nothing)
+    return execute!(u, F.eval_ComplexF64, x, p)
+end
 
-
+function evaluate_and_jacobian!(
+        u::AbstractVector{ComplexF64},
+        U::AbstractMatrix{ComplexF64},
+        F::InterpretedSystem,
+        x::AbstractVector{ComplexF64},
+        p = nothing,
+    )
+    execute!(u, U, F.jac_ComplexF64, x, p)
+    return nothing
+end
 function evaluate_and_jacobian!(u, U, F::InterpretedSystem, x, p = nothing)
     execute!(u, U, F.jac_ComplexF64, x, p)
     return nothing
+end
+function jacobian!(U::AbstractMatrix{ComplexF64}, F::InterpretedSystem, x, p = nothing)
+    execute!(nothing, U, F.jac_ComplexF64, x, p)
+    return U
 end
 function jacobian!(U, F::InterpretedSystem, x, p = nothing)
     execute!(nothing, U, F.jac_ComplexF64, x, p)

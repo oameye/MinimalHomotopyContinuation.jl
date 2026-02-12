@@ -42,7 +42,9 @@ function _total_degree_kernel(F::Union{System, AbstractSystem}, alg::TotalDegree
     tracker, starts = _total_degree_impl(F, alg)
     # Keep historical behavior from solve preparation: zero starts are rejected.
     if iterate(starts) === nothing
-        throw(ArgumentError("The number of start solutions is zero (total degree is zero)."))
+        throw(
+            ArgumentError("The number of start solutions is zero (total degree is zero).")
+        )
     end
     return tracker, starts
 end
@@ -63,8 +65,9 @@ function Base.show(io::IO, iter::TotalDegreeStartSolutionsIterator)
 end
 
 function Base.iterate(iter::TotalDegreeStartSolutionsIterator)
-    indices, state = iterate(iter.iterator)
-    return _value(iter, indices), state
+    it = iterate(iter.iterator)
+    it === nothing && return nothing
+    return _value(iter, first(it)), last(it)
 end
 function Base.iterate(iter::TotalDegreeStartSolutionsIterator, state)
     it = iterate(iter.iterator, state)

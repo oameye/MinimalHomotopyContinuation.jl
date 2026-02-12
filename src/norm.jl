@@ -101,14 +101,18 @@ Setup the weighted norm `w` for `x`.
 """
 function init!(w::WeightedNorm, x)
     point_norm = w.norm(x)
-    for i in 1:length(w)
-        wᵢ = fast_abs(x[i])
+    i = 1
+    n = length(w)
+    while i <= n
+        @inbounds xᵢ = x[i]
+        wᵢ = fast_abs(xᵢ)
         if wᵢ < w.options.scale_min * point_norm
             wᵢ = w.options.scale_min * point_norm
         elseif wᵢ > w.options.scale_max * point_norm
             wᵢ = w.options.scale_max * point_norm
         end
-        w[i] = max(wᵢ, w.options.scale_abs_min)
+        @inbounds w[i] = max(wᵢ, w.options.scale_abs_min)
+        i += 1
     end
     return w
 end
@@ -122,16 +126,21 @@ and the norm of `x`.
 """
 function update!(w::WeightedNorm, x)
     norm_x = w(x)
-    for i in 1:length(x)
-        wᵢ = (fast_abs(x[i]) + w[i]) / 2
+    i = 1
+    n = length(x)
+    while i <= n
+        @inbounds xᵢ = x[i]
+        @inbounds woldᵢ = w[i]
+        wᵢ = (fast_abs(xᵢ) + woldᵢ) / 2
         if wᵢ < w.options.scale_min * norm_x
             wᵢ = w.options.scale_min * norm_x
         elseif wᵢ > w.options.scale_max * norm_x
             wᵢ = w.options.scale_max * norm_x
         end
         if isfinite(wᵢ)
-            w[i] = max(wᵢ, w.options.scale_abs_min)
+            @inbounds w[i] = max(wᵢ, w.options.scale_abs_min)
         end
+        i += 1
     end
     return w
 end
@@ -152,16 +161,20 @@ function distance(x, y, ::InfNorm)
     n = length(x)
     @boundscheck n == length(y)
     @inbounds dmax = abs2(x[1] - y[1])
-    for i in 2:n
+    i = 2
+    while i <= n
         @inbounds dᵢ = abs2(x[i] - y[i])
         dmax = Base.FastMath.max_fast(dmax, dᵢ)
+        i += 1
     end
     d = sqrt(dmax)
     if isinf(d)
         @inbounds dmax = abs(x[1] - y[1])
-        for i in 2:n
+        i = 2
+        while i <= n
             @inbounds dᵢ = abs2(x[i] - y[i])
             dmax = max(dmax, dᵢ)
+            i += 1
         end
         return dmax
     else
@@ -175,16 +188,20 @@ function inf_distance(x, y, w)
     n = length(x)
     @boundscheck n == length(w)
     @inbounds dmax = abs2((x[1] - y[1]) / w[1])
-    for i in 2:n
+    i = 2
+    while i <= n
         @inbounds dᵢ = abs2((x[i] - y[i]) / w[i])
         dmax = Base.FastMath.max_fast(dmax, dᵢ)
+        i += 1
     end
     d = sqrt(dmax)
     if isinf(d)
         @inbounds dmax = abs((x[1] - y[1]) / w[1])
-        for i in 2:n
+        i = 2
+        while i <= n
             @inbounds dᵢ = abs((x[i] - y[i]) / w[i])
             dmax = max(dmax, dᵢ)
+            i += 1
         end
         return dmax
     else
@@ -195,17 +212,21 @@ end
 function norm(x, ::InfNorm)
     n = length(x)
     @inbounds dmax = abs2(x[1])
-    for i in 2:n
+    i = 2
+    while i <= n
         @inbounds dᵢ = abs2(x[i])
         dmax = Base.FastMath.max_fast(dmax, dᵢ)
+        i += 1
     end
     d = sqrt(dmax)
 
     if isinf(d)
         @inbounds dmax = abs(x[1])
-        for i in 2:n
+        i = 2
+        while i <= n
             @inbounds dᵢ = abs(x[i])
             dmax = max(dmax, dᵢ)
+            i += 1
         end
         return dmax
     else
@@ -216,17 +237,21 @@ function norm(x, w::WeightedNorm{InfNorm})
     n = length(x)
     @boundscheck n == length(w)
     @inbounds dmax = abs2(x[1] / w[1])
-    for i in 2:n
+    i = 2
+    while i <= n
         @inbounds dᵢ = abs2(x[i] / w[i])
         dmax = Base.FastMath.max_fast(dmax, dᵢ)
+        i += 1
     end
     d = sqrt(dmax)
 
     if isinf(d)
         @inbounds dmax = abs(x[1] / w[1])
-        for i in 2:n
+        i = 2
+        while i <= n
             @inbounds dᵢ = abs(x[i] / w[i])
             dmax = max(dmax, dᵢ)
+            i += 1
         end
         return dmax
     else

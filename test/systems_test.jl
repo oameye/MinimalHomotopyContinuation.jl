@@ -1,3 +1,12 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 function test_system_evaluate(system, symbolic_system)
     m, n = size(system)
     k = nparameters(system)

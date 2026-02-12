@@ -69,6 +69,7 @@ Create a vector of `n` `NTuple{N,T}`s.
 struct TaylorVector{N, T} <: AbstractVector{TruncatedTaylorSeries{N, T}}
     data::Matrix{T}
 end
+TaylorVector(data::Matrix{T}) where {T} = TaylorVector{size(data, 1), T}(data)
 TaylorVector{N}(data::Matrix{T}) where {N, T} = TaylorVector{N, T}(data)
 TaylorVector{N}(TV::TaylorVector{M, T}) where {N, M, T} = TaylorVector{N, T}(TV.data)
 TaylorVector{N}(T, n::Integer) where {N} = TaylorVector{N}(zeros(T, N, n))
@@ -130,6 +131,7 @@ Base.setindex!(TV::TaylorVector, x, i::Integer, j::Integer) = setindex!(TV.data,
 
 struct DiffMap
     D::Dict{Tuple{Any, Int}, Any}
+    DiffMap(D::Dict{Tuple{Any, Int}, Any}) = new(D)
 end
 DiffMap() = DiffMap(Dict{Tuple{Any, Int}, Any}())
 #

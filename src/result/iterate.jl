@@ -3,17 +3,19 @@
 
 A result iterator tracking paths lazily.
 """
-struct ResultIterator{Iter, SolverT <: AbstractSolver} <: AbstractResult
+struct ResultIterator{
+        Iter, SolverT <: AbstractSolver, BitmaskT <: Union{Nothing, AbstractVector{Bool}},
+    } <: AbstractResult
     starts::Iter
     S::SolverT
-    bitmask::Union{BitVector, Nothing}
+    bitmask::BitmaskT
 end
 function ResultIterator(
-        starts::Iter, S::SolverT; bitmask = nothing
+        starts::Iter, S::SolverT; bitmask::Union{Nothing, AbstractVector{Bool}} = nothing
     ) where {Iter, SolverT <: AbstractSolver}
-    return ResultIterator{Iter, SolverT}(starts, S, bitmask)
+    return ResultIterator{Iter, SolverT, typeof(bitmask)}(starts, S, bitmask)
 end
-ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask = nothing) where {SolverT <: AbstractSolver} = ResultIterator(
+ResultIterator(starts::AbstractVector{<:Number}, S::SolverT; bitmask::Union{Nothing, AbstractVector{Bool}} = nothing) where {SolverT <: AbstractSolver} = ResultIterator(
     [starts], S; bitmask
 )
 
@@ -113,8 +115,11 @@ end
 
 function Result(ri::ResultIterator)
     C = collect(ri)
-    for i in 1:length(C)
+    i = 1
+    n = length(C)
+    while i <= n
         C[i].path_number = i
+        i += 1
     end
     return Result(C; seed = ri.S.seed, algorithm = ri.S.algorithm)
 end

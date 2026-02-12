@@ -1,3 +1,12 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 function RigidMultiView()
     @var A[1:3, 1:4, 1:2]
     @var x[1:3] y[1:3] u[1:2] v[1:2]

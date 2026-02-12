@@ -28,7 +28,7 @@ function update_many_progress!(progress, results, k, paths_per_param)
     t = time()
     if k == progress.n || t > progress.tlast + progress.dt
         showvalues = make_many_showvalues(results, k, paths_per_param)
-        ProgressMeter.update!(progress, k; showvalues)
+        Base.invokelatest(ProgressMeter.update!, progress, k; showvalues)
     end
     return nothing
 end
@@ -96,7 +96,8 @@ function many_solve(
             update_many_progress!(progress, results, kᵢ, m)
         end
     catch e
-        interrupted = isa(e, InterruptException) ||
+        interrupted =
+            isa(e, InterruptException) ||
             (isa(e, TaskFailedException) && isa(e.task.exception, InterruptException))
         if !interrupted || !catch_interrupt
             rethrow(e)

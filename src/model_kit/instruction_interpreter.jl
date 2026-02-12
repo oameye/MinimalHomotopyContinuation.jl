@@ -19,14 +19,16 @@ Show the instruction executed by the interpreter `I`.
 """
 show_instructions(I::Interpreter) = show_instructions(stdout, I)
 function show_instructions(io::IO, I::Interpreter)
-    for i in 1:I.nconstants
+    nconstants = length(I.sequence.constants_range)
+    nparameters = length(I.parameters)
+    for i in I.sequence.constants_range
         println(io, "t[$i] = $(I.tape[i])")
     end
     for (i, p) in enumerate(I.parameters)
-        println(io, "t[", i + I.nconstants, "] = $(p)")
+        println(io, "t[", nconstants + i, "] = $(p)")
     end
     for (i, x) in enumerate(I.variables)
-        println(io, "t[", i + I.nconstants + length(I.parameters), "] = $(x)")
+        println(io, "t[", nconstants + nparameters + i, "] = $(x)")
     end
     for instr in I.sequence
         println(io, instr)
@@ -74,7 +76,9 @@ function interpreter(
     ) where {V <: AbstractVector}
     # build tape
     tape = create_tape(V, sequence.tape_space_needed)
-    tape[sequence.constants_range] .= sequence.constants
+    @inbounds for (k, c) in zip(sequence.constants_range, sequence.constants)
+        tape[k] = c
+    end
 
     return Interpreter(sequence, tape, variables, parameters)
 end
@@ -107,9 +111,14 @@ function setprecision!(i::Interpreter{<:AcbRefVector}, prec::Int)
     return i
 end
 
-Base.@propagate_inbounds zero!(v::AbstractArray) = fill!(v, 0)
-zero!(v::Arblib.AcbVectorLike) = Arblib.zero!(v)
-zero!(v::Arblib.AcbMatrixLike) = Arblib.zero!(v)
+Base.@propagate_inbounds zero!(v::TaylorVector{N, T}) where {N, T} = fill!(v, zero(T))
+Base.@propagate_inbounds zero!(v::AbstractArray{<:TruncatedTaylorSeries}) = fill!(
+    v, zero(eltype(v))
+)
+Base.@propagate_inbounds zero!(v::AbstractArray{<:Number}) = fill!(v, zero(eltype(v)))
+Base.@propagate_inbounds zero!(v::AbstractArray{Any}) = fill!(v, 0)
+zero!(v::Arblib.AcbRefVector) = Arblib.zero!(v)
+zero!(v::Arblib.AcbRefMatrix) = Arblib.zero!(v)
 create_tape(::Type{V}, len) where {V <: AbstractVector} = zero!(similar(V, len))
 create_tape(::Type{Arblib.AcbRefVector}, len; prec::Int = 128) = Arblib.AcbRefVector(len)
 
@@ -126,37 +135,44 @@ function nested_ifs(cond_body, elsebranch = nothing)
     return orig_expr
 end
 
+const _OP_TYPES = collect(instances(OpType))
+
 function execute_instructions_inner!_impl(level = 0)
-    op_types = [instances(OpType)...]
+    op_types = _OP_TYPES
     arity1 = filter(op -> arity(op) == 1, op_types)
     arity2 = filter(op -> arity(op) == 2 && op !== OP_POW_INT, op_types)
     arity3 = filter(op -> arity(op) == 3, op_types)
     arity4 = filter(op -> arity(op) == 4, op_types)
-    # This should get compiled to a jump table by LLVM, so order doesn't matter
-    branches = [
-        map(arity1) do op
-            (:(op == $(op)), :(tape[i] = $(op_call(op))(t₁)))
-        end
-        [(:(op == OP_POW_INT), :(tape[i] = $(op_call(OP_POW_INT))(t₁, arg₂)))]
-        map(arity2) do op
-            (
+    # This should get compiled to a jump table by LLVM, so order doesn't matter.
+    branches = Tuple{Expr, Expr}[]
+    for op in arity1
+        push!(branches, (:(op == $(op)), :(tape[i] = $(op_call(op))(t₁))))
+    end
+    push!(branches, (:(op == OP_POW_INT), :(tape[i] = $(op_call(OP_POW_INT))(t₁, arg₂))))
+    for op in arity2
+        push!(
+            branches, (
                 :(op == $(op)), quote
                     t₂ = tape[arg₂]
                     tape[i] = $(op_call(op))(t₁, t₂)
                 end,
             )
-        end
-        map(arity3) do op
-            (
+        )
+    end
+    for op in arity3
+        push!(
+            branches, (
                 :(op == $(op)), quote
                     t₂ = tape[arg₂]
                     t₃ = tape[arg₃]
                     tape[i] = $(op_call(op))(t₁, t₂, t₃)
                 end,
             )
-        end
-        map(arity4) do op
-            (
+        )
+    end
+    for op in arity4
+        push!(
+            branches, (
                 :(op == $(op)), quote
                     t₂ = tape[arg₂]
                     t₃ = tape[arg₃]
@@ -164,17 +180,23 @@ function execute_instructions_inner!_impl(level = 0)
                     tape[i] = $(op_call(op))(t₁, t₂, t₃, t₄)
                 end,
             )
-        end
-    ]
+        )
+    end
     # Add one level of instruction recursion
     # to speed up things
     # More would help but are too prohibitiv in compile cost
     if level < 1
-        branches = map(branches) do ((cond, code))
-            (cond, :($code; $(execute_instructions_inner!_impl(level + 1))))
+        recursive = Tuple{Expr, Expr}[]
+        for (cond, code) in branches
+            push!(
+                recursive, (cond, :($code; $(execute_instructions_inner!_impl(level + 1))))
+            )
         end
+        branches = recursive
     end
 
+    cond_body = copy(branches)
+    push!(cond_body, (:(op == OP_STOP), :(break)))
 
     return quote
         Base.@_propagate_inbounds_meta
@@ -183,19 +205,12 @@ function execute_instructions_inner!_impl(level = 0)
         arg₁, arg₂, arg₃, arg₄ = instr.input
         i = instr.output
         t₁ = tape[arg₁]
-        $(
-            nested_ifs(
-                [
-                    branches
-                    [(:(op == OP_STOP), :(break))]
-                ]
-            )
-        )
+        $(nested_ifs(cond_body))
     end
 end
 
 function execute_acb_instructions_inner!_impl(level = 0)
-    op_types = [instances(OpType)...]
+    op_types = _OP_TYPES
     arity1 = filter(op -> arity(op) == 1, op_types)
     arity2 = filter(op -> arity(op) == 2 && op !== OP_POW_INT, op_types)
     arity3 = filter(op -> arity(op) == 3, op_types)
@@ -327,11 +342,16 @@ for has_parameters in [true, false],
                 quote
                     n = I.sequence.output_dim
                     zero!(U)
-                    idx = CartesianIndices((I.sequence.output_dim, size(U, 2)))
+                    ncols = size(U, 2)
                     if isnothing(u)
                         for (i, k) in I.sequence.assignments
                             if i > n
-                                U[idx[i - n]] = I.tape[k]
+                                j = i - n
+                                if j <= n * ncols
+                                    row = ((j - 1) % n) + 1
+                                    col = ((j - 1) ÷ n) + 1
+                                    U[row, col] = I.tape[k]
+                                end
                             end
                         end
                     else
@@ -340,7 +360,12 @@ for has_parameters in [true, false],
                             if i <= n
                                 u[i] = I.tape[k]
                             else
-                                U[idx[i - n]] = I.tape[k]
+                                j = i - n
+                                if j <= n * ncols
+                                    row = ((j - 1) % n) + 1
+                                    col = ((j - 1) ÷ n) + 1
+                                    U[row, col] = I.tape[k]
+                                end
                             end
                         end
                     end

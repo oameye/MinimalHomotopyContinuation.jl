@@ -175,52 +175,141 @@ is_invalid_startvalue(code::EndgameTrackerCode.codes) =
 ## State ##
 ###########
 
-Base.@kwdef mutable struct EndgameTrackerState
-    code::EndgameTrackerCode.codes = EndgameTrackerCode.tracking
+mutable struct EndgameTrackerState
+    code::EndgameTrackerCode.codes
     # modi
-    singular_endgame::Bool = false
+    singular_endgame::Bool
 
     val::Valuation
-    winding_number::Union{Nothing, Int} = nothing
+    winding_number::Union{Nothing, Int}
 
     solution::Vector{ComplexF64}
-    accuracy::Float64 = NaN
-    cond::Float64 = 1.0
-    singular::Bool = false
-    steps_eg::Int = 0
-    ext_steps_eg_start::Int = 0
+    accuracy::Float64
+    cond::Float64
+    singular::Bool
+    steps_eg::Int
+    ext_steps_eg_start::Int
 
-    jump_to_zero_failed::Tuple{Bool, Bool} = (false, false)
-    last_point::Vector{ComplexF64} = copy(solution)
-    last_t::Float64 = NaN
+    jump_to_zero_failed::Tuple{Bool, Bool}
+    last_point::Vector{ComplexF64}
+    last_t::Float64
 
     # condition number
     row_scaling::Vector{Float64}
-    col_scaling::Vector{Float64} = zeros(length(solution))
-    cond_base::Vector{Float64} = copy(row_scaling)
+    col_scaling::Vector{Float64}
+    cond_base::Vector{Float64}
 
     # at_infinity
-    at_infinity_starts::Vector{Float64} = copy(col_scaling)
-    at_infinity_tols::Vector{Float64} = copy(col_scaling)
-    at_infinity_abs_coords::Vector{Float64} = copy(col_scaling)
-    at_infinity_conds::Vector{Float64} = copy(col_scaling)
+    at_infinity_starts::Vector{Float64}
+    at_infinity_tols::Vector{Float64}
+    at_infinity_abs_coords::Vector{Float64}
+    at_infinity_conds::Vector{Float64}
 
     # singular endgame
     samples::Vector{TaylorVector{2, ComplexF64}}
-    sample_times::Vector{Float64} = zeros(3)
-    sample_conds::Vector{Float64} = zeros(3)
-    singular_start::Float64 = NaN
-    singular_steps::Int = 0
-    prediction::Vector{ComplexF64} = copy(solution)
-    prev_prediction::Vector{ComplexF64} = copy(solution)
+    sample_times::Vector{Float64}
+    sample_conds::Vector{Float64}
+    singular_start::Float64
+    singular_steps::Int
+    prediction::Vector{ComplexF64}
+    prev_prediction::Vector{ComplexF64}
+
+    function EndgameTrackerState(
+            code::EndgameTrackerCode.codes,
+            singular_endgame::Bool,
+            val::Valuation,
+            winding_number::Union{Nothing, Int},
+            solution::Vector{ComplexF64},
+            accuracy::Float64,
+            cond::Float64,
+            singular::Bool,
+            steps_eg::Int,
+            ext_steps_eg_start::Int,
+            jump_to_zero_failed::Tuple{Bool, Bool},
+            last_point::Vector{ComplexF64},
+            last_t::Float64,
+            row_scaling::Vector{Float64},
+            col_scaling::Vector{Float64},
+            cond_base::Vector{Float64},
+            at_infinity_starts::Vector{Float64},
+            at_infinity_tols::Vector{Float64},
+            at_infinity_abs_coords::Vector{Float64},
+            at_infinity_conds::Vector{Float64},
+            samples::Vector{TaylorVector{2, ComplexF64}},
+            sample_times::Vector{Float64},
+            sample_conds::Vector{Float64},
+            singular_start::Float64,
+            singular_steps::Int,
+            prediction::Vector{ComplexF64},
+            prev_prediction::Vector{ComplexF64},
+        )
+        return new(
+            code,
+            singular_endgame,
+            val,
+            winding_number,
+            solution,
+            accuracy,
+            cond,
+            singular,
+            steps_eg,
+            ext_steps_eg_start,
+            jump_to_zero_failed,
+            last_point,
+            last_t,
+            row_scaling,
+            col_scaling,
+            cond_base,
+            at_infinity_starts,
+            at_infinity_tols,
+            at_infinity_abs_coords,
+            at_infinity_conds,
+            samples,
+            sample_times,
+            sample_conds,
+            singular_start,
+            singular_steps,
+            prediction,
+            prev_prediction,
+        )
+    end
 end
 
-EndgameTrackerState(npolynomials::Integer, x::AbstractVector) = EndgameTrackerState(;
-    val = Valuation(length(x)),
-    solution = copy(x),
-    row_scaling = zeros(npolynomials),
-    samples = [TaylorVector{2}(ComplexF64, length(x)) for _ in 1:3],
-)
+function EndgameTrackerState(npolynomials::Integer, x::AbstractVector)
+    solution = Vector{ComplexF64}(x)
+    row_scaling = zeros(Float64, npolynomials)
+    col_scaling = zeros(Float64, length(solution))
+    samples = [TaylorVector{2}(ComplexF64, length(solution)) for _ in 1:3]
+    return EndgameTrackerState(
+        EndgameTrackerCode.tracking,
+        false,
+        Valuation(length(solution)),
+        nothing,
+        solution,
+        NaN,
+        1.0,
+        false,
+        0,
+        0,
+        (false, false),
+        copy(solution),
+        NaN,
+        row_scaling,
+        col_scaling,
+        copy(row_scaling),
+        copy(col_scaling),
+        copy(col_scaling),
+        copy(col_scaling),
+        copy(col_scaling),
+        samples,
+        zeros(3),
+        zeros(3),
+        NaN,
+        0,
+        copy(solution),
+        copy(solution),
+    )
+end
 
 """
     EndgameTracker(tracker::Tracker; options = EndgameOptions())
@@ -450,7 +539,10 @@ function check_at_infinity!(state, tracker, options; debug::Bool = false)
                 # check if we need to compute a row and column scaling
                 # this is the case if we have no coordinate marked
                 if all(isnan, state.at_infinity_starts)
-                    state.col_scaling .= weights(tracker.state.norm)
+                    w = weights(tracker.state.norm)
+                    @inbounds for j in eachindex(state.col_scaling)
+                        state.col_scaling[j] = w[j]
+                    end
                     row_scaling!(
                         state.row_scaling,
                         workspace(tracker.state.jacobian),
@@ -515,7 +607,10 @@ function switch_to_singular!(state, tracker, options; debug::Bool)
     debug && printstyled("SWITCH TO SINGULAR"; color = :red, bold = true)
 
     if all(isone, state.row_scaling)
-        state.col_scaling .= weights(tracker.state.norm)
+        w = weights(tracker.state.norm)
+        @inbounds for j in eachindex(state.col_scaling)
+            state.col_scaling[j] = w[j]
+        end
         row_scaling!(
             state.row_scaling,
             workspace(tracker.state.jacobian),
@@ -759,7 +854,9 @@ end
 
 
 function PathResult(
-        endgame_tracker::EndgameTracker, start_solution = nothing, path_number = nothing
+        endgame_tracker::EndgameTracker,
+        start_solution = nothing,
+        path_number::Union{Nothing, Int} = nothing,
     )
     @unpack tracker, state, options = endgame_tracker
     H = tracker.homotopy
@@ -813,7 +910,7 @@ Track `solution(r)` from `t` towards `0` using the given `endgame_tracker`.
 """
 function track(
         endgame_tracker::EndgameTracker,
-        x,
+        x::AbstractVector,
         t₁::Real = 1.0;
         path_number::Union{Nothing, Int} = nothing,
         start_solution = x,
@@ -828,7 +925,7 @@ end
 function track(
         endgame_tracker::EndgameTracker,
         r::PathResult,
-        t₁::Real;
+        t₁::Real = 1.0;
         path_number::Union{Nothing, Int} = path_number(r),
         debug::Bool = false,
     )

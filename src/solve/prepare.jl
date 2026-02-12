@@ -63,9 +63,7 @@ function _solver_startsolutions(
     return _solver_from_tracker(tracker, alg), starts
 end
 
-function _solver_startsolutions(
-        prob::SystemProblem, alg::TotalDegreeAlgorithm; kwargs...
-    )
+function _solver_startsolutions(prob::SystemProblem, alg::TotalDegreeAlgorithm; kwargs...)
     tracker, starts = _total_degree_startsystem(prob, alg)
     return _solver_from_tracker(tracker, alg), starts
 end
