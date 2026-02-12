@@ -33,24 +33,27 @@ function _sweep_solver(
     return _solver_from_tracker(tracker, alg)
 end
 
+function _system_with_target_parameters(
+        prob::SystemProblem, compile_mode::AbstractCompileMode
+    )
+    F = prob.system
+    return if prob.target_parameters === nothing
+        F
+    else
+        fix_parameters(F, prob.target_parameters; compile_mode)
+    end
+end
+
 function _polyhedral_startsystem(
         prob::SystemProblem, alg::PolyhedralAlgorithm; show_progress::Bool = true
     )
-    F = prob.system
-    if prob.target_parameters !== nothing
-        F = fix_parameters(F, prob.target_parameters; compile_mode = alg.compile_mode)
-    end
+    F = _system_with_target_parameters(prob, alg.compile_mode)
     return _polyhedral_kernel(F, alg; show_progress, rng = _seed_rng(alg.seed))
 end
 
-function _total_degree_startsystem(
-        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
-    )
-    F = prob.system
-    if prob.target_parameters !== nothing
-        F = fix_parameters(F, prob.target_parameters; compile_mode = alg.compile_mode)
-    end
-    return _total_degree_kernel(F, alg; show_progress)
+function _total_degree_startsystem(prob::SystemProblem, alg::TotalDegreeAlgorithm)
+    F = _system_with_target_parameters(prob, alg.compile_mode)
+    return _total_degree_kernel(F, alg)
 end
 
 function _solver_startsolutions(
@@ -61,16 +64,15 @@ function _solver_startsolutions(
 end
 
 function _solver_startsolutions(
-        prob::SystemProblem, alg::TotalDegreeAlgorithm; show_progress::Bool = true
+        prob::SystemProblem, alg::TotalDegreeAlgorithm; kwargs...
     )
-    tracker, starts = _total_degree_startsystem(prob, alg; show_progress)
+    tracker, starts = _total_degree_startsystem(prob, alg)
     return _solver_from_tracker(tracker, alg), starts
 end
 
 function _solver_startsolutions(
-        prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+        prob::ParameterHomotopyProblem, alg::PathTrackingAlgorithm; kwargs...
     )
-    _ = show_progress
     tracker = _parameter_homotopy_tracker(
         prob.system,
         alg;
@@ -81,9 +83,8 @@ function _solver_startsolutions(
 end
 
 function _solver_startsolutions(
-        prob::HomotopyProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+        prob::HomotopyProblem, alg::PathTrackingAlgorithm; kwargs...
     )
-    _ = show_progress
     tracker = EndgameTracker(
         fixed(prob.homotopy; compile_mode = alg.compile_mode);
         tracker_options = alg.tracker_options,
@@ -93,16 +94,14 @@ function _solver_startsolutions(
 end
 
 function _solver_startsolutions(
-        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm; show_progress::Bool = true
+        prob::ParameterSweepProblem, alg::PathTrackingAlgorithm; kwargs...
     )
-    _ = show_progress
     return _sweep_solver(prob, alg, _first_target(prob.targets)), prob.start_solutions
 end
 
 function _solver_startsolutions(
-        prob::AbstractHCProblem, alg::AbstractHCAlgorithm; show_progress::Bool = true
+        prob::AbstractHCProblem, alg::AbstractHCAlgorithm; kwargs...
     )
-    _ = show_progress
     throw(
         ArgumentError(
             "Unsupported problem/algorithm combination: $(typeof(prob)) with $(typeof(alg)).",

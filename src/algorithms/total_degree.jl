@@ -38,16 +38,11 @@ function _total_degree_impl(F::Union{System, AbstractSystem}, alg::TotalDegreeAl
     return T, starts
 end
 
-function _total_degree_kernel(
-        F::Union{System, AbstractSystem}, alg::TotalDegreeAlgorithm; show_progress::Bool = true
-    )
-    _ = show_progress
+function _total_degree_kernel(F::Union{System, AbstractSystem}, alg::TotalDegreeAlgorithm)
     tracker, starts = _total_degree_impl(F, alg)
     # Keep historical behavior from solve preparation: zero starts are rejected.
-    try
-        first(starts)
-    catch
-        throw("The number of start solutions is zero (total degree is zero).")
+    if iterate(starts) === nothing
+        throw(ArgumentError("The number of start solutions is zero (total degree is zero)."))
     end
     return tracker, starts
 end
