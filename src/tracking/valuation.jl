@@ -15,17 +15,57 @@ mutable struct Valuation
     logx_data::NTuple{2, Vector{Float64}}
     logẋ_data::NTuple{2, Vector{Float64}}
     logt_data::NTuple{2, Float64}
+
+    function Valuation(
+            val_x::Vector{Float64},
+            val_tẋ::Vector{Float64},
+            Δval_x::Vector{Float64},
+            Δval_tẋ::Vector{Float64},
+            val_x_data::NTuple{2, Vector{Float64}},
+            val_ẋ_data::NTuple{2, Vector{Float64}},
+            logx_data::NTuple{2, Vector{Float64}},
+            logẋ_data::NTuple{2, Vector{Float64}},
+            logt_data::NTuple{2, Float64},
+        )
+        return new(
+            val_x,
+            val_tẋ,
+            Δval_x,
+            Δval_tẋ,
+            val_x_data,
+            val_ẋ_data,
+            logx_data,
+            logẋ_data,
+            logt_data,
+        )
+    end
 end
 
 Valuation(x::AbstractVector) = Valuation(length(x))
-Valuation(n::Integer) = Valuation(
-    (zeros(n) for i in 1:4)..., ((zeros(n), zeros(n)) for i in 1:4)..., (NaN, NaN)
-)
+function Valuation(n::Integer)
+    n′ = Int(n)
+    return Valuation(
+        zeros(n′),
+        zeros(n′),
+        zeros(n′),
+        zeros(n′),
+        (zeros(n′), zeros(n′)),
+        (zeros(n′), zeros(n′)),
+        (zeros(n′), zeros(n′)),
+        (zeros(n′), zeros(n′)),
+        (NaN, NaN),
+    )
+end
 
 function Base.show(io::IO, val::Valuation)
     print(io, "Valuation :")
-    for field in [:val_x, :val_tẋ, :Δval_x, :Δval_tẋ]
-        vs = [Printf.@sprintf("%#.4g", v) for v in getfield(val, field)]
+    for (field, values) in (
+            (:val_x, val.val_x),
+            (:val_tẋ, val.val_tẋ),
+            (:Δval_x, val.Δval_x),
+            (:Δval_tẋ, val.Δval_tẋ),
+        )
+        vs = [Printf.@sprintf("%#.4g", v) for v in values]
         print(io, "\n • ", field, " → ", "[", join(vs, ", "), "]")
     end
     return nothing

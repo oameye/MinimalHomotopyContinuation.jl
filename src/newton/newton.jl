@@ -115,7 +115,7 @@ function newton(
         p = nothing,
         norm::AbstractNorm = InfNorm();
         compile_mode::AbstractCompileMode = DEFAULT_COMPILE_MODE,
-        cache::NewtonCache = NewtonCache(fixed(f; compile_mode)),
+        cache::Union{Nothing, NewtonCache} = nothing,
         extended_precision::Bool = false,
         atol::Float64 = 1.0e-8,
         rtol::Float64 = atol,
@@ -125,12 +125,14 @@ function newton(
         max_abs_norm_first_update::Float64 = Inf,
         max_rel_norm_first_update::Float64 = max_abs_norm_first_update,
     )
+    F = fixed(f; compile_mode)
+    cache′::NewtonCache = isnothing(cache) ? NewtonCache(F) : cache
     return newton(
-        fixed(f; compile_mode),
+        F,
         x₀,
         p,
         norm,
-        cache;
+        cache′;
         extended_precision,
         atol,
         rtol,
@@ -171,10 +173,15 @@ function newton(
         end
 
         updated!(J)
-        if m ≥ n
+        if J isa MatrixWorkspace
             LA.ldiv!(Δx, J, r)
         else
-            LA.ldiv!(Δx, qr_col_norm!(J), r)
+            A = Matrix{ComplexF64}(matrix(J))
+            b = Vector{ComplexF64}(undef, length(r))
+            @inbounds for j in eachindex(r)
+                b[j] = r[j]
+            end
+            Δx .= A \ b
         end
         norm_Δxᵢ = norm(Δx)
 

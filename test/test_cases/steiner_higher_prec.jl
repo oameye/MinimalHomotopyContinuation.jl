@@ -1,3 +1,17 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
+const Tracker = HC.Tracker
+const TrackerOptions = HC.TrackerOptions
+const track = HC.track
+const ParameterHomotopy = HC.ParameterHomotopy
+
 # The following is a particular combination of generic parameters such that
 # the goes close to a singularity. An increase in the precision of the residual
 # is only necessary for 1 or 2 steps

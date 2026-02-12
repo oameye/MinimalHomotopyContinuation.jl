@@ -41,8 +41,8 @@ Base.IteratorSize(::Type{<:PolyhedralStartSolutionsIterator}) = Base.SizeUnknown
 Base.IteratorEltype(::Type{<:PolyhedralStartSolutionsIterator}) = Base.HasEltype()
 Base.eltype(iter::PolyhedralStartSolutionsIterator) = Tuple{MixedCell, Vector{ComplexF64}}
 
-struct PolyhedralStartState{CellT, InnerStateT}
-    cell::CellT
+struct PolyhedralStartState{InnerStateT}
+    cell::MixedCell
     inner_state::InnerStateT
     column::Int
 end
@@ -50,8 +50,8 @@ end
 function compute_mixed_cells!(iter::PolyhedralStartSolutionsIterator)
     first_cell = iterate(iter.mixed_cells)
     if isnothing(first_cell)
-        res = MixedSubdivisions.fine_mixed_cells(
-            iter.support; show_progress = iter.show_progress
+        res = Base.invokelatest(
+            MixedSubdivisions.fine_mixed_cells, iter.support; show_progress = false
         )
         if isnothing(res) || isempty(res[1])
             throw(OverflowError("Cannot compute a start system."))
@@ -74,7 +74,8 @@ function Base.iterate(iter::PolyhedralStartSolutionsIterator)
 
     first_cell = iterate(iter.mixed_cells)
     isnothing(first_cell) && return nothing
-    cell, inner_state = first_cell
+    cell = first_cell[1]::MixedCell
+    inner_state = first_cell[2]
 
     solve(iter.BSS, iter.support, iter.start_coefficients, cell)
     x = [iter.BSS.X[i, 1] for i in 1:length(iter.support)]
@@ -99,7 +100,8 @@ function Base.iterate(iter::PolyhedralStartSolutionsIterator, state::PolyhedralS
         # we finished the last column for `cell`, advance to the next cell
         next_cell = iterate(iter.mixed_cells, inner_state)
         next_cell === nothing && return nothing
-        cell2, new_inner_state = next_cell
+        cell2 = next_cell[1]::MixedCell
+        new_inner_state = next_cell[2]
 
         solve(iter.BSS, iter.support, iter.start_coefficients, cell2)
         x = [iter.BSS.X[i, 1] for i in 1:length(iter.support)]
@@ -149,7 +151,7 @@ function _polyhedral_kernel(
         rng::Union{Nothing, Random.AbstractRNG} = nothing,
     )
     _, n = size(F)
-    @var x[1:n]
+    x = variables(:x, 1:n)
     return _polyhedral_kernel(System(F(x), x), alg; show_progress, rng)
 end
 
@@ -179,6 +181,13 @@ function has_zero_col(A)
     return false
 end
 
+function all_have_zero_col(support)
+    for A in support
+        has_zero_col(A) || return false
+    end
+    return true
+end
+
 _paths_to_track_polyhedral(f::AbstractSystem, alg::PolyhedralAlgorithm) = _paths_to_track_polyhedral(
     System(f), alg
 )
@@ -188,10 +197,10 @@ function _paths_to_track_polyhedral(f::System, alg::PolyhedralAlgorithm)
     supp, _ = support_coefficients(f)
 
     return if only_non_zero
-        MixedSubdivisions.mixed_volume(supp)
+        MixedSubdivisions.mixed_volume(supp; show_progress = false)
     else
         supp′ = map(A -> has_zero_col(A) ? A : [A zeros(Int32, size(A, 1), 1)], supp)
-        MixedSubdivisions.mixed_volume(supp′)
+        MixedSubdivisions.mixed_volume(supp′; show_progress = false)
     end
 end
 MixedSubdivisions.mixed_volume(f::Union{System, AbstractSystem}) = _paths_to_track_polyhedral(
@@ -242,7 +251,7 @@ function _polyhedral_kernel(
     if only_non_zero
         min_vecs = minimum.(support; dims = 2)
         support = map((A, v) -> A .- v, support, min_vecs)
-    elseif !all(has_zero_col, support)
+    elseif !all_have_zero_col(support)
         # Add 0 to each support
         starts = Vector{ComplexF64}[]
         targets = Vector{ComplexF64}[]

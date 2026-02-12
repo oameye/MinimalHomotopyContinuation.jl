@@ -1,8 +1,19 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 const track = HC.track
 const TrackerOptions = HC.TrackerOptions
 const PolyhedralAlgorithm = HC.PolyhedralAlgorithm
 
 @testset "Polyhedral" begin
+    include("test_systems.jl")
+
     @testset "affine + torus solutions" begin
         @var x y
         f = System([2y + 3 * y^2 - x * y^3, x + 4 * x^2 - 2 * x^3 * y])

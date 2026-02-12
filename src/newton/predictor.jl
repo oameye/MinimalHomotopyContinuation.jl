@@ -136,8 +136,8 @@ order(predictor::Predictor) = predictor.order
 local_error(predictor::Predictor) = predictor.local_error
 trust_region(predictor::Predictor) = predictor.trust_region
 
-function winding_number!(P::Predictor, m)
-    P.winding_number = m
+function winding_number!(P::Predictor, m::Integer)
+    P.winding_number = Int(m)
     return P
 end
 

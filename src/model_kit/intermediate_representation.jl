@@ -15,8 +15,18 @@ struct IntermediateRepresentation
     # tape_index, assignment_ref
     assignments::Vector{Tuple{Int, IRStatementArg}}
     output_dim::Int
+
+    function IntermediateRepresentation(
+            statements::Vector{IRStatement},
+            assignments::Vector{Tuple{Int, IRStatementArg}},
+            output_dim::Int,
+        )
+        return new(statements, assignments, output_dim)
+    end
 end
-IntermediateRepresentation() = IntermediateRepresentation([], [], 0)
+IntermediateRepresentation() = IntermediateRepresentation(
+    IRStatement[], Tuple{Int, IRStatementArg}[], 0
+)
 
 ## IRStatementRef
 Base.show(io::IO, i::IRStatementRef) = print(io, "ι_", i.i)
@@ -58,8 +68,8 @@ Base.getindex(I::IRStatement, i) = I.args[i]
 
 ##  IntermediateRepresentation
 
-IntermediateRepresentation(output_dim) = IntermediateRepresentation(
-    IRStatement[], IRStatementRef[], output_dim
+IntermediateRepresentation(output_dim::Integer) = IntermediateRepresentation(
+    IRStatement[], Tuple{Int, IRStatementArg}[], Int(output_dim)
 )
 Base.length(v::IntermediateRepresentation) = length(v.statements)
 function Base.iterate(I::IntermediateRepresentation, state = nothing)

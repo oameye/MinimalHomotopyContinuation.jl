@@ -1,4 +1,18 @@
-# include("../test_systems.jl")
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
+
+@testset "ModelKit fixtures" begin
+    if !isdefined(@__MODULE__, :TEST_SYSTEM_COLLECTION)
+        include(joinpath(@__DIR__, "..", "test_systems.jl"))
+    end
+end
 
 @testset "interpreter: $name" for (name, system) in TEST_SYSTEM_COLLECTION
     @testset "interpreter symbolic" begin

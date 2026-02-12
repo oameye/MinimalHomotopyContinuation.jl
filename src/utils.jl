@@ -72,9 +72,14 @@ end
 Checks if `f(a[i], b[i]) == true` for `i=1:length(a)`.
 """
 function all2(f::F, a::AbstractVector, b::AbstractVector) where {F}
-    length(a) == length(b) || return false
-    for (ai, bi) in zip(a, b)
+    n = length(a)
+    n == length(b) || return false
+    i = 1
+    while i <= n
+        @inbounds ai = a[i]
+        @inbounds bi = b[i]
         f(ai, bi) || return false
+        i += 1
     end
     return true
 end

@@ -16,12 +16,9 @@ struct ParameterHomotopyProblem{SystemT, StartsT, PStartT, PTargetT} <: Abstract
     target_parameters::PTargetT
 end
 
-ParameterHomotopyProblem(
-    F::Union{System, AbstractSystem},
-    start_solutions;
-    start_parameters,
-    target_parameters,
-) = ParameterHomotopyProblem(F, start_solutions, start_parameters, target_parameters)
+ParameterHomotopyProblem(F::Union{System, AbstractSystem}, start_solutions; start_parameters, target_parameters) = ParameterHomotopyProblem(
+    F, start_solutions, start_parameters, target_parameters
+)
 
 struct ParameterSweepProblem{SystemT, StartsT, PStartT, TargetsT, ReducerT} <: AbstractHCProblem
     system::SystemT
@@ -31,13 +28,9 @@ struct ParameterSweepProblem{SystemT, StartsT, PStartT, TargetsT, ReducerT} <: A
     reducer::ReducerT
 end
 
-ParameterSweepProblem(
-    F::Union{System, AbstractSystem},
-    start_solutions;
-    start_parameters,
-    targets,
-    reducer::AbstractSweepReducer = IdentityReducer(),
-) = ParameterSweepProblem(F, start_solutions, start_parameters, targets, reducer)
+ParameterSweepProblem(F::Union{System, AbstractSystem}, start_solutions; start_parameters, targets, reducer::AbstractSweepReducer = IdentityReducer()) = ParameterSweepProblem(
+    F, start_solutions, start_parameters, targets, reducer
+)
 
 struct HomotopyProblem{HomotopyT, StartsT} <: AbstractHCProblem
     homotopy::HomotopyT

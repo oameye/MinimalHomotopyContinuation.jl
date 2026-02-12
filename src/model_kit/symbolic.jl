@@ -25,8 +25,8 @@ function sort_key(v::Variable)
     return var_base, reverse(indices)
 end
 Base.isless(a::Variable, b::Variable) = isless(sort_key(a), sort_key(b))
-Base.sort!(vs::AbstractVector{Variable}; kwargs...) = permute!(
-    vs, sortperm(sort_key.(vs); kwargs...)
+Base.sort!(vs::Vector{Variable}; kwargs...) = permute!(
+    vs, sortperm([sort_key(v) for v in vs]; kwargs...)
 )
 
 Base.Symbol(v::Variable) = name(v)
@@ -104,8 +104,9 @@ end
 Create an `Array` of variables with the given `prefix` and indices.
 The expression  `@var x[1:3, 1:2]` is equivalent to  `x = variables(:x, 1:3, 1:2)`.
 """
-function MP.variables(prefix::Union{Symbol, String}, indices...)
-    return map(i -> Variable(prefix, i...), Iterators.product(indices...))
+MP.variables(prefix::Union{Symbol, String}) = Variable(prefix)
+function MP.variables(prefix::Union{Symbol, String}, index_set, index_sets...)
+    return [Variable(prefix, i...) for i in Iterators.product(index_set, index_sets...)]
 end
 
 function buildvar(var; unique::Bool = false)
@@ -274,12 +275,15 @@ const _MP_SUBS_PAIR = Union{
     Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:AbstractVector},
     Pair{<:AbstractVector{<:MP.AbstractMonomialLike}, <:Tuple},
 }
-subs(ex::Basic, args...) = subs(ex, ExpressionMap(args...))
-subs(exs::AbstractArray{<:Basic}, args...) = subs.(exs, Ref(ExpressionMap(args...)))
+subs(ex::Basic, args::Pair...) = subs(ex, ExpressionMap(args...))
+subs(exs::AbstractArray{<:Basic}, args::Pair...) = subs.(exs, Ref(ExpressionMap(args...)))
 subs(ex::Basic, args::_MP_SUBS_PAIR...) = subs(ex, ExpressionMap(args...))
 subs(exs::AbstractArray{<:Basic}, args::_MP_SUBS_PAIR...) = subs.(
     exs, Ref(ExpressionMap(args...))
 )
+subs(ex::Basic, dict::AbstractDict) = subs(ex, ExpressionMap(dict))
+subs(exs::AbstractArray{<:Basic}, dict::AbstractDict) = subs.(exs, Ref(ExpressionMap(dict)))
+subs(exs::AbstractArray{<:Basic}, d::ExpressionMap) = subs.(exs, Ref(d))
 
 """
     evaluate(expr::Expression, subs...)
@@ -384,23 +388,47 @@ function monomials(
         prod(i -> vars[i]^exp[i], 1:n)
     end
 end
-function monomials_exponents(n, d; affine::Bool)
-    if affine
-        pred = x -> sum(x) ≤ d
-    else
-        pred = x -> sum(x) == d
+function monomials_exponents(n::Integer, d::Integer; affine::Bool)
+    ni = Int(n)
+    di = Int(d)
+    ni < 0 && throw(ArgumentError("Expected non-negative number of variables, got $ni."))
+    di < 0 && return Vector{Vector{Int}}()
+
+    E = Vector{Vector{Int}}()
+    exp = zeros(Int, ni)
+    function _build!(k::Int, remaining::Int)
+        if k > ni
+            if affine || remaining == 0
+                push!(E, copy(exp))
+            end
+            return nothing
+        end
+        max_e = remaining
+        for e in 0:max_e
+            exp[k] = e
+            _build!(k + 1, remaining - e)
+        end
+        return nothing
     end
-    E = map(Iterators.filter(pred, Iterators.product(Iterators.repeated(0:d, n)...))) do e
-        collect(e)
-    end
+    _build!(1, di)
 
     sort!(E; lt = td_order)
     return E
 end
 
-function td_order(x, y)
-    sx = sum(x)
-    sy = sum(y)
+const TDOrderArg = Union{
+    AbstractVector{<:Integer},
+    Tuple{Vararg{<:Integer}},
+    Tuple{Any, <:AbstractVector{<:Integer}},
+}
+td_order_key(x::AbstractVector{<:Integer}) = x
+td_order_key(x::Tuple{Vararg{<:Integer}}) = x
+td_order_key(x::Tuple{Any, <:AbstractVector{<:Integer}}) = x[2]
+function td_order(x::TDOrderArg, y::TDOrderArg)
+    xk = td_order_key(x)
+    yk = td_order_key(y)
+    sx = sum(xk)
+    sy = sum(yk)
     return sx == sy ? x > y : sx > sy
 end
 function monomials(
@@ -783,7 +811,7 @@ function LinearAlgebra.det(M::AbstractMatrix{<:Union{Variable, Expression}})
     end
 end
 LinearAlgebra.det(M::LinearAlgebra.Symmetric{<:Union{Variable, Expression}}) = LinearAlgebra.det(
-    Matrix(M)
+    parent(M)
 )
 
 function is_homogeneous(f::Expression, vars::Vector{Variable}; expanded::Bool = false)
@@ -1065,24 +1093,31 @@ end
 
 function System(
         F::AbstractVector{<:MP.AbstractPolynomial};
-        parameters = similar(MP.variables(F), 0),
-        variables = setdiff(MP.variables(F), parameters),
+        parameters::AbstractVector = similar(MP.variables(F), 0),
+        variables::AbstractVector = setdiff(MP.variables(F), parameters),
     )
-    vars = map(variables) do v
+    vars = map(collect(variables)) do v
         name, ind = MP.name_base_indices(v)
         Variable(name, ind...)
     end
     params = Variable[]
-    for v in parameters
+    for v in collect(parameters)
         name, ind = MP.name_base_indices(v)
         push!(params, Variable(name, ind...))
     end
-    variables_parameters = [variables; parameters]
-    vars_params = [vars; params]
+
     G = map(F) do f
-        sum(MP.terms(f)) do t
+        sum(MP.terms(f); init = Expression(0)) do t
             c = MP.coefficient(t)
-            c * prod(w^MP.degree(t, v) for (v, w) in zip(variables_parameters, vars_params))
+            c *
+                prod(
+                (w^MP.degree(t, v) for (v, w) in zip(variables, vars));
+                init = Expression(1),
+            ) *
+                prod(
+                (w^MP.degree(t, v) for (v, w) in zip(parameters, params));
+                init = Expression(1),
+            )
         end
     end
     return System(G; variables = vars, parameters = params)

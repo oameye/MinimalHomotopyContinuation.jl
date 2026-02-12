@@ -3,6 +3,14 @@ Internal total-degree start-system kernel used by solve preparation.
 Returns `(tracker, starts)` for a fixed `SystemProblem + TotalDegreeAlgorithm` setup.
 """
 
+function _coefficient_scaling(coeffs)::Vector{Float64}
+    scaling = Vector{Float64}(undef, length(coeffs))
+    @inbounds for i in eachindex(coeffs)
+        scaling[i] = maximum(abs ∘ float, coeffs[i])
+    end
+    return scaling
+end
+
 function _total_degree_impl(F::Union{System, AbstractSystem}, alg::TotalDegreeAlgorithm)
     _, n = size(F)
 
@@ -23,7 +31,7 @@ function _total_degree_impl(F::Union{System, AbstractSystem}, alg::TotalDegreeAl
         end
         D[k] = d
     end
-    scaling = maximum.(abs ∘ float, coeffs)
+    scaling = _coefficient_scaling(coeffs)
 
     if F isa System
         F = fixed(F; compile_mode = alg.compile_mode)
@@ -42,34 +50,63 @@ function _total_degree_kernel(F::Union{System, AbstractSystem}, alg::TotalDegree
     tracker, starts = _total_degree_impl(F, alg)
     # Keep historical behavior from solve preparation: zero starts are rejected.
     if iterate(starts) === nothing
-        throw(ArgumentError("The number of start solutions is zero (total degree is zero)."))
+        throw(
+            ArgumentError("The number of start solutions is zero (total degree is zero).")
+        )
     end
     return tracker, starts
 end
 
 
-struct TotalDegreeStartSolutionsIterator{Iter}
+struct TotalDegreeStartSolutionsIterator
     degrees::Vector{Int}
-    iterator::Iter
+    nsolutions::Int
 end
-function TotalDegreeStartSolutionsIterator(degrees)
-    iterator = Iterators.product(map(d -> 0:(d - 1), degrees)...)
-    return TotalDegreeStartSolutionsIterator(degrees, iterator)
+
+function _total_degree_count(degrees::Vector{Int})::Int
+    count = 1
+    for d in degrees
+        d <= 0 && return 0
+        count *= d
+    end
+    return count
 end
+
+function TotalDegreeStartSolutionsIterator(degrees::AbstractVector{<:Integer})
+    degs = Int.(degrees)
+    return TotalDegreeStartSolutionsIterator(degs, _total_degree_count(degs))
+end
+
 function Base.show(io::IO, iter::TotalDegreeStartSolutionsIterator)
     return print(
         io, "$(length(iter)) total degree start solutions for degrees $(iter.degrees)"
     )
 end
 
-function Base.iterate(iter::TotalDegreeStartSolutionsIterator)
-    indices, state = iterate(iter.iterator)
-    return _value(iter, indices), state
+function _indices_from_state(
+        state::Int, degrees::Vector{Int}, indices::Vector{Int}
+    )::Vector{Int}
+    rem = state
+    @inbounds for i in eachindex(degrees)
+        d = degrees[i]
+        indices[i] = rem % d
+        rem ÷= d
+    end
+    return indices
 end
-function Base.iterate(iter::TotalDegreeStartSolutionsIterator, state)
-    it = iterate(iter.iterator, state)
-    it === nothing && return nothing
-    return _value(iter, first(it)), last(it)
+
+function Base.iterate(iter::TotalDegreeStartSolutionsIterator)
+    iter.nsolutions == 0 && return nothing
+    indices = _indices_from_state(0, iter.degrees, Vector{Int}(undef, length(iter.degrees)))
+    return _value(iter, indices), 1
+end
+
+function Base.iterate(iter::TotalDegreeStartSolutionsIterator, state::Int)
+    state >= iter.nsolutions && return nothing
+    indices = _indices_from_state(
+        state, iter.degrees, Vector{Int}(undef, length(iter.degrees))
+    )
+    return _value(iter, indices), state + 1
 end
 
 function _value(iter::TotalDegreeStartSolutionsIterator, indices)
@@ -77,7 +114,7 @@ function _value(iter::TotalDegreeStartSolutionsIterator, indices)
 end
 
 
-Base.length(iter::TotalDegreeStartSolutionsIterator) = length(iter.iterator)
+Base.length(iter::TotalDegreeStartSolutionsIterator) = iter.nsolutions
 Base.eltype(iter::Type{<:TotalDegreeStartSolutionsIterator}) = Vector{Complex{Float64}}
 
 """
@@ -107,9 +144,9 @@ julia> collect(iter)
  [-1.0 + 1.2246467991473532e-16im, -1.0 + 1.2246467991473532e-16im]
 ```
 """
-total_degree_start_solutions(degrees::AbstractVector{<:Integer}) = TotalDegreeStartSolutionsIterator(
-    degrees
-)
+total_degree_start_solutions(
+    degrees::AbstractVector{<:Integer}
+) = TotalDegreeStartSolutionsIterator(degrees)
 
 
 function _paths_to_track_total_degree(

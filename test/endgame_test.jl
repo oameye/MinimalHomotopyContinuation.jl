@@ -1,8 +1,21 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 const track = HC.track
 const EndgameOptions = HC.EndgameOptions
 const TotalDegreeAlgorithm = HC.TotalDegreeAlgorithm
 
 @testset "Endgame" begin
+    if !isdefined(@__MODULE__, :TEST_SYSTEM_COLLECTION)
+        include("test_systems.jl")
+    end
+
     @testset "Cyclic 7" begin
         res = solve(SystemProblem(cyclic(7)), TotalDegreeAlgorithm(); show_progress = false)
         @test nsolutions(res) == 924

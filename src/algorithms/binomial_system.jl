@@ -52,12 +52,15 @@ function init!(BSS::BinomialSystemSolver, support, coeffs, cell::MixedCell)
     return BSS
 end
 
-function fill_unit_roots_combinations!(S::ElasticArray, H, d̂)
-    n = size(H, 1)
-    resize!(S, n, d̂)
-    d, e = d̂, 1
+function fill_unit_roots_combinations!(
+        S::ElasticArray{Int32, 2, 1, Vector{Int32}}, H::AbstractMatrix{<:Integer}, d̂::Integer
+    )
+    n = Int(size(H, 1))
+    d = Int(d̂)
+    resize!(S, (n, d))
+    e = 1
     @inbounds for i in 1:n
-        dᵢ = Int64(H[i, i])
+        dᵢ = Int(H[i, i])
         d = d ÷ dᵢ
         k = 1
         for _ in 1:e, j in 0:(dᵢ - 1), _ in 1:d
@@ -235,7 +238,7 @@ function solve!(BSS::BinomialSystemSolver, H::Matrix{<:Integer}, U::Matrix{<:Int
     for i in 1:n
         d̂ *= Int64(H[i, i])
     end
-    resize!(BSS.X, n, d̂)
+    resize!(BSS.X, (n, d̂))
     fill_unit_roots_combinations!(BSS.unit_roots_table, H, d̂)
 
     # We split the computation of the solution in 2 stages

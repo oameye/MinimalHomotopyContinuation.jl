@@ -52,6 +52,14 @@ function NewtonCorrector(a::Float64, x::AbstractVector{ComplexF64}, m::Int)
     return NewtonCorrector(a, h_a, Δx, r, r̄, x_extended)
 end
 
+@inline function _sub_assign!(dest::AbstractVector, a::AbstractVector, b::AbstractVector)
+    @boundscheck length(dest) == length(a) == length(b) || throw(DimensionMismatch())
+    @inbounds for i in 1:length(dest)
+        dest[i] = a[i] - b[i]
+    end
+    return dest
+end
+
 function extended_prec_refinement_step!(
         x̄::AbstractVector,
         NC::NewtonCorrector,
@@ -68,7 +76,7 @@ function extended_prec_refinement_step!(
     evaluate!(r, H, x_extended, t)
     LA.ldiv!(Δx, updated!(J), r, norm)
     iterative_refinement!(Δx, J, r, norm; tol = 1.0e-8, max_iters = 3)
-    x̄ .= x .- Δx
+    _sub_assign!(x̄, x, Δx)
     if simple_newton_step
         x_extended .= x̄
         evaluate!(r, H, x_extended, t)
@@ -117,7 +125,7 @@ function newton!(
             )
         end
 
-        xᵢ₊₁ .= xᵢ .- Δxᵢ
+        _sub_assign!(xᵢ₊₁, xᵢ, Δxᵢ)
 
         i == 0 && (norm_Δx₀ = norm_Δxᵢ)
         i == 1 && (ω = 2 * norm_Δxᵢ / norm_Δxᵢ₋₁^2)
@@ -140,7 +148,7 @@ function newton!(
             if extended_precision
                 iterative_refinement!(Δxᵢ, J, r, norm; tol = ā^2, max_iters = 3)
             end
-            xᵢ₊₂ .= xᵢ₊₁ .- Δxᵢ
+            _sub_assign!(xᵢ₊₂, xᵢ₊₁, Δxᵢ)
             norm_Δxᵢ₊₁ = norm(Δxᵢ)
             if isnan(norm_Δxᵢ₊₁)
                 @goto return_singular
@@ -220,7 +228,7 @@ function init_newton!(
         end
         LA.ldiv!(Δx, updated!(J), r, norm)
 
-        x₁ .= x̄ .- Δx
+        _sub_assign!(x₁, x̄, Δx)
         norm_Δx₀ = norm(Δx)
         if extended_precision
             x_extended .= x₁
@@ -229,7 +237,7 @@ function init_newton!(
             evaluate!(r, H, x₁, t)
         end
         LA.ldiv!(Δx, J, r, norm)
-        x₂ .= x₁ .- Δx
+        _sub_assign!(x₂, x₁, Δx)
         norm_Δx₁ = norm(Δx) + eps()
         if norm_Δx₁ < a * norm_Δx₀
             ω = 2 * norm_Δx₁ / norm_Δx₀^2

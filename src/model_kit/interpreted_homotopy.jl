@@ -53,17 +53,40 @@ function Base.show(io::IO, H::InterpretedHomotopy)
 end
 
 (H::InterpretedHomotopy)(x, t, p = nothing) = H.homotopy(x, t, p)
-function evaluate!(u, H::InterpretedHomotopy, x, t, p = nothing)
+function evaluate!(
+        u::AbstractVector{ComplexF64},
+        H::InterpretedHomotopy,
+        x::AbstractVector{ComplexF64},
+        t,
+        p = nothing,
+    )
     return execute!(u, H.eval_ComplexF64, x, t, p)
 end
 function evaluate!(u, H::InterpretedHomotopy, x::AbstractVector{ComplexDF64}, t, p = nothing)
     return execute!(u, H.eval_ComplexDF64, x, t, p)
 end
+function evaluate!(u, H::InterpretedHomotopy, x, t, p = nothing)
+    return execute!(u, H.eval_ComplexF64, x, t, p)
+end
 
-
+function evaluate_and_jacobian!(
+        u::AbstractVector{ComplexF64},
+        U::AbstractMatrix{ComplexF64},
+        H::InterpretedHomotopy,
+        x::AbstractVector{ComplexF64},
+        t,
+        p = nothing,
+    )
+    execute!(u, U, H.jac_ComplexF64, x, t, p)
+    return nothing
+end
 function evaluate_and_jacobian!(u, U, H::InterpretedHomotopy, x, t, p = nothing)
     execute!(u, U, H.jac_ComplexF64, x, t, p)
     return nothing
+end
+function jacobian!(U::AbstractMatrix{ComplexF64}, H::InterpretedHomotopy, x, t, p = nothing)
+    execute!(nothing, U, H.jac_ComplexF64, x, t, p)
+    return U
 end
 function jacobian!(U, H::InterpretedHomotopy, x, t, p = nothing)
     execute!(nothing, U, H.jac_ComplexF64, x, t, p)

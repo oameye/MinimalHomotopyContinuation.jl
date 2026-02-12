@@ -1,7 +1,17 @@
+using HomotopyContinuation
+using Test
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+using Random, LinearAlgebra
+Random.seed!(0x8b868a97)
+
 const track = HC.track
 const mixed_volume = HC.MixedSubdivisions.mixed_volume
 
 @testset "solve" begin
+    include("test_systems.jl")
 
     @testset "total degree (simple)" begin
         @var x y
@@ -453,6 +463,9 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         )
         @test cache isa HC.PathSolveCache
 
+        res_cached = @inferred solve!(cache)
+        @test res_cached isa Result
+
         res = @inferred solve(base_prob, base_alg; threading = false, show_progress = false)
         @test res isa Result
 
@@ -481,6 +494,12 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
         r_map = @inferred solve(sweep_map, sweep_alg; threading = false, show_progress = false)
         @test r_map isa Vector{Int}
 
+        cache_map = @inferred HC.SweepSolveCache HC.init(
+            sweep_map, sweep_alg; threading = false, show_progress = false
+        )
+        r_map_cached = @inferred solve!(cache_map)
+        @test r_map_cached isa Vector{Int}
+
         sweep_flat = ParameterSweepProblem(
             Fp,
             starts;
@@ -492,6 +511,57 @@ const mixed_volume = HC.MixedSubdivisions.mixed_volume
             sweep_flat, sweep_alg; threading = false, show_progress = false
         )
         @test r_flat isa Vector{Vector{Float64}}
+
+        cache_flat = @inferred HC.SweepSolveCache HC.init(
+            sweep_flat, sweep_alg; threading = false, show_progress = false
+        )
+        r_flat_cached = @inferred solve!(cache_flat)
+        @test r_flat_cached isa Vector{Vector{Float64}}
+    end
+
+    @testset "Allocations" begin
+        steady_alloc(f; warmup::Int = 2, samples::Int = 3) = begin
+            for _ in 1:warmup
+                f()
+            end
+            GC.gc()
+            minimum((@allocated f()) for _ in 1:samples)
+        end
+
+        @var x y
+        base_prob = SystemProblem(System([x^2 + y^2 - 1, x - y]))
+        base_alg = TotalDegreeAlgorithm(seed = UInt32(0x11223344))
+        path_cache = HC.init(base_prob, base_alg; show_progress = false, threading = false)
+        path_alloc = steady_alloc(() -> solve!(path_cache))
+        @test path_alloc <= 50_000
+
+        @var a b
+        Fp = System([x^2 - a, x * y - a + b], [x, y], [a, b])
+        starts = [[1.0, 1.0], [-1.0, -1.0]]
+        targets = [[2.0, 4.0], [3.0, 5.0]]
+        sweep_alg = PathTrackingAlgorithm(seed = UInt32(0x55667788))
+
+        sweep_map = ParameterSweepProblem(
+            Fp,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets,
+            reducer = MapReducer((r, p) -> nsolutions(r)),
+        )
+        map_cache = HC.init(sweep_map, sweep_alg; show_progress = false, threading = false)
+        map_alloc = steady_alloc(() -> solve!(map_cache))
+        @test map_alloc <= 30_000
+
+        sweep_flat = ParameterSweepProblem(
+            Fp,
+            starts;
+            start_parameters = [1.0, 0.0],
+            targets,
+            reducer = FlatMapReducer((r, p) -> real_solutions(r)),
+        )
+        flat_cache = HC.init(sweep_flat, sweep_alg; show_progress = false, threading = false)
+        flat_alloc = steady_alloc(() -> solve!(flat_cache))
+        @test flat_alloc <= 40_000
     end
 
     @testset "Removed symbol-based APIs" begin

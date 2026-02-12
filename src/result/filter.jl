@@ -74,7 +74,7 @@ end
 _result_filter_options(; kwargs...) = ResultFilterOptions(; kwargs...)
 
 function _with_multiple_results(opts::ResultFilterOptions, multiple_results::Bool)
-    return ResultFilterOptions(
+    return ResultFilterOptions(;
         only_real = opts.only_real,
         real_atol = opts.real_atol,
         real_rtol = opts.real_rtol,
@@ -85,16 +85,13 @@ function _with_multiple_results(opts::ResultFilterOptions, multiple_results::Boo
     )
 end
 
-_effective_filter_options(::AbstractResult, opts::ResultFilterOptions) =
-    _with_multiple_results(opts, true)
+_effective_filter_options(::AbstractResult, opts::ResultFilterOptions) = _with_multiple_results(
+    opts, true
+)
 _effective_filter_options(::AbstractVector{<:PathResult}, opts::ResultFilterOptions) = opts
 _effective_filter_options(::Result, opts::ResultFilterOptions) = opts
 
-function _matches_result(
-        r,
-        R,
-        opts::ResultFilterOptions,
-    )
+function _matches_result(r, R, opts::ResultFilterOptions)
     return (!opts.only_real || is_real(r, opts.real_atol, opts.real_rtol)) &&
         (!opts.only_nonsingular || is_nonsingular(r)) &&
         (!opts.only_singular || is_singular(r)) &&
@@ -146,11 +143,16 @@ function singular(R::AbstractResults; kwargs...)
     return results(R; only_singular = true, kwargs...)
 end
 
-Base.real(R::Results; kwargs...) = filter(r -> is_real(r; kwargs...), path_results(R))
+Base.real(R::Result; kwargs...) = [r for r in path_results(R) if is_real(r; kwargs...)]
+Base.real(R::AbstractVector{<:PathResult}; kwargs...) = [
+    r for r in R if is_real(r; kwargs...)
+]
 
-failed(R::Results) = filter(is_failed, path_results(R))
+failed(R::Result) = [r for r in path_results(R) if is_failed(r)]
+failed(R::AbstractVector{<:PathResult}) = [r for r in R if is_failed(r)]
 
-at_infinity(R::Results) = filter(is_at_infinity, path_results(R))
+at_infinity(R::Result) = [r for r in path_results(R) if is_at_infinity(r)]
+at_infinity(R::AbstractVector{<:PathResult}) = [r for r in R if is_at_infinity(r)]
 
 nsolutions(R::AbstractResults; only_nonsingular = true, options...) = nresults(
     R; only_nonsingular, options...

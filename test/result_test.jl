@@ -1,3 +1,12 @@
+using HomotopyContinuation
+using Test
+using Random, LinearAlgebra
+
+using HomotopyContinuation.DoubleDouble: ComplexDF64
+
+const HC = HomotopyContinuation
+Random.seed!(0x8b868a97)
+
 @testset "Result" begin
     @testset "Basic functionality of Result" begin
         d = 2

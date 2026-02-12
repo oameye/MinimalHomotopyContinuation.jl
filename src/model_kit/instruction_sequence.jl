@@ -42,7 +42,8 @@ function sequence_to_expr(
 
     order_arg = isnothing(order) ? () : (order,)
 
-    exprs = map(seq.instructions) do instr
+    exprs = Expr[]
+    for instr in seq.instructions
         op = instr.op
         arg₁, arg₂, arg₃, arg₄ = instr.input
         i = instr.output
@@ -59,7 +60,9 @@ function sequence_to_expr(
             end
         end
 
-        if instr.op == OP_POW_INT
+        op_expr = if instr.op == OP_STOP
+            nothing
+        elseif instr.op == OP_POW_INT
             :($(r(i)) = $(op_call(OP_POW_INT))($(order_arg...), $(r(arg₁)), $(arg₂)))
         elseif a == 1
             :($(r(i)) = $(op_call(op))($(order_arg...), $(r(arg₁))))
@@ -73,7 +76,10 @@ function sequence_to_expr(
                     $(order_arg...), $(r(arg₁)), $(r(arg₂)), $(r(arg₃)), $(r(arg₄))
                 )
             )
+        else
+            throw(ArgumentError("Unsupported instruction arity $a for operation $(instr.op)."))
         end
+        isnothing(op_expr) || push!(exprs, op_expr)
     end
     return quote
             $(exprs...)
@@ -82,7 +88,10 @@ end
 
 function Base.show(io::IO, instr::Instruction)
     print(io, "t[$(instr.output)] = ", string(Symbol(instr.op)), "(")
-    args = map(enumerate(instr.input[1:arity(instr.op)])) do (k, arg)
+    a = arity(instr.op)
+    (0 <= a <= 4) || throw(ArgumentError("Unsupported instruction arity $a."))
+    args = map(1:a) do k
+        arg = instr.input[k]
         if (should_use_index_not_reference(instr.op, k))
             "$arg"
         else
